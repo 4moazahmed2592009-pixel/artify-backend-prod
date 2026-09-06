@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artify PRO | منصة إنتاج المحتوى بالذكاء الاصطناعي</title>
+    <!-- سكريبت جوجل الحقيقي لتسجيل الدخول -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #131b2e;
+            --primary: #6366f1;
+            --accent: #ec4899;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #1e293b;
+            --success: #10b981;
+            --danger: #f87171;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg-main); color: var(--text-main); line-height: 1.6; }
+
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 8%; border-bottom: 1px solid var(--border); background: rgba(11, 15, 25, 0.95); position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 26px; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        #g_id_signin_container { display: flex; align-items: center; gap: 12px; }
+        .btn-logout { background: #1e293b; color: #fff; border: 1px solid var(--border); padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .user-chip { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
+
+        .hero { text-align: center; padding: 70px 20px 30px; max-width: 900px; margin: auto; }
+        .hero h1 { font-size: 44px; margin-bottom: 15px; font-weight: 900; line-height: 1.25; }
+        .hero span { background: linear-gradient(135deg, #38bdf8, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { font-size: 18px; color: var(--text-muted); margin-bottom: 35px; }
+
+        .access-card { background: var(--bg-card); border: 1px solid var(--border); padding: 35px; border-radius: 18px; max-width: 480px; margin: 0 auto 60px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
+        .access-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
+        .access-card h3 { font-size: 22px; margin-bottom: 10px; }
+        .access-card p.sub { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+
+        .pricing-wrap { max-width: 1100px; margin: 0 auto 70px; padding: 0 20px; text-align: center; }
+        .pricing-wrap h2 { font-size: 30px; margin-bottom: 25px; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        .price-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .price-card.featured { border: 2px solid var(--primary); }
+        .price-card h4 { font-size: 20px; margin-bottom: 10px; }
+        .price-val { font-size: 34px; font-weight: 900; color: #38bdf8; margin-bottom: 8px; }
+        .price-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+        .price-btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
+        .price-btn:hover { background: var(--primary); }
+        .price-card.featured .price-btn { background: var(--primary); }
+        .price-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; padding: 0 8% 80px; }
+        .feature-box { background: var(--bg-card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: center; }
+        .feature-box h3 { color: #38bdf8; margin-bottom: 12px; font-size: 20px; }
+        .feature-box p { color: var(--text-muted); font-size: 15px; }
+
+        #user-dashboard { display: none; padding: 40px 8% 80px; max-width: 900px; margin: auto; }
+        .dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 30px; margin-bottom: 25px; }
+        .dash-card h2 { margin-bottom: 10px; }
+        .tag-active { display: inline-block; background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .tag-inactive { display: inline-block; background: rgba(248, 113, 113, 0.15); color: var(--danger); padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .btn-launch { display: inline-block; margin-top: 20px; padding: 14px 28px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 17px; border: none; cursor: pointer; }
+
+        #statusMsg { margin-top: 15px; font-size: 15px; font-weight: bold; }
+
+        footer { text-align: center; padding: 25px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">Artify PRO</div>
+        <div id="auth-area">
+            <!-- زرار جوجل الحقيقي هيتحط هنا تلقائي -->
+            <div id="g_id_signin_container"></div>
+        </div>
+    </nav>
+
+    <div id="public-view">
+        <section class="hero">
+            <h1>حزمة الإنتاج والمونتاج الآلي <span>بالذكاء الاصطناعي</span></h1>
+            <p>الأداة المتكاملة لتوليد مئات المشاهد بثبات تام للشخصيات، وعمل مونتاج احترافي متكامل بضغطة زر واحدة.</p>
+
+            <div class="access-card">
+                <h3>ابدأ من هنا</h3>
+                <p class="sub">سجّل الدخول بحساب جوجل من الأعلى، وبعدين اختار باقتك عشان تفتح الأداة.</p>
+                <div id="statusMsg"></div>
+            </div>
+        </section>
+
+        <section class="pricing-wrap">
+            <h2>خطط وباقات الاشتراك</h2>
+            <div class="pricing-grid">
+                <div class="price-card">
+                    <div>
+                        <h4>شهر واحد</h4>
+                        <div class="price-val">$15</div>
+                        <p>تجديد شهري مرن للأفراد</p>
+                    </div>
+                    <button class="price-btn" onclick="selectPlan('month1')">اختيار الباقة</button>
+                </div>
+                <div class="price-card featured">
+                    <div>
+                        <h4>3 شهور</h4>
+                        <div class="price-val">$35</div>
+                        <p>الأكثر طلباً (توفير $10)</p>
+                    </div>
+                    <button class="price-btn" onclick="selectPlan('month3')">اختيار الباقة</button>
+                </div>
+                <div class="price-card">
+                    <div>
+                        <h4>6 شهور</h4>
+                        <div class="price-val">$60</div>
+                        <p>قيمة ممتازة لصناع المحتوى</p>
+                    </div>
+                    <button class="price-btn" onclick="selectPlan('month6')">اختيار الباقة</button>
+                </div>
+                <div class="price-card">
+                    <div>
+                        <h4>سنة كاملة</h4>
+                        <div class="price-val">$99</div>
+                        <p>أفضل توفير مع دعم دائم</p>
+                    </div>
+                    <button class="price-btn" onclick="selectPlan('year1')">اختيار الباقة</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature-box">
+                <h3>ثبات شخصيات 100%</h3>
+                <p>توليد أكثر من 300 مشهد بأسلوب فني واحد وشخصيات ثابتة طوال القصة.</p>
+            </div>
+            <div class="feature-box">
+                <h3>مونتاج آلي ذكي</h3>
+                <p>دمج الصوت، الصور، الانتقالات، وملفات الترجمة (SRT) في فيديو جاهز للنشر.</p>
+            </div>
+            <div class="feature-box">
+                <h3>دقة عالية 4K</h3>
+                <p>تصدير صور فائقة الوضوح مع ملف مضغوط وبرومبتات جاهزة للتحريك.</p>
+            </div>
+        </section>
+    </div>
+
+    <div id="user-dashboard">
+        <div class="dash-card">
+            <h2 id="welcomeMsg">مرحباً بك</h2>
+            <div id="subTag" class="tag-inactive">حالة الاشتراك: غير مفعّل</div>
+            <p style="margin-top: 15px; color: var(--text-muted);" id="dashHint">
+                اشترك في إحدى الباقات فوق عشان تقدر تفتح الأداة.
+            </p>
+            <button class="btn-launch" id="launchBtn" style="display:none;" onclick="launchTool()">
+                فتح أداة توليد الصور (Canvas) ↗
+            </button>
+        </div>
+    </div>
+
+    <footer>
+        جميع الحقوق محفوظة &copy; 2026 Artify PRO
+    </footer>
+
+    <script>
+        // ⚠️ حط هنا الـ Client ID اللي هتاخده من Google Cloud Console
+        const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
+
+        let currentUser = null;
+
+        // --- تهيئة زرار جوجل الحقيقي ---
+        window.onload = function () {
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleGoogleCredential,
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("g_id_signin_container"),
+                { theme: "outline", size: "medium", text: "signin_with" }
+            );
+            checkSession();
+        };
+
+        // بيتبعت الـ ID token الحقيقي للسيرفر، والسيرفر هو اللي بيتحقق منه مع جوجل
+        async function handleGoogleCredential(response) {
+            const res = await fetch('/api/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ credential: response.credential }),
+            });
+            if (res.ok) {
+                await checkSession();
+            } else {
+                document.getElementById('statusMsg').style.color = 'var(--danger)';
+                document.getElementById('statusMsg').innerText = 'فشل تسجيل الدخول، حاول تاني.';
+            }
+        }
+
+        // بيسأل السيرفر: أنا مسجل دخول؟ ومشترك ولا لأ؟
+        async function checkSession() {
+            const res = await fetch('/api/me', { credentials: 'include' });
+            if (!res.ok) {
+                showPublicView();
+                return;
+            }
+            currentUser = await res.json();
+            showDashboard(currentUser);
+        }
+
+        function showPublicView() {
+            document.getElementById('public-view').style.display = 'block';
+            document.getElementById('user-dashboard').style.display = 'none';
+        }
+
+        function showDashboard(user) {
+            document.getElementById('public-view').style.display = 'none';
+            document.getElementById('user-dashboard').style.display = 'block';
+            document.getElementById('welcomeMsg').innerText = `أهلاً ${user.name || user.email}`;
+
+            const tag = document.getElementById('subTag');
+            const launchBtn = document.getElementById('launchBtn');
+            const hint = document.getElementById('dashHint');
+
+            if (user.subscriptionActive) {
+                tag.className = 'tag-active';
+                tag.innerText = `حالة الاشتراك: نشط حتى ${new Date(user.expiresAt).toLocaleDateString('ar-EG')}`;
+                launchBtn.style.display = 'inline-block';
+                hint.innerText = 'اضغط الزرار تحت عشان تفتح الأداة.';
+            } else {
+                tag.className = 'tag-inactive';
+                tag.innerText = 'حالة الاشتراك: غير مفعّل';
+                launchBtn.style.display = 'none';
+                hint.innerText = 'اشترك في إحدى الباقات عشان تقدر تفتح الأداة.';
+            }
+        }
+
+        // بيبعت لطلب Checkout حقيقي على Stripe، وبيوديك فعليًا لصفحة الدفع بتاعتهم
+        async function selectPlan(plan) {
+            if (!currentUser) {
+                document.getElementById('statusMsg').style.color = 'var(--danger)';
+                document.getElementById('statusMsg').innerText = 'سجّل الدخول بجوجل الأول من فوق.';
+                return;
+            }
+            const res = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ plan }),
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url; // تحويل حقيقي لصفحة دفع Stripe
+            } else {
+                alert(data.error || 'حصل خطأ، حاول تاني.');
+            }
+        }
+
+        // رابط الأداة بيتجاب من السيرفر بس لو الاشتراك فعلاً شغال
+        async function launchTool() {
+            const res = await fetch('/api/tool-access', { credentials: 'include' });
+            const data = await res.json();
+            if (res.ok && data.url) {
+                window.open(data.url, '_blank');
+            } else {
+                alert(data.error || 'لازم اشتراك ساري عشان تفتح الأداة.');
+            }
+        }
+    </script>
+</body>
+</html>
