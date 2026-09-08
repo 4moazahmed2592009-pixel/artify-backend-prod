@@ -93,6 +93,7 @@ function requireAuth(req, res, next) {
   }
 }
 
+// تسجيل الدخول بجوجل
 app.post('/api/auth/google', async (req, res) => {
   const { credential } = req.body;
   if (!credential) return res.status(400).json({ error: 'Missing credential' });
@@ -127,6 +128,7 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// فحص الجلسة الحالية
 app.get('/api/me', requireAuth, async (req, res) => {
   const { data: user, error } = await supabase.from('users').select('*').eq('email', req.userEmail).single();
   if (error || !user) return res.status(404).json({ error: 'User not found' });
@@ -141,7 +143,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
   });
 });
 
-// تطبيق كود الخصم أو التفعيل المباشر
+// تفعيل كود الخصم أو الباقة المجانية
 app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   const { couponCode } = req.body;
   if (!couponCode) return res.status(400).json({ error: 'Missing code' });
@@ -168,13 +170,12 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   }
 });
 
-// إنشاء جلسة دفع
+// توليد جلسة الدفع في Paymob
 app.post('/api/create-payment', requireAuth, async (req, res) => {
   const { plan, couponCode } = req.body;
   let priceEGP = PLAN_PRICE_EGP[plan];
   if (!priceEGP) return res.status(400).json({ error: 'Invalid plan' });
 
-  // تطبيق الخصم إن وجد
   if (couponCode) {
     const cleanCode = couponCode.trim().toUpperCase();
     const promo = PROMO_CODES[cleanCode];
@@ -226,7 +227,7 @@ app.post('/api/create-payment', requireAuth, async (req, res) => {
   }
 });
 
-// Webhook
+// استقبال تأكيد الدفع التلقائي من Paymob
 app.post('/api/webhook', async (req, res) => {
   const receivedHmac = req.query.hmac || (req.body && req.body.hmac);
   const obj = (req.body && req.body.obj) || req.body;
@@ -262,12 +263,17 @@ app.post('/api/webhook', async (req, res) => {
   res.json({ received: true });
 });
 
-app.get('/api/tool-access', requireAuth, async (req, res) => {
+// المسار المحمي: تحويل مباشر مع إخفاء الرابط عن المتصفح والواجهة
+app.get('/api/launch-app', requireAuth, async (req, res) => {
   const { data: user } = await supabase.from('users').select('*').eq('email', req.userEmail).single();
   const active = user && !!user.subscription_active && Number(user.expires_at || 0) > Date.now();
 
-  if (!active) return res.status(403).json({ error: 'No active subscription' });
-  res.json({ url: TOOL_URL });
+  if (!active) {
+    return res.status(403).send('عفواً، لا يوجد اشتراك نشط لهذا الحساب.');
+  }
+
+  // تحويل فوري للرابط الأصلي دون كشفه في JSON
+  res.redirect(TOOL_URL);
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
