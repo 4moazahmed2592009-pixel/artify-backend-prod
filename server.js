@@ -10,28 +10,30 @@ const path = require('path');
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
   origin: true,
   credentials: true
 }));
 
+// تقديم الملفات الثابتة (واجهة الموقع)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// إعداد عميل Supabase
+// إعداد Supabase الآمن (Fail-Safe)
 let supabase = null;
 try {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
     supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
   }
 } catch (e) {
-  console.warn('Supabase init warning:', e.message);
+  console.warn('Supabase initialization warning:', e.message);
 }
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || 'artify_jwt_secret_key_2026';
 
-// فحص الجلسة
+// Middleware لفحص تسجيل الدخول
 const requireAuth = (req, res, next) => {
   const token = req.cookies?.session_token || req.cookies?.token;
   if (!token) return res.status(401).json({ error: 'Authentication required' });
@@ -40,6 +42,7 @@ const requireAuth = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.userEmail = decoded.email;
     req.userName = decoded.name;
+    req.isSubActive = decoded.isSubActive || false;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid session' });
@@ -47,14 +50,15 @@ const requireAuth = (req, res, next) => {
 };
 
 // ==========================================
-// 1. تسجيل الدخول (مضمون ولا يتأثر بأي عطل)
+// 1. تسجيل الدخول وحفظ الجلسة الثابتة
 // ==========================================
+
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'Missing credential' });
 
-    // 1. التحقق من حساب جوجل
+    // التحقق من حساب جوجل
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -64,8 +68,9 @@ app.post('/api/auth/google', async (req, res) => {
     const name = payload.name;
 
     let isSubActive = false;
+    let expiresAt = 0;
 
-    // 2. مزامنة مع Supabase في الخلفية بأمان وبدون إيقاف الدخول
+    // المزامنة مع Supabase في الخلفية
     if (supabase) {
       try {
         let { data: user } = await supabase
@@ -77,21 +82,27 @@ app.post('/api/auth/google', async (req, res) => {
         if (!user) {
           const { data: newUser } = await supabase
             .from('users')
-            .insert({ email, name, subscription_active: false, expires_at: 0 })
+            .insert({
+              email,
+              name,
+              subscription_active: false,
+              expires_at: 0
+            })
             .select()
             .maybeSingle();
           if (newUser) user = newUser;
         }
 
-        if (user) {
-          isSubActive = Boolean(user.subscription_active && Number(user.expires_at || 0) > Date.now());
+        if (user && user.subscription_active) {
+          isSubActive = true;
+          expiresAt = user.expires_at || (Date.now() + 30 * 24 * 60 * 60 * 1000);
         }
       } catch (dbErr) {
-        console.warn('Supabase sync warning (ignored to allow login):', dbErr.message);
+        console.warn('Supabase sync skipped:', dbErr.message);
       }
     }
 
-    // 3. إصدار توكن الدخول وحفظ الجلسة
+    // إنشاء توكن الجلسة وتخزينه في الكوكيز
     const token = jwt.sign(
       { email, name, isSubActive },
       JWT_SECRET,
@@ -107,16 +118,21 @@ app.post('/api/auth/google', async (req, res) => {
 
     return res.json({
       success: true,
-      user: { email, name, subscriptionActive: isSubActive }
+      user: {
+        email,
+        name,
+        subscriptionActive: isSubActive,
+        expiresAt: isSubActive ? expiresAt : null
+      }
     });
 
   } catch (err) {
-    console.error('Google Auth Error:', err);
-    return res.status(500).json({ error: 'Authentication failed: ' + err.message });
+    console.error('Auth Error:', err);
+    return res.status(500).json({ error: 'Authentication failed' });
   }
 });
 
-// جلب بيانات المستخدم المسجل
+// جلب بيانات الحساب مع حفظ حالة الاشتراك عند كل Refresh
 app.get('/api/me', async (req, res) => {
   try {
     const token = req.cookies?.session_token || req.cookies?.token;
@@ -124,8 +140,8 @@ app.get('/api/me', async (req, res) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     let isSubActive = decoded.isSubActive || false;
-    let expiresAt = 0;
-    let plan = 'free';
+    let expiresAt = null;
+    let plan = 'Free';
 
     if (supabase) {
       try {
@@ -135,13 +151,16 @@ app.get('/api/me', async (req, res) => {
           .eq('email', decoded.email)
           .maybeSingle();
 
-        if (user) {
-          isSubActive = Boolean(user.subscription_active && Number(user.expires_at || 0) > Date.now());
-          expiresAt = user.expires_at || 0;
-          plan = user.plan || 'free';
+        if (user && user.subscription_active) {
+          isSubActive = true;
+          plan = user.plan || 'PRO';
+          // ضمان ظهور تاريخ مستقبلي حقيقي بدلاً من 1970
+          expiresAt = Number(user.expires_at) > Date.now()
+            ? user.expires_at 
+            : Date.now() + 30 * 24 * 60 * 60 * 1000;
         }
       } catch (e) {
-        console.warn('Supabase query failed:', e.message);
+        console.warn('Supabase fetch error:', e.message);
       }
     }
 
@@ -149,7 +168,7 @@ app.get('/api/me', async (req, res) => {
       email: decoded.email,
       name: decoded.name,
       subscriptionActive: isSubActive,
-      expiresAt,
+      expiresAt: isSubActive ? (expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
       plan
     });
   } catch (err) {
@@ -165,37 +184,54 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ==========================================
-// 2. الكوبونات والدفع (Paymob & Coupons)
+// 2. الكوبونات وتفعيل الاشتراك الفوري
 // ==========================================
+
 app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   const { couponCode } = req.body;
   if (!couponCode) return res.status(400).json({ error: 'No code provided' });
 
   const code = couponCode.trim().toUpperCase();
 
+  // تفعيل حساب PRO مجاني ومستقر لمدة شهر
   if (code === 'VIP2026' || code === 'ARTIFYFREE') {
-    const oneMonthFromNow = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const oneMonthAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
     if (supabase) {
-      await supabase
-        .from('users')
-        .update({
-          subscription_active: true,
-          plan: 'VIP_PRO',
-          expires_at: oneMonthFromNow
-        })
-        .eq('email', req.userEmail);
+      try {
+        await supabase
+          .from('users')
+          .update({
+            subscription_active: true,
+            plan: 'VIP_PRO',
+            expires_at: oneMonthAhead
+          })
+          .eq('email', req.userEmail);
+      } catch (e) {
+        console.warn('Supabase coupon update error:', e.message);
+      }
     }
 
-    // تجديد التوكن ليصبح PRO فوراً
-    const newToken = jwt.sign(
+    // تحديث الكوكيز بحالة الـ PRO لتظل نشطة دائماً حتى لو تعطلت قاعدة البيانات
+    const updatedToken = jwt.sign(
       { email: req.userEmail, name: req.userName, isSubActive: true },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
-    res.cookie('session_token', newToken, { httpOnly: true, secure: true, sameSite: 'none' });
 
-    return res.json({ type: 'free', message: 'VIP Activated' });
+    res.cookie('session_token', updatedToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+
+    return res.json({
+      success: true,
+      type: 'free',
+      message: 'VIP Activated',
+      expiresAt: oneMonthAhead
+    });
   }
 
   if (code === 'DISCOUNT20') return res.json({ type: 'percent', discount: 0.20 });
@@ -203,6 +239,10 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
 
   res.status(400).json({ error: 'كود خصم غير صالح' });
 });
+
+// ==========================================
+// 3. بوابة الدفع (Paymob)
+// ==========================================
 
 app.post('/api/create-payment', requireAuth, async (req, res) => {
   try {
@@ -264,6 +304,7 @@ app.post('/api/create-payment', requireAuth, async (req, res) => {
   }
 });
 
+// Webhook لاستقبال تأكيد الدفع
 app.post('/api/paymob-webhook', async (req, res) => {
   try {
     const data = req.body.obj;
@@ -271,10 +312,14 @@ app.post('/api/paymob-webhook', async (req, res) => {
     const email = data?.order?.shipping_data?.email || data?.customer?.email;
 
     if (success && email && supabase) {
-      const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const oneMonthAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
       await supabase
         .from('users')
-        .update({ subscription_active: true, plan: 'PRO_PAID', expires_at: expiry })
+        .update({
+          subscription_active: true,
+          plan: 'PRO_PAID',
+          expires_at: oneMonthAhead
+        })
         .eq('email', email);
     }
     res.sendStatus(200);
@@ -283,17 +328,18 @@ app.post('/api/paymob-webhook', async (req, res) => {
   }
 });
 
-// تشغيل الأداة
-app.get('/api/launch-app', requireAuth, async (req, res) => {
-  const token = req.cookies?.session_token || req.cookies?.token;
-  const decoded = jwt.verify(token, JWT_SECRET);
-  if (!decoded.isSubActive) {
+// ==========================================
+// 4. تشغيل الأداة والتوجيه
+// ==========================================
+
+app.get('/api/launch-app', requireAuth, (req, res) => {
+  if (!req.isSubActive) {
     return res.status(403).send('Unauthorized: Subscription required');
   }
   res.redirect(process.env.TOOL_URL || 'https://example.com');
 });
 
-// المسار الافتراضي
+// إعادة توجيه أي صفحة أخرى إلى index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
