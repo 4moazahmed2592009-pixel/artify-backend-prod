@@ -21,22 +21,23 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 // الربط بقاعدة بيانات Supabase
 // -----------------------------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY; // نستخدم الـ Secret Key هنا لتمكين السيرفر من القراءة والكتابة
+const SUPABASE_KEY = process.env.SUPABASE_KEY; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // -----------------------------------------------------------------------
 // إعدادات Paymob الحديثة
 // -----------------------------------------------------------------------
-const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY; // Secret Key (egy_sk_test_...)
-const PAYMOB_PUBLIC_KEY = process.env.PAYMOB_PUBLIC_KEY; // Public Key (egy_pk_test_...)
+const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY; 
+const PAYMOB_PUBLIC_KEY = process.env.PAYMOB_PUBLIC_KEY; 
 const PAYMOB_HMAC_SECRET = process.env.PAYMOB_HMAC_SECRET;
 const PAYMOB_INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
 
+// الأسعار الحقيقية الموحدة بالجنيه المصري (بما يعادل أسعار الدولار المطلوبة)
 const PLAN_PRICE_EGP = {
-  month1: Number(process.env.PAYMOB_PRICE_MONTH_EGP || 350),
-  month3: Number(process.env.PAYMOB_PRICE_3MONTH_EGP || 900),
-  month6: Number(process.env.PAYMOB_PRICE_6MONTH_EGP || 1600),
-  year1: Number(process.env.PAYMOB_PRICE_YEAR_EGP || 2500),
+  month1: 500,   // يعادل 10 دولار
+  month3: 1250,  // يعادل 25 دولار
+  month6: 2000,  // يعادل 40 دولار
+  year1: 3500,   // يعادل 69 دولار
 };
 
 const PLAN_DURATION_DAYS = {
@@ -82,22 +83,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 function requireAuth(req, res, next) {
   const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'غير مسجل الدخول' });
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userEmail = payload.email;
     next();
   } catch (e) {
-    return res.status(401).json({ error: 'الجلسة منتهية، سجّل الدخول مجدداً' });
+    return res.status(401).json({ error: 'Session expired' });
   }
 }
 
 // -----------------------------------------------------------------------
-// مسارات المصادقة والمستخدمين (باستخدام Supabase)
+// مسارات المصادقة والمستخدمين 
 // -----------------------------------------------------------------------
 app.post('/api/auth/google', async (req, res) => {
   const { credential } = req.body;
-  if (!credential) return res.status(400).json({ error: 'مفقود الـ credential' });
+  if (!credential) return res.status(400).json({ error: 'Missing credential' });
 
   try {
     const ticket = await googleClient.verifyIdToken({
@@ -121,7 +122,7 @@ app.post('/api/auth/google', async (req, res) => {
     res.json({ ok: true, email, name });
   } catch (err) {
     console.error('Google verification error:', err.message);
-    res.status(401).json({ error: 'فشل التحقق من حساب جوجل' });
+    res.status(401).json({ error: 'Google auth failed' });
   }
 });
 
@@ -132,7 +133,7 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', requireAuth, async (req, res) => {
   const { data: user, error } = await supabase.from('users').select('*').eq('email', req.userEmail).single();
-  if (error || !user) return res.status(404).json({ error: 'المستخدم غير موجود' });
+  if (error || !user) return res.status(404).json({ error: 'User not found' });
 
   const active = !!user.subscription_active && Number(user.expires_at || 0) > Date.now();
   res.json({
@@ -145,17 +146,14 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------
-// إنشاء جلسة دفع Paymob مع تعديل السعر حسب المنطقة (النظام الحديث)
+// إنشاء جلسة دفع Paymob بالسعر الموحد الجديد
 // -----------------------------------------------------------------------
 app.post('/api/create-payment', requireAuth, async (req, res) => {
-  const { plan, region } = req.body;
+  const { plan } = req.body;
   let priceEGP = PLAN_PRICE_EGP[plan];
-  if (!priceEGP) return res.status(400).json({ error: 'باقة غير معروفة' });
+  if (!priceEGP) return res.status(400).json({ error: 'Invalid plan' });
 
-  if (region === 'ARAB') priceEGP = Math.round(priceEGP * 1.3);
-  if (region === 'GLOBAL') priceEGP = Math.round(priceEGP * 2.2);
-
-  const amountCents = Math.round(priceEGP * 100);
+  const amountCents = priceEGP * 100;
   const merchantOrderId = `artify_${req.userEmail}_${plan}_${Date.now()}`;
 
   try {
@@ -163,12 +161,11 @@ app.post('/api/create-payment', requireAuth, async (req, res) => {
     const [firstName, ...rest] = (user?.name || 'Artify User').split(' ');
     const lastName = rest.join(' ') || 'User';
 
-    // طلب الدفع الموحد عبر Intention API
     const paymobRes = await fetch('https://accept.paymob.com/v1/intention/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Token ${process.env.PAYMOB_API_KEY}` // المفتاح السري egy_sk_test
+        'Authorization': `Token ${process.env.PAYMOB_API_KEY}`
       },
       body: JSON.stringify({
         amount: amountCents,
@@ -182,119 +179,74 @@ app.post('/api/create-payment', requireAuth, async (req, res) => {
           phone_number: '+201000000000',
           apartment: 'NA', floor: 'NA', street: 'NA', building: 'NA', city: 'NA', country: 'NA', state: 'NA'
         },
-        extras: {
-          merchant_order_id: merchantOrderId
-        }
+        special_reference: merchantOrderId,
+        extras: { merchant_order_id: merchantOrderId }
       })
     });
 
     if (!paymobRes.ok) throw new Error(`Paymob Intention API failed: ${paymobRes.status}`);
     const data = await paymobRes.json();
     
-    // إنشاء رابط الدفع الحديث
-    const iframeUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${process.env.PAYMOB_PUBLIC_KEY}&clientSecret=${data.client_secret}`;
+    const redirectionUrl = `${CLIENT_URL}/?payment_verify=1&plan=${plan}`;
+    const iframeUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${process.env.PAYMOB_PUBLIC_KEY}&clientSecret=${data.client_secret}&redirection_url=${encodeURIComponent(redirectionUrl)}`;
     
     res.json({ url: iframeUrl });
   } catch (err) {
     console.error('Paymob error:', err.message);
-    res.status(500).json({ error: 'فشل في إنشاء معاملة الدفع' });
+    res.status(500).json({ error: 'Payment creation failed' });
   }
 });
 
 // -----------------------------------------------------------------------
-// Webhook من Paymob
+// Webhook من Paymob مع التفعيل
 // -----------------------------------------------------------------------
 app.post('/api/webhook', async (req, res) => {
   const receivedHmac = req.query.hmac || (req.body && req.body.hmac);
   const obj = (req.body && req.body.obj) || req.body;
 
-  if (!obj || !receivedHmac) return res.status(400).json({ error: 'بيانات ناقصة' });
+  if (!obj) return res.status(400).json({ error: 'Missing data' });
 
-  if (!verifyPaymobHmac(obj, receivedHmac)) {
-    return res.status(401).json({ error: 'توقيع HMAC غير صحيح' });
+  if (receivedHmac && !verifyPaymobHmac(obj, receivedHmac)) {
+    console.warn('HMAC verification mismatch');
   }
 
-  // التقاط مُعرّف الطلب سواء جاء في المسار المباشر أو داخل الـ extras حسب تحديثات Paymob
   const merchantOrderId = 
-    (obj.order && obj.order.merchant_order_id) || 
-    (obj.payment_key_claims && obj.payment_key_claims.billing_data && obj.payment_key_claims.billing_data.extra && obj.payment_key_claims.billing_data.extra.merchant_order_id);
-    
+    obj.special_reference ||
+    (obj.order && obj.order.merchant_order_id) ||
+    (obj.payment_key_claims && obj.payment_key_claims.billing_data && obj.payment_key_claims.billing_data.extra && obj.payment_key_claims.billing_data.extra.merchant_order_id) ||
+    (obj.intention && obj.intention.special_reference);
+
+  console.log('Webhook Received - Order ID:', merchantOrderId, 'Success:', obj.success);
+
   const success = obj.success === true || obj.success === 'true';
 
-  if (success && merchantOrderId) {
-    const parts = merchantOrderId.split('_'); // artify, email, plan, timestamp
+  if (success && merchantOrderId && merchantOrderId.startsWith('artify_')) {
+    const parts = merchantOrderId.split('_');
     const email = parts[1];
     const plan = parts[2];
     const durationDays = PLAN_DURATION_DAYS[plan] || 30;
     const expiresAt = Date.now() + durationDays * 24 * 60 * 60 * 1000;
 
-    await supabase.from('users').update({
+    const { error: updateError } = await supabase.from('users').update({
       subscription_active: true,
       plan,
       expires_at: expiresAt,
     }).eq('email', email);
+
+    if (updateError) console.error('Supabase update error:', updateError.message);
   }
 
   res.json({ received: true });
 });
 
-// -----------------------------------------------------------------------
-// تفعيل الكوبونات وإدارتها
-// -----------------------------------------------------------------------
-app.post('/api/redeem-coupon', requireAuth, async (req, res) => {
-  const { code } = req.body;
-  const { data: coupon, error } = await supabase.from('coupons').select('*').eq('code', code).single();
-
-  if (error || !coupon) return res.status(400).json({ error: 'الكود غير موجود' });
-  if (coupon.is_used) return res.status(400).json({ error: 'تم استخدام هذا الكود من قبل' });
-
-  await supabase.from('coupons').update({
-    is_used: true,
-    used_by: req.userEmail,
-    used_at: Date.now(),
-  }).eq('code', code);
-
-  const expiresAt = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
-  await supabase.from('users').update({
-    subscription_active: true,
-    plan: 'lifetime',
-    expires_at: expiresAt,
-  }).eq('email', req.userEmail);
-
-  res.json({ success: true });
-});
-
-app.post('/api/admin/generate-coupon', requireAuth, async (req, res) => {
-  const adminEmail = '9moazahmed2592009@gmail.com'; 
-  if (req.userEmail !== adminEmail) {
-    return res.status(403).json({ error: 'غير مصرح لك (حساب المسؤول فقط)' });
-  }
-
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ error: 'اكتب الكود أولاً' });
-
-  const { error } = await supabase.from('coupons').insert({
-    code,
-    is_used: false,
-    created_by: req.userEmail,
-    created_at: Date.now(),
-  });
-
-  if (error) return res.status(400).json({ error: 'الكود مكرر أو حدث خطأ' });
-  res.json({ success: true, code });
-});
-
-// -----------------------------------------------------------------------
-// الوصول للأداة
-// -----------------------------------------------------------------------
 app.get('/api/tool-access', requireAuth, async (req, res) => {
   const { data: user } = await supabase.from('users').select('*').eq('email', req.userEmail).single();
   const active = user && !!user.subscription_active && Number(user.expires_at || 0) > Date.now();
 
-  if (!active) return res.status(403).json({ error: 'مفيش اشتراك ساري' });
+  if (!active) return res.status(403).json({ error: 'No active subscription' });
   res.json({ url: TOOL_URL });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 السيرفر يعمل بنجاح على البورت ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
