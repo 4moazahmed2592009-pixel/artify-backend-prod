@@ -36,7 +36,6 @@
         #g_id_signin_container { display: flex; align-items: center; }
         .user-chip { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-muted); }
 
-        /* Important Notice Banner */
         .age-notice { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--warning); padding: 12px 20px; border-radius: 12px; max-width: 900px; margin: 25px auto 0; font-size: 14px; text-align: center; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
 
         .hero { text-align: center; padding: 50px 20px 20px; max-width: 900px; margin: auto; }
@@ -44,7 +43,7 @@
         .hero span { background: linear-gradient(135deg, #38bdf8, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .hero p { font-size: 18px; color: var(--text-muted); margin-bottom: 30px; }
 
-        /* Dashboard for Active Subscribers */
+        /* مساحة العمل للمشتركين النشطين فقط */
         #user-dashboard { display: none; padding: 40px 8% 80px; max-width: 850px; margin: auto; text-align: center; }
         .dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
         .dash-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
@@ -52,7 +51,7 @@
         .btn-launch { display: inline-block; margin-top: 30px; padding: 16px 36px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; border-radius: 12px; font-weight: bold; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); transition: transform 0.2s; }
         .btn-launch:hover { transform: scale(1.04); }
 
-        /* Non-subscriber / Pricing View */
+        /* منطقة الاشتراكات - تختفي تلقائياً للمشترك الفعلي */
         #purchase-section { display: block; }
         .pricing-wrap { max-width: 1100px; margin: 0 auto 60px; padding: 0 20px; text-align: center; }
         .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 30px; }
@@ -67,7 +66,6 @@
         .price-btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .price-card:hover .price-btn { background: var(--primary); border-color: var(--primary); }
 
-        /* Coupon Card */
         .coupon-card { max-width: 480px; margin: 0 auto 50px; background: var(--bg-card); border: 1px dashed var(--primary); border-radius: 14px; padding: 25px; text-align: center; }
         .coupon-input-group { display: flex; gap: 8px; margin-top: 15px; }
         .coupon-input { flex: 1; background: #0b0f19; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: #fff; text-transform: uppercase; font-weight: bold; outline: none; }
@@ -96,12 +94,12 @@
         </div>
     </nav>
 
-    <!-- 18+ Age Requirement Warning -->
+    <!-- تنبيه السن القانوني للحساب 18+ -->
     <div class="age-notice">
         ⚠️ <span data-en="Important: Make sure your logged-in Google Account date of birth is set to 18+ years old to allow full AI generation access." data-ar="تنبيه هام: يرجى التأكد من أن حساب جوجل المسجل به مسجل في إعداداته أن عمرك 18 سنة أو أكثر لضمان تفعيل ميزات توليد الصور بدون قيود.">Important: Make sure your logged-in Google Account date of birth is set to 18+ years old to allow full AI generation access.</span>
     </div>
 
-    <!-- Active Subscriber View: Launches desktop app popup, hides plans completely -->
+    <!-- مساحة عمل المشترك الفعلي (تختفي منها أسعار الباقات بالكامل) -->
     <div id="user-dashboard" class="animate-up">
         <div class="dash-card">
             <h2 id="welcomeMsg" style="font-size: 28px;">Welcome</h2>
@@ -115,14 +113,14 @@
         </div>
     </div>
 
-    <!-- Non-Subscribers or Expired View -->
+    <!-- واجهة غير المشتركين أو الاشتراكات المنتهية -->
     <div id="purchase-section" class="animate-up">
         <section class="hero">
             <h1 data-en="Automated Content Creation <span>Suite</span>" data-ar="حزمة الإنتاج والمونتاج الآلي <span>بالذكاء الاصطناعي</span>">Automated Content Creation <span>Suite</span></h1>
             <p data-en="The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click." data-ar="الأداة المتكاملة لتوليد مئات المشاهد بثبات تام للشخصيات ومونتاج ذكي بضغطة زر.">The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click.</p>
         </section>
 
-        <!-- Coupon Card -->
+        <!-- كارت إدخال كود الخصم أو التفعيل المجاني -->
         <div class="coupon-card">
             <h3 data-en="Have a Promo / VIP Code?" data-ar="هل تمتلك كود خصم أو دعوة؟">Have a Promo / VIP Code?</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" data-en="Apply your coupon for instant discounts or free plan activation." data-ar="أدخل الكود للحصول على خصم فوري أو تفعيل باقة مجانية مباشرة.">Apply your coupon for instant discounts or free plan activation.</p>
@@ -267,7 +265,7 @@
             uChip.style.display = 'flex';
             document.getElementById('userChipName').innerText = user.name || user.email;
 
-            // إذا كان المستخدم مشتركاً نشطاً: نخفي الباقات تماماً ونظهر مساحة العمل
+            // إخفاء قسم الباقات بالكامل وإظهار زر الأداة للمشترك
             if (user.subscriptionActive) {
                 purchaseSec.style.display = 'none';
                 dashSec.style.display = 'block';
@@ -359,26 +357,16 @@
             }
         }
 
-        // فتح الأداة كنافذة تطبيق سطح مكتب مستقل بدون شريط عناوين
-        async function launchTool() {
-            const btn = document.getElementById('launchBtn');
-            btn.innerText = currentLang === 'en' ? 'Opening...' : 'جاري الفتح...';
-            try {
-                const res = await fetch('/api/tool-access', { credentials: 'include' });
-                const data = await res.json();
-                if (res.ok && data.url) {
-                    const w = window.screen.availWidth;
-                    const h = window.screen.availHeight;
-                    const features = `width=${w},height=${h},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
-                    window.open(data.url, 'ArtifyToolWorkspace', features);
-                } else {
-                    alert('Active subscription required');
-                }
-            } catch (err) {
-                alert('Connection error');
-            } finally {
-                btn.innerText = currentLang === 'en' ? 'Launch Generation Tool ↗' : 'فتح أداة توليد الصور (Canvas) ↗';
-            }
+        // فتح التطبيق عبر المسار الداخلي المحمي في نافذة مخصصة
+        function launchTool() {
+            const screenW = window.screen.availWidth;
+            const screenH = window.screen.availHeight;
+
+            // إعدادات نافذة التطبيق المستقلة ملء الشاشة
+            const windowFeatures = `width=${screenW},height=${screenH},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+
+            // توجيه المتصفح للمسار الداخلي المحمي مباشرة
+            window.open('/api/launch-app', 'ArtifyWorkspace', windowFeatures);
         }
 
         async function logout() {
