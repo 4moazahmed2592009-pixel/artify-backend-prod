@@ -25,13 +25,12 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY; // نستخدم الـ Secret Key
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // -----------------------------------------------------------------------
-// إعدادات Paymob
+// إعدادات Paymob الحديثة
 // -----------------------------------------------------------------------
-const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY;
+const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY; // Secret Key (egy_sk_test_...)
+const PAYMOB_PUBLIC_KEY = process.env.PAYMOB_PUBLIC_KEY; // Public Key (egy_pk_test_...)
 const PAYMOB_HMAC_SECRET = process.env.PAYMOB_HMAC_SECRET;
 const PAYMOB_INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
-const PAYMOB_IFRAME_ID = process.env.PAYMOB_IFRAME_ID;
-const PAYMOB_BASE_URL = (process.env.PAYMOB_BASE_URL || 'https://accept.paymob.com/api').replace(/\/$/, '');
 
 const PLAN_PRICE_EGP = {
   month1: Number(process.env.PAYMOB_PRICE_MONTH_EGP || 350),
@@ -48,63 +47,8 @@ const PLAN_DURATION_DAYS = {
 };
 
 // -----------------------------------------------------------------------
-// دوال Paymob
+// التحقق من توقيع Paymob Webhook
 // -----------------------------------------------------------------------
-async function paymobAuth() {
-  const res = await fetch(`${PAYMOB_BASE_URL}/auth/tokens`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_key: PAYMOB_API_KEY }),
-  });
-  if (!res.ok) throw new Error(`Paymob auth failed: ${res.status}`);
-  const data = await res.json();
-  return data.token;
-}
-
-async function paymobCreateOrder(authToken, amountCents, merchantOrderId) {
-  const res = await fetch(`${PAYMOB_BASE_URL}/ecommerce/orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      auth_token: authToken,
-      delivery_needed: false,
-      amount_cents: amountCents,
-      currency: 'EGP',
-      merchant_order_id: merchantOrderId,
-      items: [],
-    }),
-  });
-  if (!res.ok) throw new Error(`Paymob order creation failed: ${res.status}`);
-  const data = await res.json();
-  return data.id;
-}
-
-async function paymobPaymentKey(authToken, amountCents, orderId, email, name) {
-  const [firstName, ...rest] = (name || 'Artify User').split(' ');
-  const lastName = rest.join(' ') || 'User';
-
-  const res = await fetch(`${PAYMOB_BASE_URL}/acceptance/payment_keys`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      auth_token: authToken,
-      amount_cents: amountCents,
-      expiration: 3600,
-      order_id: orderId,
-      billing_data: {
-        apartment: 'NA', email, floor: 'NA', first_name: firstName, street: 'NA',
-        building: 'NA', phone_number: '+201000000000', shipping_method: 'NA',
-        postal_code: 'NA', city: 'NA', country: 'NA', last_name: lastName, state: 'NA',
-      },
-      currency: 'EGP',
-      integration_id: Number(PAYMOB_INTEGRATION_ID),
-    }),
-  });
-  if (!res.ok) throw new Error(`Paymob payment key failed: ${res.status}`);
-  const data = await res.json();
-  return data.token;
-}
-
 function verifyPaymobHmac(obj, receivedHmac) {
   const fields = [
     'amount_cents', 'created_at', 'currency', 'error_occured',
@@ -164,7 +108,6 @@ app.post('/api/auth/google', async (req, res) => {
     const email = payload.email;
     const name = payload.name;
 
-    // حفظ المستخدم في Supabase (إن لم يكن موجوداً يحدّث الاسم فقط)
     await supabase.from('users').upsert({ email, name }, { onConflict: 'email', ignoreDuplicates: false });
 
     const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '30d' });
@@ -202,7 +145,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------
-// إنشاء جلسة دفع Paymob مع تعديل السعر حسب المنطقة
+// إنشاء جلسة دفع Paymob مع تعديل السعر حسب المنطقة (النظام الحديث)
 // -----------------------------------------------------------------------
 app.post('/api/create-payment', requireAuth, async (req, res) => {
   const { plan, region } = req.body;
@@ -216,13 +159,41 @@ app.post('/api/create-payment', requireAuth, async (req, res) => {
   const merchantOrderId = `artify_${req.userEmail}_${plan}_${Date.now()}`;
 
   try {
-    const authToken = await paymobAuth();
-    const orderId = await paymobCreateOrder(authToken, amountCents, merchantOrderId);
-    
     const { data: user } = await supabase.from('users').select('name').eq('email', req.userEmail).single();
-    const paymentToken = await paymobPaymentKey(authToken, amountCents, orderId, req.userEmail, user ? user.name : '');
+    const [firstName, ...rest] = (user?.name || 'Artify User').split(' ');
+    const lastName = rest.join(' ') || 'User';
 
-    const iframeUrl = `${PAYMOB_BASE_URL}/acceptance/iframes/${PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
+    // طلب الدفع الموحد عبر Intention API
+    const paymobRes = await fetch('https://accept.paymob.com/v1/intention/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${process.env.PAYMOB_API_KEY}` // المفتاح السري egy_sk_test
+      },
+      body: JSON.stringify({
+        amount: amountCents,
+        currency: 'EGP',
+        payment_methods: [Number(process.env.PAYMOB_INTEGRATION_ID)],
+        items: [],
+        billing_data: {
+          first_name: firstName,
+          last_name: lastName,
+          email: req.userEmail,
+          phone_number: '+201000000000',
+          apartment: 'NA', floor: 'NA', street: 'NA', building: 'NA', city: 'NA', country: 'NA', state: 'NA'
+        },
+        extras: {
+          merchant_order_id: merchantOrderId
+        }
+      })
+    });
+
+    if (!paymobRes.ok) throw new Error(`Paymob Intention API failed: ${paymobRes.status}`);
+    const data = await paymobRes.json();
+    
+    // إنشاء رابط الدفع الحديث
+    const iframeUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${process.env.PAYMOB_PUBLIC_KEY}&clientSecret=${data.client_secret}`;
+    
     res.json({ url: iframeUrl });
   } catch (err) {
     console.error('Paymob error:', err.message);
@@ -243,7 +214,11 @@ app.post('/api/webhook', async (req, res) => {
     return res.status(401).json({ error: 'توقيع HMAC غير صحيح' });
   }
 
-  const merchantOrderId = obj.order && obj.order.merchant_order_id;
+  // التقاط مُعرّف الطلب سواء جاء في المسار المباشر أو داخل الـ extras حسب تحديثات Paymob
+  const merchantOrderId = 
+    (obj.order && obj.order.merchant_order_id) || 
+    (obj.payment_key_claims && obj.payment_key_claims.billing_data && obj.payment_key_claims.billing_data.extra && obj.payment_key_claims.billing_data.extra.merchant_order_id);
+    
   const success = obj.success === true || obj.success === 'true';
 
   if (success && merchantOrderId) {
@@ -273,14 +248,12 @@ app.post('/api/redeem-coupon', requireAuth, async (req, res) => {
   if (error || !coupon) return res.status(400).json({ error: 'الكود غير موجود' });
   if (coupon.is_used) return res.status(400).json({ error: 'تم استخدام هذا الكود من قبل' });
 
-  // قفل الكود
   await supabase.from('coupons').update({
     is_used: true,
     used_by: req.userEmail,
     used_at: Date.now(),
   }).eq('code', code);
 
-  // تفعيل اشتراك دائم (100 سنة) للمستخدم
   const expiresAt = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
   await supabase.from('users').update({
     subscription_active: true,
@@ -292,7 +265,7 @@ app.post('/api/redeem-coupon', requireAuth, async (req, res) => {
 });
 
 app.post('/api/admin/generate-coupon', requireAuth, async (req, res) => {
-  const adminEmail = '9moazahmed2592009@gmail.com'; // حسابك الأدمن
+  const adminEmail = '9moazahmed2592009@gmail.com'; 
   if (req.userEmail !== adminEmail) {
     return res.status(403).json({ error: 'غير مصرح لك (حساب المسؤول فقط)' });
   }
