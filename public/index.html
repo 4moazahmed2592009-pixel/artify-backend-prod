@@ -36,9 +36,7 @@
         #g_id_signin_container { display: flex; align-items: center; }
         .user-chip { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-muted); }
 
-        .age-notice { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--warning); padding: 12px 20px; border-radius: 12px; max-width: 900px; margin: 25px auto 0; font-size: 14px; text-align: center; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
-
-        /* مساحة العمل للمشترك الفعلي (نظيفة بدون باقات) */
+        /* مساحة العمل للمشترك الفعلي: نظيفة تماماً وبدون أي شريط تنبيه */
         #user-dashboard { display: none; padding: 50px 8% 40px; max-width: 850px; margin: auto; text-align: center; }
         .dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
         .dash-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
@@ -69,11 +67,22 @@
         .price-btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .price-card:hover .price-btn { background: var(--primary); border-color: var(--primary); }
 
-        /* قسم معرض الصور الاحترافي المتحرك */
+        /* 1. قسم معاينة صورة البرنامج (Preview Studio) */
+        .preview-section { padding: 40px 8% 60px; text-align: center; }
+        .preview-section h2 { font-size: 32px; font-weight: 900; margin-bottom: 12px; }
+        .preview-section p { color: var(--text-muted); max-width: 700px; margin: 0 auto 30px; }
+        .app-window-frame { max-width: 1050px; margin: auto; background: #131b2e; border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); overflow: hidden; }
+        .app-window-header { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #0f1626; border-bottom: 1px solid var(--border); }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ef4444; }
+        .dot-yellow { background: #eab308; }
+        .dot-green { background: #10b981; }
+        .app-screenshot { width: 100%; height: auto; display: block; }
+
+        /* 2. قسم معرض الصور الاحترافي المتحرك (Marquee Slider) */
         .showcase-section { padding: 50px 0; background: #080c14; overflow: hidden; text-align: center; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
         .showcase-section h2 { font-size: 32px; font-weight: 900; margin-bottom: 12px; }
         .showcase-section p { color: var(--text-muted); margin-bottom: 35px; font-size: 15px; max-width: 600px; margin-left: auto; margin-right: auto; }
-
         .marquee-container { width: 100%; overflow: hidden; position: relative; display: flex; padding: 10px 0; }
         .marquee-track { display: flex; gap: 20px; width: max-content; animation: scrollMarquee 40s linear infinite; }
         
@@ -88,12 +97,11 @@
 
         .showcase-overlay { position: absolute; inset: 0; background: rgba(11, 15, 25, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; opacity: 0; transition: opacity 0.3s ease; text-align: center; }
         .showcase-card:hover .showcase-overlay { opacity: 1; }
-        
         .showcase-prompt { font-size: 13px; color: #e2e8f0; margin-bottom: 15px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; }
         .btn-sc-action { padding: 8px 16px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
         .btn-sc-action:hover { background: var(--accent); transform: scale(1.05); }
 
-        /* قسم الميزات الشامل */
+        /* 3. قسم الميزات */
         .features-section { padding: 60px 8% 80px; }
         .features-section h2 { text-align: center; font-size: 32px; font-weight: 800; margin-bottom: 40px; }
         .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 25px; max-width: 1200px; margin: auto; }
@@ -103,7 +111,7 @@
         .feature-box h3 { color: #38bdf8; margin-bottom: 10px; font-size: 20px; }
         .feature-box p { color: var(--text-muted); font-size: 14px; line-height: 1.7; }
 
-        /* نافذة تأكيد حساب جوجل 18+ */
+        /* نافذة تأكيد حساب جوجل قبل الدفع فقط */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
         .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 460px; width: 100%; padding: 30px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
         .modal-box h3 { font-size: 20px; margin-bottom: 12px; color: #fff; }
@@ -131,18 +139,13 @@
         </div>
     </nav>
 
-    <!-- تنبيه مبدئي خفيف يظهر للجميع أعلى الصفحة -->
-    <div class="age-notice">
-        ⚠️ <span data-en="Important: Ensure your logged-in Google Account date of birth is set to 18+ years to use the generation features without limits." data-ar="تنبيه هام: يرجى التأكد من أن حساب جوجل الخاص بك مسجل بعمر 18 سنة أو أكثر لضمان تفعيل ميزات توليد الصور بدون قيود.">Important: Ensure your logged-in Google Account date of birth is set to 18+ years to use the generation features without limits.</span>
-    </div>
-
-    <!-- واجهة المشترك النشط (مساحة العمل) -->
+    <!-- شاشة المشترك النشط: بدون أسعار وبدون أي شريط تحذير -->
     <div id="user-dashboard" class="animate-up">
         <div class="dash-card">
             <h2 id="welcomeMsg" style="font-size: 28px;">Welcome</h2>
             <div id="subTag" class="tag-active">Subscription Active</div>
-            <p style="margin-top: 15px; color: var(--text-muted);" data-en="Your creative studio is ready. Click below to open your workspace." data-ar="مساحة العمل الخاصة بك مفعّلة وجاهزة بالكامل. اضغط أدناه لفتح استوديو الإنتاج.">
-                Your creative studio is ready. Click below to open your workspace.
+            <p style="margin-top: 15px; color: var(--text-muted);" data-en="Your creative studio is ready. Click below to launch your workspace." data-ar="مساحة العمل الخاصة بك مفعّلة وجاهزة بالكامل. اضغط أدناه لفتح استوديو الإنتاج.">
+                Your creative studio is ready. Click below to launch your workspace.
             </p>
             <button class="btn-launch" id="launchBtn" onclick="launchTool()" data-en="Launch Generation Tool ↗" data-ar="فتح أداة توليد الصور (Canvas) ↗">
                 Launch Generation Tool ↗
@@ -150,14 +153,13 @@
         </div>
     </div>
 
-    <!-- واجهة غير المشتركين (الشراء والكوبون) -->
+    <!-- شاشة غير المشتركين -->
     <div id="purchase-section" class="animate-up">
         <section class="hero">
             <h1 data-en="Automated Content Creation <span>Suite</span>" data-ar="حزمة الإنتاج والمونتاج الآلي <span>بالذكاء الاصطناعي</span>">Automated Content Creation <span>Suite</span></h1>
             <p data-en="The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click." data-ar="الأداة المتكاملة لتوليد مئات المشاهد بثبات تام للشخصيات وعمل مونتاج آلي احترافي بضغطة زر.">The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click.</p>
         </section>
 
-        <!-- كرت الكوبون -->
         <div class="coupon-card">
             <h3 data-en="Have a Promo / VIP Code?" data-ar="هل تمتلك كود خصم أو دعوة؟">Have a Promo / VIP Code?</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" data-en="Apply your coupon for instant discounts or free plan activation." data-ar="أدخل الكود للحصول على خصم فوري أو تفعيل باقة مجانية مباشرة.">Apply your coupon for instant discounts or free plan activation.</p>
@@ -211,19 +213,34 @@
         </section>
     </div>
 
-    <!-- قسم معرض الصور الاحترافي المتحرك -->
+    <!-- 1. إطار صورة البرنامج الحقيقية (Studio Preview) -->
+    <section class="preview-section">
+        <h2 data-en="Inside the Studio Workspace" data-ar="نظرة من داخل بيئة العمل الفعلية">Inside the Studio Workspace</h2>
+        <p data-en="A dedicated high-speed suite designed to manage scene batches, character references, automated voiceover, and prompt exports seamlessly." data-ar="بيئة عمل متكاملة وسريعة تم تصميمها لإدارة دفعات المشاهد، ومراجع الشخصيات، والتوليد الصوتي، واستخراج ملفات التحريك بكل سهولة.">A dedicated high-speed suite designed to manage scene batches, character references, automated voiceover, and prompt exports seamlessly.</p>
+        
+        <div class="app-window-frame">
+            <div class="app-window-header">
+                <div class="dot dot-red"></div>
+                <div class="dot dot-yellow"></div>
+                <div class="dot dot-green"></div>
+                <span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">Artify PRO - Workspace</span>
+            </div>
+            <!-- استدعاء صورة المعاينة الحقيقية المرفوعة عندك في مجلد public -->
+            <img src="/preview.jpg" alt="Artify PRO Workspace" class="app-screenshot" onerror="this.src='/preview.png'" />
+        </div>
+    </section>
+
+    <!-- 2. شريط معرض الصور المتحرك (Marquee) -->
     <section class="showcase-section">
         <h2 data-en="Generated Masterpieces Showcase" data-ar="معرض أعمال المبدعين والمشاهد المولدة">Generated Masterpieces Showcase</h2>
         <p data-en="Hover over any image to pause and view its prompt. Copying prompts is exclusive to PRO subscribers." data-ar="قف بالماوس فوق أي صورة لإيقاف الحركة وعرض البرومبت. ميزة نسخ البرومبت متاحة حصرياً للمشتركين.">Hover over any image to pause and view its prompt. Copying prompts is exclusive to PRO subscribers.</p>
 
         <div class="marquee-container" onmouseenter="pauseMarquee()" onmouseleave="resumeMarquee()">
-            <div class="marquee-track" id="marqueeTrack">
-                <!-- سيتم حقن الصور والبرومبتات هنا برمجياً لتتحرك بلا توقف -->
-            </div>
+            <div class="marquee-track" id="marqueeTrack"></div>
         </div>
     </section>
 
-    <!-- شرح المزايا والقوة التسويقية -->
+    <!-- 3. الميزات -->
     <section class="features-section">
         <h2 data-en="Engineered for Professional Storytellers" data-ar="مصمم خصيصاً للمبدعين وصناع المحتوى">Engineered for Professional Storytellers</h2>
         <div class="features-grid">
@@ -250,7 +267,7 @@
         </div>
     </section>
 
-    <!-- نافذة تأكيد 18+ قبل التوجه للدفع -->
+    <!-- نافذة تأكيد 18+ (تظهر فقط عند الضغط على اشتراك لغير المشتركين) -->
     <div id="ageModal" class="modal-overlay">
         <div class="modal-box">
             <h3 data-en="Important Account Notice" data-ar="تنبيه هام قبل المتابعة">Important Account Notice</h3>
@@ -277,14 +294,28 @@
 
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
 
-        // إعدادات معرض الصور
-        // للبدء: قم بإنشاء مجلد باسم photos وارفع فيه صورك، وضع روابطها والبرومبت هنا.
+        // مصفوفة الصور الخمس المرتبطة بأسمائها الصحيحة وبرومبت كل صورة
         const showcaseItems = [
-            { url: "/photos/1.png", prompt: "Cinematic underwater close-up of a starfish. The textured orange starfish slowly shifts its arms across the ocean floor..." },
-            { url: "/photos/2.png", prompt: "Cinematic animation. The seahorse gently propels forward, its dorsal fin rippling gracefully against the glowing coral..." },
-            { url: "/photos/3.png", prompt: "Cinematic animation of an orca breaching. The whale arches mid-air, glistening water droplets scattering beautifully..." },
-            { url: "/photos/4.png", prompt: "Deep sea magical glowing jellyfish drifting in dark abyss with neon bioluminescence and cinematic depth of field." },
-            { url: "/photos/5.png", prompt: "A majestic golden lion standing on a cliff edge at sunset, wind blowing through its mane, highly detailed photorealistic." }
+            { 
+                url: "/photos/1.png", 
+                prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light, then crashes back into the choppy sea with a powerful, foamy splash." 
+            },
+            { 
+                url: "/photos/2.png", 
+                prompt: "Cinematic shot of the land tortoise walking slowly across the desert. Deliberate leg movements kick up fine dust. The tortoise blinks and subtly turns its head. Golden sunset lighting enhances the shell's texture." 
+            },
+            { 
+                url: "/photos/3.png", 
+                prompt: "Cinematic underwater animation. The central bioluminescent jellyfish pulses gently, its long translucent tentacles flowing gracefully in the deep blue abyss." 
+            },
+            { 
+                url: "/photos/4.png", 
+                prompt: "Cinematic underwater close-up. The textured orange starfish rests on the sunlit seabed, with clear turquoise water and distant coral reefs softly blurred in the background." 
+            },
+            { 
+                url: "/photos/5.png", 
+                prompt: "Cinematic video of the dolphin completing its mid-air arc at sunset, with golden light reflecting off its sleek body and the tranquil, rippling water below." 
+            }
         ];
 
         function toggleLanguage() {
@@ -298,7 +329,7 @@
             });
 
             if (currentUser) updateUI(currentUser);
-            loadShowcase(); // تحديث لغة أزرار المعرض
+            loadShowcase();
         }
 
         window.onload = function () {
@@ -311,19 +342,19 @@
                 { theme: "outline", size: "medium", text: "signin_with" }
             );
             checkSession();
-            loadShowcase(); // تحميل شريط المعرض
+            loadShowcase();
         };
 
         function loadShowcase() {
             const track = document.getElementById('marqueeTrack');
             if (!track) return;
             
-            // تكرار المصفوفة 3 مرات لصنع شريط لانهائي الدوران (Infinite Scroll)
+            // تكرار الصور 3 مرات لعمل شريط انسيابي لا ينتهي
             const infiniteItems = [...showcaseItems, ...showcaseItems, ...showcaseItems];
 
             track.innerHTML = infiniteItems.map(item => `
                 <div class="showcase-card">
-                    <img src="${item.url}" alt="AI Generated Scene" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80'" />
+                    <img src="${item.url}" alt="AI Generated Scene" loading="lazy" />
                     <div class="showcase-overlay">
                         <p class="showcase-prompt">"${item.prompt}"</p>
                         <button class="btn-sc-action" onclick="handleCopyPrompt('${item.prompt.replace(/'/g, "\\'")}')">
