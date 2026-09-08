@@ -49,7 +49,7 @@
         .btn-launch { display: inline-block; margin-top: 30px; padding: 16px 36px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; border-radius: 12px; font-weight: bold; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); transition: transform 0.2s; }
         .btn-launch:hover { transform: scale(1.04); }
 
-        /* منطقة الشراء لغير المشتركين */
+        /* منطقة الاشتراكات */
         #purchase-section { display: block; }
         .pricing-wrap { max-width: 1100px; margin: 0 auto 60px; padding: 0 20px; text-align: center; }
         .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 30px; }
@@ -69,6 +69,18 @@
         .coupon-input { flex: 1; background: #0b0f19; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: #fff; text-transform: uppercase; font-weight: bold; outline: none; }
         .coupon-btn { padding: 10px 20px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
 
+        /* قسم معاينة استوديو العمل الفعلي */
+        .preview-section { padding: 40px 8% 70px; text-align: center; }
+        .preview-section h2 { font-size: 32px; font-weight: 900; margin-bottom: 12px; }
+        .preview-section p { color: var(--text-muted); max-width: 700px; margin: 0 auto 35px; }
+        .app-window-frame { max-width: 1050px; margin: auto; background: #131b2e; border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); overflow: hidden; }
+        .app-window-header { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #0f1626; border-bottom: 1px solid var(--border); }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ef4444; }
+        .dot-yellow { background: #eab308; }
+        .dot-green { background: #10b981; }
+        .app-screenshot { width: 100%; height: auto; display: block; }
+
         /* قسم الميزات الشامل */
         .features-section { padding: 60px 8% 80px; border-top: 1px solid rgba(255,255,255,0.05); }
         .features-section h2 { text-align: center; font-size: 32px; font-weight: 800; margin-bottom: 40px; }
@@ -79,7 +91,7 @@
         .feature-box h3 { color: #38bdf8; margin-bottom: 10px; font-size: 20px; }
         .feature-box p { color: var(--text-muted); font-size: 14px; line-height: 1.7; }
 
-        /* نافذة تأكيد السن القانوني قبل الشراء (Modal) */
+        /* نافذة تأكيد حساب جوجل قبل الدفع */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
         .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 460px; width: 100%; padding: 30px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
         .modal-box h3 { font-size: 20px; margin-bottom: 12px; color: #fff; }
@@ -107,13 +119,13 @@
         </div>
     </nav>
 
-    <!-- واجهة المشترك النشط: نظيفة تماماً بدون أسعار أو تنبيهات -->
+    <!-- واجهة المشترك النشط -->
     <div id="user-dashboard" class="animate-up">
         <div class="dash-card">
             <h2 id="welcomeMsg" style="font-size: 28px;">Welcome</h2>
             <div id="subTag" class="tag-active">Subscription Active</div>
-            <p style="margin-top: 15px; color: var(--text-muted);" data-en="Your creative workspace is fully unlocked. Click below to launch the dedicated studio." data-ar="مساحة العمل الخاصة بك مفعّلة وجاهزة بالكامل. اضغط أدناه لفتح الاستوديو في نافذة مستقلة.">
-                Your creative workspace is fully unlocked. Click below to launch the dedicated studio.
+            <p style="margin-top: 15px; color: var(--text-muted);" data-en="Your creative studio is ready. Click below to open your workspace." data-ar="مساحة العمل الخاصة بك مفعّلة وجاهزة بالكامل. اضغط أدناه لفتح استوديو الإنتاج.">
+                Your creative studio is ready. Click below to open your workspace.
             </p>
             <button class="btn-launch" id="launchBtn" onclick="launchTool()" data-en="Launch Generation Tool ↗" data-ar="فتح أداة توليد الصور (Canvas) ↗">
                 Launch Generation Tool ↗
@@ -121,14 +133,13 @@
         </div>
     </div>
 
-    <!-- واجهة غير المشتركين: باقات الدفع وكود الخصم -->
+    <!-- واجهة غير المشتركين -->
     <div id="purchase-section" class="animate-up">
         <section class="hero">
             <h1 data-en="Automated Content Creation <span>Suite</span>" data-ar="حزمة الإنتاج والمونتاج الآلي <span>بالذكاء الاصطناعي</span>">Automated Content Creation <span>Suite</span></h1>
             <p data-en="The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click." data-ar="الأداة المتكاملة لتوليد مئات المشاهد بثبات تام للشخصيات وعمل مونتاج آلي احترافي بضغطة زر.">The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click.</p>
         </section>
 
-        <!-- كرت كود الخصم -->
         <div class="coupon-card">
             <h3 data-en="Have a Promo / VIP Code?" data-ar="هل تمتلك كود خصم أو دعوة؟">Have a Promo / VIP Code?</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" data-en="Apply your coupon for instant discounts or free plan activation." data-ar="أدخل الكود للحصول على خصم فوري أو تفعيل باقة مجانية مباشرة.">Apply your coupon for instant discounts or free plan activation.</p>
@@ -182,7 +193,24 @@
         </section>
     </div>
 
-    <!-- شرح المزايا والقوة التسويقية (يظهر للجميع كدعاية واحترافية) -->
+    <!-- قسم المعاينة الحية لواجهة الأداة والمشاريع الناتجة -->
+    <section class="preview-section">
+        <h2 data-en="Inside the Studio Workspace" data-ar="نظرة من داخل بيئة العمل الفعلية">Inside the Studio Workspace</h2>
+        <p data-en="A dedicated high-speed suite designed to manage scene batches, character references, automated voiceover, and prompt exports seamlessly." data-ar="بيئة عمل متكاملة وسريعة تم تصميمها لإدارة دفعات المشاهد، ومراجع الشخصيات، والتوليد الصوتي، واستخراج ملفات التحريك بكل سهولة.">A dedicated high-speed suite designed to manage scene batches, character references, automated voiceover, and prompt exports seamlessly.</p>
+        
+        <div class="app-window-frame">
+            <div class="app-window-header">
+                <div class="dot dot-red"></div>
+                <div class="dot dot-yellow"></div>
+                <div class="dot dot-green"></div>
+                <span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">Artify PRO - Workspace</span>
+            </div>
+            <!-- لقطة شاشة الأداة الفعلية -->
+            <img src="/preview.jpg" alt="Artify PRO Workspace" class="app-screenshot" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop'" />
+        </div>
+    </section>
+
+    <!-- شرح المزايا والقوة التسويقية -->
     <section class="features-section">
         <h2 data-en="Engineered for Professional Storytellers" data-ar="مصمم خصيصاً للمبدعين وصناع المحتوى">Engineered for Professional Storytellers</h2>
         <div class="features-grid">
@@ -194,27 +222,27 @@
             <div class="feature-box">
                 <div class="icon">📦</div>
                 <h3 data-en="300+ Scenes & Project Sync" data-ar="أكثر من 300 مشهد وحفظ متزامن">300+ Scenes & Project Sync</h3>
-                <p data-en="Generate and organize huge batches of scenes automatically numbered, export everything to Zip, or save (.artify) project files to resume anytime." data-ar="توليد وتنظيم مئات المشاهد المرقمة تلقائياً مع إمكانية تصديرها بملف Zip واحد أو حفظ المشروع (.artify) لاستكماله لاحقاً.">Generate and organize huge batches of scenes automatically numbered, export everything to Zip, or save (.artify) project files to resume anytime.</p>
+                <p data-en="Generate and organize huge batches of scenes automatically numbered, export everything to Zip, or save (.artify) project files to resume anytime." data-ar="توليد وتنظيم مئات المشاهد المرقمة تلقائياً مع إمكانية تصديرها بملف Zip واحد أو حفظ المشروع (.artify) واستدعائه على جهازك في أي وقت.">Generate and organize huge batches of scenes automatically numbered, export everything to Zip, or save (.artify) project files to resume anytime.</p>
             </div>
             <div class="feature-box">
                 <div class="icon">🎙️</div>
-                <h3 data-en="30+ Voices & Auto SRT" data-ar="أكثر من 30 صوتاً ومونتاج ذكي">30+ Voices & Auto SRT</h3>
-                <p data-en="Convert full scripts into realistic speech with varied tones, auto-merge multi-paragraph audio, and export synced SRT subtitle files." data-ar="تحويل الروايات والسيناريوهات إلى أصوات واقعية متعددة النبرات، ودمج المقاطع المطولة مع ملفات ترجمة مبرمجة زمنياً (SRT).">Convert full scripts into realistic speech with varied tones, auto-merge multi-paragraph audio, and export synced SRT subtitle files.</p>
+                <h3 data-en="30+ Realistic Voices & Auto SRT" data-ar="أكثر من 30 صوتاً ومونتاج ذكي">30+ Realistic Voices & Auto SRT</h3>
+                <p data-en="Convert full scripts into realistic speech with varied tones, auto-merge multi-paragraph audio, and export synced SRT subtitle files." data-ar="تحويل الروايات والسيناريوهات إلى أكثر من 30 صوتاً واقعياً متعدد النبرات، ودمج المقاطع المطولة مع ملفات ترجمة مبرمجة زمنياً (SRT).">Convert full scripts into realistic speech with varied tones, auto-merge multi-paragraph audio, and export synced SRT subtitle files.</p>
             </div>
             <div class="feature-box">
                 <div class="icon">⚡</div>
                 <h3 data-en="Industry-Leading Google AI" data-ar="أقوى نماذج التوليد العالمية">Industry-Leading Google AI</h3>
-                <p data-en="Harness high-speed parallel generation powered by latest Google multimodal models for breathtaking cinematic visuals up to 4K." data-ar="معالجة متوازية فائقة السرعة مدعومة بأحدث محركات الذكاء الاصطناعي لإنتاج صور سينمائية فائقة الوضوح تصل إلى دقة 4K.">Harness high-speed parallel generation powered by latest Google multimodal models for breathtaking cinematic visuals up to 4K.</p>
+                <p data-en="High-speed parallel processing powered by advanced Google multimodal models to create cinematic scenes with dramatic lighting and detail." data-ar="معالجة متوازية فائقة السرعة مدعومة بأحدث محركات الذكاء الاصطناعي من جوجل لإنتاج صور سينمائية فائقة الوضوح وإضاءة واقعية متقنة.">High-speed parallel processing powered by advanced Google multimodal models to create cinematic scenes with dramatic lighting and detail.</p>
             </div>
         </div>
     </section>
 
-    <!-- نافذة تأكيد متطلبات حساب جوجل قبل الدفع -->
+    <!-- نافذة تأكيد السن القانوني للحساب قبل التوجه للدفع -->
     <div id="ageModal" class="modal-overlay">
         <div class="modal-box">
             <h3 data-en="Important Account Notice" data-ar="تنبيه هام قبل المتابعة">Important Account Notice</h3>
-            <p data-en="Please make sure your registered Google account is set to 18+ years of age. If not, please switch to an adult account to avoid any AI service interruptions." data-ar="يرجى التأكد من أن حساب جوجل المسجل به مسجل في إعداداته أن عمرك 18 سنة أو أكثر. إن لم يكن كذلك، حاول بحساب آخر لضمان تفعيل كامل ميزات توليد الصور بدون تعليق.">
-                Please make sure your registered Google account is set to 18+ years of age. If not, please switch to an adult account to avoid any AI service interruptions.
+            <p data-en="Please make sure your registered Google account date of birth is set to 18+ years of age. If not, please switch to an adult account to avoid any AI service interruptions." data-ar="يرجى التأكد من أن حساب جوجل المسجل به مسجل في إعداداته أن عمرك 18 سنة أو أكثر. إن لم يكن كذلك، حاول بحساب آخر لضمان تفعيل كامل ميزات توليد الصور بدون تعليق.">
+                Please make sure your registered Google account date of birth is set to 18+ years of age. If not, please switch to an adult account to avoid any AI service interruptions.
             </p>
             <div class="modal-actions">
                 <button class="btn-modal-proceed" onclick="confirmProceedPayment()" data-en="I Understand, Proceed" data-ar="مفهوم، متابعة الدفع">I Understand, Proceed</button>
@@ -300,7 +328,6 @@
             uChip.style.display = 'flex';
             document.getElementById('userChipName').innerText = user.name || user.email;
 
-            // إخفاء الباقات للمشترك النشط
             if (user.subscriptionActive) {
                 purchaseSec.style.display = 'none';
                 dashSec.style.display = 'block';
@@ -372,7 +399,6 @@
             }
         }
 
-        // إظهار نافذة التأكيد قبل التوجه للدفع
         function promptPlan(plan) {
             if (!currentUser) {
                 alert(currentLang === 'en' ? 'Please sign in with Google first.' : 'يرجى تسجيل الدخول بحساب جوجل أولاً.');
