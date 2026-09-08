@@ -17,27 +17,20 @@ const TOOL_URL = process.env.TOOL_URL;
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// -----------------------------------------------------------------------
-// الربط بقاعدة بيانات Supabase
-// -----------------------------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// -----------------------------------------------------------------------
-// إعدادات Paymob الحديثة
-// -----------------------------------------------------------------------
 const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY; 
 const PAYMOB_PUBLIC_KEY = process.env.PAYMOB_PUBLIC_KEY; 
 const PAYMOB_HMAC_SECRET = process.env.PAYMOB_HMAC_SECRET;
 const PAYMOB_INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
 
-// الأسعار الحقيقية الموحدة بالجنيه المصري (بما يعادل أسعار الدولار المطلوبة)
 const PLAN_PRICE_EGP = {
-  month1: 500,   // يعادل 10 دولار
-  month3: 1250,  // يعادل 25 دولار
-  month6: 2000,  // يعادل 40 دولار
-  year1: 3500,   // يعادل 69 دولار
+  month1: 500,
+  month3: 1250,
+  month6: 2000,
+  year1: 3500,
 };
 
 const PLAN_DURATION_DAYS = {
@@ -47,9 +40,16 @@ const PLAN_DURATION_DAYS = {
   year1: 365,
 };
 
-// -----------------------------------------------------------------------
-// التحقق من توقيع Paymob Webhook
-// -----------------------------------------------------------------------
+// أكواد الخصم والخطط المجانية
+const PROMO_CODES = {
+  'MOAZ-FREE-1M': { type: 'free', plan: 'month1', days: 30 },
+  'MOAZ-FREE-3M': { type: 'free', plan: 'month3', days: 90 },
+  'MOAZ-FREE-6M': { type: 'free', plan: 'month6', days: 180 },
+  'MOAZ-VIP-YEAR': { type: 'free', plan: 'year1', days: 365 },
+  'SAVE50': { type: 'percent', discount: 0.50 },
+  'ARTIFY25': { type: 'percent', discount: 0.25 },
+};
+
 function verifyPaymobHmac(obj, receivedHmac) {
   const fields = [
     'amount_cents', 'created_at', 'currency', 'error_occured',
@@ -93,9 +93,6 @@ function requireAuth(req, res, next) {
   }
 }
 
-// -----------------------------------------------------------------------
-// مسارات المصادقة والمستخدمين 
-// -----------------------------------------------------------------------
 app.post('/api/auth/google', async (req, res) => {
   const { credential } = req.body;
   if (!credential) return res.status(400).json({ error: 'Missing credential' });
@@ -121,7 +118,6 @@ app.post('/api/auth/google', async (req, res) => {
 
     res.json({ ok: true, email, name });
   } catch (err) {
-    console.error('Google verification error:', err.message);
     res.status(401).json({ error: 'Google auth failed' });
   }
 });
@@ -145,13 +141,47 @@ app.get('/api/me', requireAuth, async (req, res) => {
   });
 });
 
-// -----------------------------------------------------------------------
-// إنشاء جلسة دفع Paymob بالسعر الموحد الجديد
-// -----------------------------------------------------------------------
+// تطبيق كود الخصم أو التفعيل المباشر
+app.post('/api/apply-coupon', requireAuth, async (req, res) => {
+  const { couponCode } = req.body;
+  if (!couponCode) return res.status(400).json({ error: 'Missing code' });
+
+  const cleanCode = couponCode.trim().toUpperCase();
+  const promo = PROMO_CODES[cleanCode];
+
+  if (!promo) return res.status(400).json({ error: 'Invalid coupon code' });
+
+  if (promo.type === 'free') {
+    const expiresAt = Date.now() + promo.days * 24 * 60 * 60 * 1000;
+    const { error } = await supabase.from('users').update({
+      subscription_active: true,
+      plan: promo.plan,
+      expires_at: expiresAt,
+    }).eq('email', req.userEmail);
+
+    if (error) return res.status(500).json({ error: 'Failed to apply subscription' });
+    return res.json({ success: true, type: 'free', message: `Activated ${promo.days} days successfully!` });
+  }
+
+  if (promo.type === 'percent') {
+    return res.json({ success: true, type: 'percent', discount: promo.discount });
+  }
+});
+
+// إنشاء جلسة دفع
 app.post('/api/create-payment', requireAuth, async (req, res) => {
-  const { plan } = req.body;
+  const { plan, couponCode } = req.body;
   let priceEGP = PLAN_PRICE_EGP[plan];
   if (!priceEGP) return res.status(400).json({ error: 'Invalid plan' });
+
+  // تطبيق الخصم إن وجد
+  if (couponCode) {
+    const cleanCode = couponCode.trim().toUpperCase();
+    const promo = PROMO_CODES[cleanCode];
+    if (promo && promo.type === 'percent') {
+      priceEGP = Math.round(priceEGP * (1 - promo.discount));
+    }
+  }
 
   const amountCents = priceEGP * 100;
   const merchantOrderId = `artify_${req.userEmail}_${plan}_${Date.now()}`;
@@ -192,14 +222,11 @@ app.post('/api/create-payment', requireAuth, async (req, res) => {
     
     res.json({ url: iframeUrl });
   } catch (err) {
-    console.error('Paymob error:', err.message);
     res.status(500).json({ error: 'Payment creation failed' });
   }
 });
 
-// -----------------------------------------------------------------------
-// Webhook من Paymob مع التفعيل
-// -----------------------------------------------------------------------
+// Webhook
 app.post('/api/webhook', async (req, res) => {
   const receivedHmac = req.query.hmac || (req.body && req.body.hmac);
   const obj = (req.body && req.body.obj) || req.body;
@@ -216,8 +243,6 @@ app.post('/api/webhook', async (req, res) => {
     (obj.payment_key_claims && obj.payment_key_claims.billing_data && obj.payment_key_claims.billing_data.extra && obj.payment_key_claims.billing_data.extra.merchant_order_id) ||
     (obj.intention && obj.intention.special_reference);
 
-  console.log('Webhook Received - Order ID:', merchantOrderId, 'Success:', obj.success);
-
   const success = obj.success === true || obj.success === 'true';
 
   if (success && merchantOrderId && merchantOrderId.startsWith('artify_')) {
@@ -227,13 +252,11 @@ app.post('/api/webhook', async (req, res) => {
     const durationDays = PLAN_DURATION_DAYS[plan] || 30;
     const expiresAt = Date.now() + durationDays * 24 * 60 * 60 * 1000;
 
-    const { error: updateError } = await supabase.from('users').update({
+    await supabase.from('users').update({
       subscription_active: true,
       plan,
       expires_at: expiresAt,
     }).eq('email', email);
-
-    if (updateError) console.error('Supabase update error:', updateError.message);
   }
 
   res.json({ received: true });
@@ -247,6 +270,4 @@ app.get('/api/tool-access', requireAuth, async (req, res) => {
   res.json({ url: TOOL_URL });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
