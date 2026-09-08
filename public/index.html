@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Artify PRO | منصة إنتاج المحتوى بالذكاء الاصطناعي</title>
-    <!-- سكريبت جوجل الحقيقي لتسجيل الدخول -->
+    <title>Artify PRO | AI Content Suite</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
@@ -17,15 +16,25 @@
             --border: #1e293b;
             --success: #10b981;
             --danger: #f87171;
+            --transition-speed: 0.3s;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg-main); color: var(--text-main); line-height: 1.6; }
+        body { background: var(--bg-main); color: var(--text-main); line-height: 1.6; overflow-x: hidden; }
 
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 8%; border-bottom: 1px solid var(--border); background: rgba(11, 15, 25, 0.95); position: sticky; top: 0; z-index: 100; }
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-up { animation: fadeIn 0.8s ease-out forwards; }
+
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 8%; border-bottom: 1px solid var(--border); background: rgba(11, 15, 25, 0.95); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
         .logo { font-size: 26px; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
+        
+        .nav-controls { display: flex; align-items: center; gap: 15px; }
+        .btn-lang { background: transparent; color: var(--text-main); border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: var(--transition-speed); font-weight: bold; }
+        .btn-lang:hover { background: var(--border); }
+        .btn-logout { background: #1e293b; color: #fff; border: 1px solid var(--border); padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: var(--transition-speed); }
+        .btn-logout:hover { background: var(--danger); border-color: var(--danger); }
+        
         #g_id_signin_container { display: flex; align-items: center; gap: 12px; }
-        .btn-logout { background: #1e293b; color: #fff; border: 1px solid var(--border); padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
         .user-chip { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-muted); }
 
         .hero { text-align: center; padding: 70px 20px 30px; max-width: 900px; margin: auto; }
@@ -35,35 +44,34 @@
 
         .access-card { background: var(--bg-card); border: 1px solid var(--border); padding: 35px; border-radius: 18px; max-width: 480px; margin: 0 auto 60px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
         .access-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
-        .access-card h3 { font-size: 22px; margin-bottom: 10px; }
-        .access-card p.sub { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
-
+        
         .pricing-wrap { max-width: 1100px; margin: 0 auto 70px; padding: 0 20px; text-align: center; }
-        .pricing-wrap h2 { font-size: 30px; margin-bottom: 25px; }
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
-        .price-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between; }
-        .price-card.featured { border: 2px solid var(--primary); }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 30px; }
+        
+        /* Dynamic Pricing Cards */
+        .pricing-grid:hover .price-card { opacity: 0.6; filter: blur(2px); transform: scale(0.98); }
+        .pricing-grid .price-card:hover { opacity: 1; filter: blur(0); transform: scale(1.05) translateY(-10px); border-color: var(--primary); box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2); z-index: 10; }
+        
+        .price-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); cursor: default; }
         .price-card h4 { font-size: 20px; margin-bottom: 10px; }
-        .price-val { font-size: 34px; font-weight: 900; color: #38bdf8; margin-bottom: 8px; }
-        .price-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
-        .price-btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
-        .price-btn:hover { background: var(--primary); }
-        .price-card.featured .price-btn { background: var(--primary); }
+        .price-val { font-size: 38px; font-weight: 900; color: #38bdf8; margin-bottom: 5px; }
+        .price-egp { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 10px; display: inline-block;}
+        .price-card p.desc { font-size: 14px; color: var(--text-muted); margin-bottom: 25px; min-height: 40px; }
+        .price-btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.3s; }
+        .price-card:hover .price-btn { background: var(--primary); border-color: var(--primary); }
         .price-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; padding: 0 8% 80px; }
-        .feature-box { background: var(--bg-card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: center; }
+        .feature-box { background: var(--bg-card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: center; transition: transform var(--transition-speed); }
+        .feature-box:hover { transform: translateY(-5px); border-color: var(--primary); }
         .feature-box h3 { color: #38bdf8; margin-bottom: 12px; font-size: 20px; }
-        .feature-box p { color: var(--text-muted); font-size: 15px; }
-
+        
         #user-dashboard { display: none; padding: 40px 8% 80px; max-width: 900px; margin: auto; }
         .dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 30px; margin-bottom: 25px; }
-        .dash-card h2 { margin-bottom: 10px; }
         .tag-active { display: inline-block; background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
         .tag-inactive { display: inline-block; background: rgba(248, 113, 113, 0.15); color: var(--danger); padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
-        .btn-launch { display: inline-block; margin-top: 20px; padding: 14px 28px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 17px; border: none; cursor: pointer; }
-
-        #statusMsg { margin-top: 15px; font-size: 15px; font-weight: bold; }
+        .btn-launch { display: inline-block; margin-top: 20px; padding: 14px 28px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 17px; border: none; cursor: pointer; transition: transform 0.2s; }
+        .btn-launch:hover { transform: scale(1.05); }
 
         footer { text-align: center; padding: 25px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 13px; }
     </style>
@@ -72,109 +80,130 @@
 
     <nav>
         <div class="logo">Artify PRO</div>
-        <div id="auth-area">
-            <!-- زرار جوجل الحقيقي هيتحط هنا تلقائي (يظهر لو مش مسجل دخول) -->
-            <div id="g_id_signin_container"></div>
-            <!-- يظهر بدل زرار جوجل لما المستخدم يكون مسجل دخول بالفعل -->
-            <div id="user-chip" class="user-chip" style="display:none;">
-                <span id="userChipName"></span>
-                <button class="btn-logout" onclick="logout()">تسجيل خروج</button>
+        <div class="nav-controls">
+            <button id="langToggle" class="btn-lang" onclick="toggleLanguage()">عربي</button>
+            <div id="auth-area">
+                <div id="g_id_signin_container"></div>
+                <div id="user-chip" class="user-chip" style="display:none;">
+                    <span id="userChipName"></span>
+                    <button class="btn-logout" onclick="logout()" data-en="Logout" data-ar="تسجيل خروج">Logout</button>
+                </div>
             </div>
         </div>
     </nav>
 
-    <div id="public-view">
+    <div id="public-view" class="animate-up">
         <section class="hero">
-            <h1>حزمة الإنتاج والمونتاج الآلي <span>بالذكاء الاصطناعي</span></h1>
-            <p>الأداة المتكاملة لتوليد مئات المشاهد بثبات تام للشخصيات، وعمل مونتاج احترافي متكامل بضغطة زر واحدة.</p>
+            <h1 data-en="Automated Content Creation <span>Suite</span>" data-ar="حزمة الإنتاج والمونتاج الآلي <span>بالذكاء الاصطناعي</span>">Automated Content Creation <span>Suite</span></h1>
+            <p data-en="The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click." data-ar="الأداة المتكاملة لتوليد مئات المشاهد بثبات تام للشخصيات، وعمل مونتاج احترافي متكامل بضغطة زر واحدة.">The ultimate tool to generate hundreds of consistent AI scenes and automate your video editing with a single click.</p>
 
             <div class="access-card">
-                <h3>ابدأ من هنا</h3>
-                <p class="sub">سجّل الدخول بحساب جوجل من الأعلى، وبعدين اختار باقتك عشان تفتح الأداة.</p>
-                <div id="statusMsg"></div>
+                <h3 data-en="Start Here" data-ar="ابدأ من هنا">Start Here</h3>
+                <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px;" data-en="Sign in with your Google account above, then select a plan to unlock the suite." data-ar="سجّل الدخول بحساب جوجل من الأعلى، وبعدين اختار باقتك عشان تفتح الأداة.">Sign in with your Google account above, then select a plan to unlock the suite.</p>
+                <div id="statusMsg" style="font-size:15px; font-weight:bold;"></div>
             </div>
         </section>
     </div>
 
-    <div id="user-dashboard">
+    <div id="user-dashboard" class="animate-up">
         <div class="dash-card">
-            <h2 id="welcomeMsg">مرحباً بك</h2>
-            <div id="subTag" class="tag-inactive">حالة الاشتراك: غير مفعّل</div>
-            <p style="margin-top: 15px; color: var(--text-muted);" id="dashHint">
-                اشترك في إحدى الباقات تحت عشان تقدر تفتح الأداة.
+            <h2 id="welcomeMsg">Welcome</h2>
+            <div id="subTag" class="tag-inactive" data-en="Subscription: Inactive" data-ar="حالة الاشتراك: غير مفعّل">Subscription: Inactive</div>
+            <p style="margin-top: 15px; color: var(--text-muted);" id="dashHint" data-en="Select a plan below to gain access to the tool." data-ar="اشترك في إحدى الباقات تحت عشان تقدر تفتح الأداة.">
+                Select a plan below to gain access to the tool.
             </p>
-            <button class="btn-launch" id="launchBtn" style="display:none;" onclick="launchTool()">
-                فتح أداة توليد الصور (Canvas) ↗
+            <button class="btn-launch" id="launchBtn" style="display:none;" onclick="launchTool()" data-en="Launch Generation Tool ↗" data-ar="فتح أداة توليد الصور (Canvas) ↗">
+                Launch Generation Tool ↗
             </button>
         </div>
     </div>
 
-    <!-- الباقات وقسم المميزات ظاهرين دايمًا (قبل وبعد تسجيل الدخول) عشان
-         أي مستخدم يقدر يشوف الأسعار ويشترك حتى وهو Logged in -->
-    <section class="pricing-wrap">
-        <h2>خطط وباقات الاشتراك</h2>
+    <section class="pricing-wrap animate-up" style="animation-delay: 0.2s;">
+        <h2 data-en="Choose Your Plan" data-ar="خطط وباقات الاشتراك">Choose Your Plan</h2>
         <div class="pricing-grid">
             <div class="price-card">
                 <div>
-                    <h4>شهر واحد</h4>
-                    <div class="price-val">$15</div>
-                    <p>تجديد شهري مرن للأفراد</p>
+                    <h4 data-en="1 Month" data-ar="شهر واحد">1 Month</h4>
+                    <div class="price-val">$10</div>
+                    <div class="price-egp" data-en="Billed as 500 EGP" data-ar="يُخصم كـ 500 ج.م">Billed as 500 EGP</div>
+                    <p class="desc" data-en="Flexible monthly renewal for individuals." data-ar="تجديد شهري مرن للأفراد.">Flexible monthly renewal for individuals.</p>
                 </div>
-                <button class="price-btn" onclick="selectPlan('month1')">اختيار الباقة</button>
-            </div>
-            <div class="price-card featured">
-                <div>
-                    <h4>3 شهور</h4>
-                    <div class="price-val">$35</div>
-                    <p>الأكثر طلباً (توفير $10)</p>
-                </div>
-                <button class="price-btn" onclick="selectPlan('month3')">اختيار الباقة</button>
+                <button class="price-btn" onclick="selectPlan('month1')" data-en="Select Plan" data-ar="اختيار الباقة">Select Plan</button>
             </div>
             <div class="price-card">
                 <div>
-                    <h4>6 شهور</h4>
-                    <div class="price-val">$60</div>
-                    <p>قيمة ممتازة لصناع المحتوى</p>
+                    <h4 data-en="3 Months" data-ar="3 شهور">3 Months</h4>
+                    <div class="price-val">$25</div>
+                    <div class="price-egp" data-en="Billed as 1250 EGP" data-ar="يُخصم كـ 1250 ج.م">Billed as 1250 EGP</div>
+                    <p class="desc" data-en="Most popular choice for content creators." data-ar="الأكثر طلباً لصناع المحتوى.">Most popular choice for content creators.</p>
                 </div>
-                <button class="price-btn" onclick="selectPlan('month6')">اختيار الباقة</button>
+                <button class="price-btn" onclick="selectPlan('month3')" data-en="Select Plan" data-ar="اختيار الباقة">Select Plan</button>
             </div>
             <div class="price-card">
                 <div>
-                    <h4>سنة كاملة</h4>
-                    <div class="price-val">$99</div>
-                    <p>أفضل توفير مع دعم دائم</p>
+                    <h4 data-en="6 Months" data-ar="6 شهور">6 Months</h4>
+                    <div class="price-val">$40</div>
+                    <div class="price-egp" data-en="Billed as 2000 EGP" data-ar="يُخصم كـ 2000 ج.م">Billed as 2000 EGP</div>
+                    <p class="desc" data-en="Excellent value for long-term projects." data-ar="قيمة ممتازة للمشاريع الطويلة.">Excellent value for long-term projects.</p>
                 </div>
-                <button class="price-btn" onclick="selectPlan('year1')">اختيار الباقة</button>
+                <button class="price-btn" onclick="selectPlan('month6')" data-en="Select Plan" data-ar="اختيار الباقة">Select Plan</button>
+            </div>
+            <div class="price-card">
+                <div>
+                    <h4 data-en="1 Year" data-ar="سنة كاملة">1 Year</h4>
+                    <div class="price-val">$69</div>
+                    <div class="price-egp" data-en="Billed as 3500 EGP" data-ar="يُخصم كـ 3500 ج.م">Billed as 3500 EGP</div>
+                    <p class="desc" data-en="Best savings with premium dedicated support." data-ar="أفضل توفير مع دعم فني دائم.">Best savings with premium dedicated support.</p>
+                </div>
+                <button class="price-btn" onclick="selectPlan('year1')" data-en="Select Plan" data-ar="اختيار الباقة">Select Plan</button>
             </div>
         </div>
     </section>
 
-    <section class="features">
+    <section class="features animate-up" style="animation-delay: 0.4s;">
         <div class="feature-box">
-            <h3>ثبات شخصيات 100%</h3>
-            <p>توليد أكثر من 300 مشهد بأسلوب فني واحد وشخصيات ثابتة طوال القصة.</p>
+            <h3 data-en="100% Character Consistency" data-ar="ثبات شخصيات 100%">100% Character Consistency</h3>
+            <p style="color:var(--text-muted)" data-en="Generate over 300 scenes with a unified art style and strictly consistent characters." data-ar="توليد أكثر من 300 مشهد بأسلوب فني واحد وشخصيات ثابتة طوال القصة.">Generate over 300 scenes with a unified art style and strictly consistent characters.</p>
         </div>
         <div class="feature-box">
-            <h3>مونتاج آلي ذكي</h3>
-            <p>دمج الصوت، الصور، الانتقالات، وملفات الترجمة (SRT) في فيديو جاهز للنشر.</p>
+            <h3 data-en="Smart Auto-Editing" data-ar="مونتاج آلي ذكي">Smart Auto-Editing</h3>
+            <p style="color:var(--text-muted)" data-en="Automatically merge audio, images, transitions, and SRT subtitles into a ready-to-publish video." data-ar="دمج الصوت، الصور، الانتقالات، وملفات الترجمة (SRT) في فيديو جاهز للنشر.">Automatically merge audio, images, transitions, and SRT subtitles into a ready-to-publish video.</p>
         </div>
         <div class="feature-box">
-            <h3>دقة عالية 4K</h3>
-            <p>تصدير صور فائقة الوضوح مع ملف مضغوط وبرومبتات جاهزة للتحريك.</p>
+            <h3 data-en="4K High Resolution" data-ar="دقة عالية 4K">4K High Resolution</h3>
+            <p style="color:var(--text-muted)" data-en="Export crystal clear images bundled with ready-to-animate prompt data." data-ar="تصدير صور فائقة الوضوح مع ملف مضغوط وبرومبتات جاهزة للتحريك.">Export crystal clear images bundled with ready-to-animate prompt data.</p>
         </div>
     </section>
 
     <footer>
-        جميع الحقوق محفوظة &copy; 2026 Artify PRO
+        &copy; 2026 Artify PRO. <span data-en="All rights reserved." data-ar="جميع الحقوق محفوظة.">All rights reserved.</span>
     </footer>
 
     <script>
-        // ⚠️ حط هنا الـ Client ID اللي هتاخده من Google Cloud Console
-        const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
+        // --- إعدادات اللغة (Translation Logic) ---
+        let currentLang = 'en'; // الإنجليزية هي الافتراضية
+        
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'ar' : 'en';
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = currentLang;
+            
+            // تغيير النص في الزر
+            document.getElementById('langToggle').innerText = currentLang === 'en' ? 'عربي' : 'English';
 
+            // تبديل كل النصوص في الصفحة التي تحتوي على خاصية data-en و data-ar
+            document.querySelectorAll('[data-en]').forEach(el => {
+                el.innerHTML = el.getAttribute(`data-${currentLang}`);
+            });
+
+            // تحديث رسائل الواجهة للمستخدم الحالي إن وجد
+            if(currentUser) updateDashboardUI(currentUser);
+        }
+
+        // --- إعدادات جوجل و Paymob ---
+        const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
         let currentUser = null;
 
-        // --- تهيئة زرار جوجل الحقيقي ---
         window.onload = function () {
             google.accounts.id.initialize({
                 client_id: GOOGLE_CLIENT_ID,
@@ -187,7 +216,6 @@
             checkSession();
         };
 
-        // بيتبعت الـ ID token الحقيقي للسيرفر، والسيرفر هو اللي بيتحقق منه مع جوجل
         async function handleGoogleCredential(response) {
             const res = await fetch('/api/auth/google', {
                 method: 'POST',
@@ -198,12 +226,10 @@
             if (res.ok) {
                 await checkSession();
             } else {
-                document.getElementById('statusMsg').style.color = 'var(--danger)';
-                document.getElementById('statusMsg').innerText = 'فشل تسجيل الدخول، حاول تاني.';
+                showStatusMsg(currentLang === 'en' ? 'Login failed. Please try again.' : 'فشل تسجيل الدخول، حاول مرة أخرى.', true);
             }
         }
 
-        // بيسأل السيرفر: أنا مسجل دخول؟ ومشترك ولا لأ؟
         async function checkSession() {
             const res = await fetch('/api/me', { credentials: 'include' });
             if (!res.ok) {
@@ -227,7 +253,13 @@
             document.getElementById('g_id_signin_container').style.display = 'none';
             document.getElementById('user-chip').style.display = 'flex';
             document.getElementById('userChipName').innerText = user.name || user.email;
-            document.getElementById('welcomeMsg').innerText = `أهلاً ${user.name || user.email}`;
+            
+            updateDashboardUI(user);
+        }
+
+        function updateDashboardUI(user) {
+            const welcomePre = currentLang === 'en' ? 'Welcome' : 'أهلاً';
+            document.getElementById('welcomeMsg').innerText = `${welcomePre}, ${user.name || user.email}`;
 
             const tag = document.getElementById('subTag');
             const launchBtn = document.getElementById('launchBtn');
@@ -235,15 +267,22 @@
 
             if (user.subscriptionActive) {
                 tag.className = 'tag-active';
-                tag.innerText = `حالة الاشتراك: نشط حتى ${new Date(user.expiresAt).toLocaleDateString('ar-EG')}`;
+                const dateStr = new Date(user.expiresAt).toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ar-EG');
+                tag.innerText = currentLang === 'en' ? `Active until ${dateStr}` : `نشط حتى ${dateStr}`;
                 launchBtn.style.display = 'inline-block';
-                hint.innerText = 'اضغط الزرار تحت عشان تفتح الأداة.';
+                hint.style.display = 'none';
             } else {
                 tag.className = 'tag-inactive';
-                tag.innerText = 'حالة الاشتراك: غير مفعّل';
+                tag.innerText = currentLang === 'en' ? 'Subscription: Inactive' : 'حالة الاشتراك: غير مفعّل';
                 launchBtn.style.display = 'none';
-                hint.innerText = 'اشترك في إحدى الباقات تحت عشان تقدر تفتح الأداة.';
+                hint.style.display = 'block';
             }
+        }
+
+        function showStatusMsg(msg, isError) {
+            const el = document.getElementById('statusMsg');
+            el.style.color = isError ? 'var(--danger)' : 'var(--success)';
+            el.innerText = msg;
         }
 
         async function logout() {
@@ -252,35 +291,47 @@
             showPublicView();
         }
 
-        // بيبعت لطلب Checkout حقيقي على Stripe، وبيوديك فعليًا لصفحة الدفع بتاعتهم
         async function selectPlan(plan) {
             if (!currentUser) {
-                document.getElementById('statusMsg').style.color = 'var(--danger)';
-                document.getElementById('statusMsg').innerText = 'سجّل الدخول بجوجل الأول من فوق.';
+                showStatusMsg(currentLang === 'en' ? 'Please sign in with Google first.' : 'يرجى تسجيل الدخول بحساب جوجل أولاً.', true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 return;
             }
-            const res = await fetch('/api/create-payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ plan }),
-            });
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url; // تحويل حقيقي لصفحة دفع Paymob (iframe)
-            } else {
-                alert(data.error || 'حصل خطأ، حاول تاني.');
+            
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = currentLang === 'en' ? 'Processing...' : 'جاري التحضير...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/create-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ plan }),
+                });
+                const data = await res.json();
+                if (data.url) {
+                    window.location.href = data.url; 
+                } else {
+                    alert(data.error || 'Error generating payment link.');
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                alert('Network error. Please try again.');
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
         }
 
-        // رابط الأداة بيتجاب من السيرفر بس لو الاشتراك فعلاً شغال
         async function launchTool() {
             const res = await fetch('/api/tool-access', { credentials: 'include' });
             const data = await res.json();
             if (res.ok && data.url) {
                 window.open(data.url, '_blank');
             } else {
-                alert(data.error || 'لازم اشتراك ساري عشان تفتح الأداة.');
+                alert(data.error || 'Active subscription required.');
             }
         }
     </script>
