@@ -16,7 +16,9 @@ app.use(cors({ origin: true, credentials: true }));
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// الاتصال السلس بقاعدة بيانات MongoDB Atlas
+// ==========================================
+// 1. الاتصال بقاعدة بيانات MongoDB Atlas
+// ==========================================
 let isConnected = false;
 const connectDB = async () => {
   if (isConnected || !process.env.MONGODB_URI) return;
@@ -32,10 +34,10 @@ const connectDB = async () => {
 };
 connectDB();
 
-// تصميم جدول المستخدمين
+// تصميم جدول المستخدمين وتحديد الحقول
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true, required: true },
-  name: String,
+  name: { type: String, default: '' },
   subscription_active: { type: Boolean, default: false },
   plan: { type: String, default: 'free' },
   expires_at: { type: Number, default: 0 }
@@ -46,6 +48,7 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || 'artify_jwt_secret_key_2026';
 
+// دالة فحص تسجيل الدخول
 const requireAuth = (req, res, next) => {
   const token = req.cookies?.session_token || req.cookies?.token;
   if (!token) return res.status(401).json({ error: 'Authentication required' });
@@ -62,7 +65,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // ==========================================
-// 1. تسجيل الدخول وحفظ البيانات في MongoDB
+// 2. مسارات المصادقة وتسجيل الدخول (Google OAuth)
 // ==========================================
 
 app.post('/api/auth/google', async (req, res) => {
@@ -70,37 +73,62 @@ app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'Missing credential' });
 
+    // التحقق من توكن جوجل
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
     const payload = ticket.getPayload();
-    const email = payload.email;
-    const name = payload.name;
+    const email = payload.email.toLowerCase().trim();
+    const name = payload.name || 'User';
+
+    await connectDB();
 
     let isSubActive = false;
     let expiresAt = null;
-
-    await connectDB();
+    let plan = 'free';
 
     if (isConnected) {
       try {
         let user = await User.findOne({ email });
-        if (!user) {
-          user = await User.create({ email, name, subscription_active: false, expires_at: 0 });
-          console.log('New User Created in MongoDB:', email);
-        }
 
-        if (user && user.subscription_active) {
-          isSubActive = true;
-          expiresAt = user.expires_at || (Date.now() + 30 * 24 * 60 * 60 * 1000);
+        if (!user) {
+          // مستخدم جديد تماماً
+          user = await User.create({
+            email,
+            name,
+            subscription_active: false,
+            plan: 'free',
+            expires_at: 0
+          });
+          console.log('New user created in MongoDB:', email);
+        } else {
+          // تحديث الاسم إن تغيّر
+          if (name && user.name !== name) {
+            user.name = name;
+            await user.save();
+          }
+
+          // التحقق الحاسم من الاشتراك وتاريخ الصلاحية
+          const now = Date.now();
+          if (user.subscription_active && user.expires_at && Number(user.expires_at) > now) {
+            isSubActive = true;
+            expiresAt = Number(user.expires_at);
+            plan = user.plan || 'PRO';
+          }
         }
       } catch (dbErr) {
         console.warn('MongoDB query warning:', dbErr.message);
       }
     }
 
-    const token = jwt.sign({ email, name, isSubActive }, JWT_SECRET, { expiresIn: '30d' });
+    // إنشاء التوكن وتضمين حالة الاشتراك الحقيقية داخله
+    const token = jwt.sign(
+      { email, name, isSubActive, expiresAt, plan },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
     res.cookie('session_token', token, {
       httpOnly: true,
       secure: true,
@@ -114,7 +142,8 @@ app.post('/api/auth/google', async (req, res) => {
         email,
         name,
         subscriptionActive: isSubActive,
-        expiresAt: isSubActive ? expiresAt : null
+        expiresAt: isSubActive ? expiresAt : null,
+        plan
       }
     });
 
@@ -124,39 +153,47 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// استرجاع حالة الجلسة عند عمل Refresh
+// استرجاع حالة الجلسة والتأكد المستمر من MongoDB
 app.get('/api/me', async (req, res) => {
   try {
     const token = req.cookies?.session_token || req.cookies?.token;
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    let isSubActive = decoded.isSubActive || false;
+    const email = decoded.email.toLowerCase().trim();
+
+    let isSubActive = false;
     let expiresAt = null;
-    let plan = 'Free';
+    let plan = 'free';
 
     await connectDB();
 
     if (isConnected) {
       try {
-        const user = await User.findOne({ email: decoded.email });
-        if (user && user.subscription_active) {
-          isSubActive = true;
-          plan = user.plan || 'PRO';
-          expiresAt = (user.expires_at && Number(user.expires_at) > Date.now())
-            ? user.expires_at
-            : Date.now() + 30 * 24 * 60 * 60 * 1000;
+        const user = await User.findOne({ email });
+        if (user) {
+          const now = Date.now();
+          if (user.subscription_active && user.expires_at && Number(user.expires_at) > now) {
+            isSubActive = true;
+            expiresAt = Number(user.expires_at);
+            plan = user.plan || 'PRO';
+          }
         }
       } catch (e) {
         console.warn('MongoDB fetch warning:', e.message);
       }
+    } else {
+      // احتياطي من التوكن في حال انقطاع مؤقت
+      isSubActive = decoded.isSubActive || false;
+      expiresAt = decoded.expiresAt || null;
+      plan = decoded.plan || 'free';
     }
 
     return res.json({
-      email: decoded.email,
+      email,
       name: decoded.name,
       subscriptionActive: isSubActive,
-      expiresAt: isSubActive ? (expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+      expiresAt: isSubActive ? expiresAt : null,
       plan
     });
   } catch (err) {
@@ -171,7 +208,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ==========================================
-// 2. تفعيل الكوبونات وتحديث MongoDB
+// 3. تفعيل الكوبونات وتثبيت الاشتراك
 // ==========================================
 
 app.post('/api/apply-coupon', requireAuth, async (req, res) => {
@@ -182,22 +219,35 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
 
   if (code === 'VIP2026' || code === 'ARTIFYFREE') {
     const oneMonthAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const email = req.userEmail.toLowerCase().trim();
 
     await connectDB();
     if (isConnected) {
       try {
         await User.findOneAndUpdate(
-          { email: req.userEmail },
-          { subscription_active: true, plan: 'VIP_PRO', expires_at: oneMonthAhead },
+          { email },
+          { 
+            subscription_active: true, 
+            plan: 'VIP_PRO', 
+            expires_at: oneMonthAhead 
+          },
           { upsert: true, new: true }
         );
+        console.log(`VIP coupon applied & stored for: ${email}`);
       } catch (e) {
         console.error('Coupon DB update error:', e.message);
       }
     }
 
+    // تجديد التوكن ليحمل حالة التفعيل وتاريخ الصلاحية
     const updatedToken = jwt.sign(
-      { email: req.userEmail, name: req.userName, isSubActive: true },
+      { 
+        email, 
+        name: req.userName, 
+        isSubActive: true, 
+        expiresAt: oneMonthAhead, 
+        plan: 'VIP_PRO' 
+      },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -224,7 +274,7 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// 3. بوابة الدفع Paymob
+// 4. بوابة الدفع Paymob
 // ==========================================
 
 app.post('/api/create-payment', requireAuth, async (req, res) => {
@@ -291,9 +341,10 @@ app.post('/api/paymob-webhook', async (req, res) => {
   try {
     const data = req.body.obj;
     const success = data?.success;
-    const email = data?.order?.shipping_data?.email || data?.customer?.email;
+    const rawEmail = data?.order?.shipping_data?.email || data?.customer?.email;
 
-    if (success && email) {
+    if (success && rawEmail) {
+      const email = rawEmail.toLowerCase().trim();
       await connectDB();
       const oneMonthAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
       await User.findOneAndUpdate(
@@ -301,12 +352,18 @@ app.post('/api/paymob-webhook', async (req, res) => {
         { subscription_active: true, plan: 'PRO_PAID', expires_at: oneMonthAhead },
         { upsert: true }
       );
+      console.log(`Payment Webhook: Activated subscription for ${email}`);
     }
     res.sendStatus(200);
   } catch (err) {
+    console.error('Webhook Error:', err.message);
     res.sendStatus(500);
   }
 });
+
+// ==========================================
+// 5. حماية فتح التطبيق والواجهة
+// ==========================================
 
 app.get('/api/launch-app', requireAuth, (req, res) => {
   if (!req.isSubActive) {
