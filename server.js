@@ -1,279 +1,371 @@
-require('dotenv').config();
-const crypto = require('crypto');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
 const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
-const CLIENT_URL = process.env.CLIENT_URL || `http://localhost:${PORT}`;
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const TOOL_URL = process.env.TOOL_URL;
 
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY; 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY; 
-const PAYMOB_PUBLIC_KEY = process.env.PAYMOB_PUBLIC_KEY; 
-const PAYMOB_HMAC_SECRET = process.env.PAYMOB_HMAC_SECRET;
-const PAYMOB_INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
-
-const PLAN_PRICE_EGP = {
-  month1: 500,
-  month3: 1250,
-  month6: 2000,
-  year1: 3500,
-};
-
-const PLAN_DURATION_DAYS = {
-  month1: 30,
-  month3: 90,
-  month6: 180,
-  year1: 365,
-};
-
-// أكواد الخصم والخطط المجانية
-const PROMO_CODES = {
-  'MOAZ-FREE-1M': { type: 'free', plan: 'month1', days: 30 },
-  'MOAZ-FREE-3M': { type: 'free', plan: 'month3', days: 90 },
-  'MOAZ-FREE-6M': { type: 'free', plan: 'month6', days: 180 },
-  'MOAZ-VIP-YEAR': { type: 'free', plan: 'year1', days: 365 },
-  'SAVE50': { type: 'percent', discount: 0.50 },
-  'ARTIFY25': { type: 'percent', discount: 0.25 },
-};
-
-function verifyPaymobHmac(obj, receivedHmac) {
-  const fields = [
-    'amount_cents', 'created_at', 'currency', 'error_occured',
-    'has_parent_transaction', 'id', 'integration_id', 'is_3d_secure',
-    'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment',
-    'is_voided', 'order.id', 'owner', 'pending',
-    'source_data.pan', 'source_data.sub_type', 'source_data.type', 'success',
-  ];
-
-  const concatenated = fields
-    .map((f) => {
-      const parts = f.split('.');
-      let val = obj;
-      for (const p of parts) val = val ? val[p] : undefined;
-      return val === undefined || val === null ? '' : String(val);
-    })
-    .join('');
-
-  const computed = crypto
-    .createHmac('sha512', PAYMOB_HMAC_SECRET)
-    .update(concatenated)
-    .digest('hex');
-
-  return computed === receivedHmac;
-}
-
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
-app.use(cookieParser());
+// إعدادات Middleware الأساسية
 app.use(express.json());
+app.use(cookieParser());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
+// تقديم ملفات واجهة المستخدم الثابتة (HTML / CSS / الصور)
 app.use(express.static(path.join(__dirname, 'public')));
 
-function requireAuth(req, res, next) {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.userEmail = payload.email;
-    next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Session expired' });
+// الاتصال بقاعدة بيانات Supabase
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// عميل المصادقة مع Google
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Middleware للتحقق من هوية المشترك
+const requireAuth = (req, res, next) => {
+  const token = req.cookies?.session_token || req.cookies?.token;
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
-}
-
-// تسجيل الدخول بجوجل
-app.post('/api/auth/google', async (req, res) => {
-  const { credential } = req.body;
-  if (!credential) return res.status(400).json({ error: 'Missing credential' });
 
   try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'artify_secret_key_123');
+    req.userEmail = decoded.email;
+    req.userName = decoded.name;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+};
+
+// ==========================================
+// 1. مسارات المصادقة والمستخدمين (Auth & User)
+// ==========================================
+
+// تسجيل الدخول بواسطة Google
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing credential' });
+
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: GOOGLE_CLIENT_ID,
+      audience: process.env.GOOGLE_CLIENT_ID
     });
     const payload = ticket.getPayload();
-    const email = payload.email;
-    const name = payload.name;
+    const { email, name } = payload;
 
-    await supabase.from('users').upsert({ email, name }, { onConflict: 'email', ignoreDuplicates: false });
+    // فحص هل المستخدم مسجل مسبقاً في Supabase
+    let { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
 
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '30d' });
-    res.cookie('token', token, {
+    if (!user) {
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          email,
+          name,
+          subscription_active: false,
+          expires_at: 0
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Supabase insert error:', insertError);
+        return res.status(500).json({ error: 'Failed to create user record' });
+      }
+      user = newUser;
+    }
+
+    // توليد التوكن وتخزينه في الكوكيز
+    const token = jwt.sign(
+      { email: user.email, name: user.name },
+      process.env.JWT_SECRET || 'artify_secret_key_123',
+      { expiresIn: '30d' }
+    );
+
+    res.cookie('session_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 يوماً
     });
 
-    res.json({ ok: true, email, name });
+    res.json({ success: true, user: { email: user.email, name: user.name } });
   } catch (err) {
-    res.status(401).json({ error: 'Google auth failed' });
+    console.error('Google Auth Error:', err);
+    res.status(500).json({ error: 'Authentication failed' });
   }
 });
 
+// جلب بيانات الحساب الحالي (المسار الذي كان يرجع 404)
+app.get('/api/me', async (req, res) => {
+  try {
+    const token = req.cookies?.session_token || req.cookies?.token;
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'artify_secret_key_123');
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', decoded.email)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'User not found in database' });
+    }
+
+    const isSubActive = Boolean(user.subscription_active && Number(user.expires_at || 0) > Date.now());
+
+    res.json({
+      email: user.email,
+      name: user.name || decoded.name,
+      subscriptionActive: isSubActive,
+      expiresAt: user.expires_at,
+      plan: user.plan
+    });
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid session' });
+  }
+});
+
+// تسجيل الخروج
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('token');
-  res.json({ ok: true });
+  res.clearCookie('session_token', { sameSite: 'none', secure: true });
+  res.clearCookie('token', { sameSite: 'none', secure: true });
+  res.json({ success: true });
 });
 
-// فحص الجلسة الحالية
-app.get('/api/me', requireAuth, async (req, res) => {
-  const { data: user, error } = await supabase.from('users').select('*').eq('email', req.userEmail).single();
-  if (error || !user) return res.status(404).json({ error: 'User not found' });
+// ==========================================
+// 2. الكوبونات وبوابات الدفع (Paymob & Coupons)
+// ==========================================
 
-  const active = !!user.subscription_active && Number(user.expires_at || 0) > Date.now();
-  res.json({
-    email: user.email,
-    name: user.name,
-    subscriptionActive: active,
-    plan: user.plan || null,
-    expiresAt: user.expires_at || null,
-  });
-});
-
-// تفعيل كود الخصم أو الباقة المجانية
+// تطبيق أكواد الخصم والاشتراكات المجانية
 app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   const { couponCode } = req.body;
-  if (!couponCode) return res.status(400).json({ error: 'Missing code' });
+  if (!couponCode) return res.status(400).json({ error: 'No code provided' });
 
-  const cleanCode = couponCode.trim().toUpperCase();
-  const promo = PROMO_CODES[cleanCode];
+  const code = couponCode.trim().toUpperCase();
 
-  if (!promo) return res.status(400).json({ error: 'Invalid coupon code' });
+  // كوبون VIP لتفعيل حساب تجريبي مجاناً
+  if (code === 'VIP2026' || code === 'ARTIFYFREE') {
+    const oneMonthFromNow = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
-  if (promo.type === 'free') {
-    const expiresAt = Date.now() + promo.days * 24 * 60 * 60 * 1000;
-    const { error } = await supabase.from('users').update({
-      subscription_active: true,
-      plan: promo.plan,
-      expires_at: expiresAt,
-    }).eq('email', req.userEmail);
+    await supabase
+      .from('users')
+      .update({
+        subscription_active: true,
+        plan: 'VIP_MONTH',
+        expires_at: oneMonthFromNow
+      })
+      .eq('email', req.userEmail);
 
-    if (error) return res.status(500).json({ error: 'Failed to apply subscription' });
-    return res.json({ success: true, type: 'free', message: `Activated ${promo.days} days successfully!` });
+    return res.json({ type: 'free', message: 'VIP Activated' });
   }
 
-  if (promo.type === 'percent') {
-    return res.json({ success: true, type: 'percent', discount: promo.discount });
+  // كوبونات الخصم بالنسبة المئوية
+  if (code === 'DISCOUNT20') {
+    return res.json({ type: 'percent', discount: 0.20 });
   }
+  if (code === 'SAVE50') {
+    return res.json({ type: 'percent', discount: 0.50 });
+  }
+
+  res.status(400).json({ error: 'كود خصم غير صالح' });
 });
 
-// توليد جلسة الدفع في Paymob
+// إنشاء رابط الدفع مع Paymob
 app.post('/api/create-payment', requireAuth, async (req, res) => {
-  const { plan, couponCode } = req.body;
-  let priceEGP = PLAN_PRICE_EGP[plan];
-  if (!priceEGP) return res.status(400).json({ error: 'Invalid plan' });
-
-  if (couponCode) {
-    const cleanCode = couponCode.trim().toUpperCase();
-    const promo = PROMO_CODES[cleanCode];
-    if (promo && promo.type === 'percent') {
-      priceEGP = Math.round(priceEGP * (1 - promo.discount));
-    }
-  }
-
-  const amountCents = priceEGP * 100;
-  const merchantOrderId = `artify_${req.userEmail}_${plan}_${Date.now()}`;
-
   try {
-    const { data: user } = await supabase.from('users').select('name').eq('email', req.userEmail).single();
-    const [firstName, ...rest] = (user?.name || 'Artify User').split(' ');
-    const lastName = rest.join(' ') || 'User';
+    const { plan, couponCode } = req.body;
+    
+    // أسعار الباقات بالجنيه المصري (بالقروش)
+    const basePrices = {
+      month1: Number(process.env.PAYMOB_PRICE_MONTH_EGP || 500) * 100,
+      month3: Number(process.env.PAYMOB_PRICE_3MONTH_EGP || 1250) * 100,
+      month6: Number(process.env.PAYMOB_PRICE_6MONTH_EGP || 2000) * 100,
+      year1: Number(process.env.PAYMOB_PRICE_YEAR_EGP || 3500) * 100,
+    };
 
-    const paymobRes = await fetch('https://accept.paymob.com/v1/intention/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${process.env.PAYMOB_API_KEY}`
+    let amount = basePrices[plan] || basePrices.month1;
+
+    // حساب الخصم إن وجد
+    if (couponCode && couponCode.toUpperCase() === 'DISCOUNT20') amount = Math.round(amount * 0.8);
+    if (couponCode && couponCode.toUpperCase() === 'SAVE50') amount = Math.round(amount * 0.5);
+
+    // 1. تسجيل الدخول إلى Paymob
+    const authRes = await axios.post('https://accept.paymob.com/api/auth/tokens', {
+      api_key: process.env.PAYMOB_API_KEY
+    });
+    const paymobToken = authRes.data.token;
+
+    // 2. إنشاء الطلب
+    const orderRes = await axios.post('https://accept.paymob.com/api/ecommerce/orders', {
+      auth_token: paymobToken,
+      delivery_needed: 'false',
+      amount_cents: amount,
+      currency: 'EGP',
+      items: []
+    });
+    const orderId = orderRes.data.id;
+
+    // 3. إنشاء مفتاح الدفع (Payment Key)
+    const paymentKeyRes = await axios.post('https://accept.paymob.com/api/acceptance/payment_keys', {
+      auth_token: paymobToken,
+      amount_cents: amount,
+      expiration: 3600,
+      order_id: orderId,
+      billing_data: {
+        apartment: 'NA',
+        email: req.userEmail,
+        floor: 'NA',
+        first_name: req.userName || 'Subscriber',
+        street: 'NA',
+        building: 'NA',
+        phone_number: '+201000000000',
+        shipping_method: 'PKG',
+        postal_code: 'NA',
+        city: 'Cairo',
+        country: 'EG',
+        last_name: 'User',
+        state: 'Cairo'
       },
-      body: JSON.stringify({
-        amount: amountCents,
-        currency: 'EGP',
-        payment_methods: [Number(process.env.PAYMOB_INTEGRATION_ID)],
-        items: [],
-        billing_data: {
-          first_name: firstName,
-          last_name: lastName,
-          email: req.userEmail,
-          phone_number: '+201000000000',
-          apartment: 'NA', floor: 'NA', street: 'NA', building: 'NA', city: 'NA', country: 'NA', state: 'NA'
-        },
-        special_reference: merchantOrderId,
-        extras: { merchant_order_id: merchantOrderId }
-      })
+      currency: 'EGP',
+      integration_id: process.env.PAYMOB_INTEGRATION_ID
     });
 
-    if (!paymobRes.ok) throw new Error(`Paymob Intention API failed: ${paymobRes.status}`);
-    const data = await paymobRes.json();
-    
-    const redirectionUrl = `${CLIENT_URL}/?payment_verify=1&plan=${plan}`;
-    const iframeUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${process.env.PAYMOB_PUBLIC_KEY}&clientSecret=${data.client_secret}&redirection_url=${encodeURIComponent(redirectionUrl)}`;
-    
-    res.json({ url: iframeUrl });
+    const paymentToken = paymentKeyRes.data.token;
+    const iframeId = process.env.PAYMOB_IFRAME_ID;
+
+    // إرجاع رابط نافذة الدفع
+    res.json({
+      url: `https://accept.paymob.com/api/acceptance/iframes/${iframeId}?payment_token=${paymentToken}`
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Payment creation failed' });
+    console.error('Paymob Error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to initiate payment' });
   }
 });
 
-// استقبال تأكيد الدفع التلقائي من Paymob
-app.post('/api/webhook', async (req, res) => {
-  const receivedHmac = req.query.hmac || (req.body && req.body.hmac);
-  const obj = (req.body && req.body.obj) || req.body;
+// استقبال تأكيد الدفع من Paymob (Webhook)
+app.post('/api/paymob-webhook', async (req, res) => {
+  try {
+    const data = req.body.obj;
+    const success = data?.success;
+    const email = data?.order?.shipping_data?.email || data?.customer?.email;
 
-  if (!obj) return res.status(400).json({ error: 'Missing data' });
+    if (success && email) {
+      // مدة الاشتراك: شهر افتراضياً (30 يوماً)
+      const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
-  if (receivedHmac && !verifyPaymobHmac(obj, receivedHmac)) {
-    console.warn('HMAC verification mismatch');
+      await supabase
+        .from('users')
+        .update({
+          subscription_active: true,
+          plan: 'PRO_PAID',
+          expires_at: expiry
+        })
+        .eq('email', email);
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Webhook Error:', err);
+    res.sendStatus(500);
   }
-
-  const merchantOrderId = 
-    obj.special_reference ||
-    (obj.order && obj.order.merchant_order_id) ||
-    (obj.payment_key_claims && obj.payment_key_claims.billing_data && obj.payment_key_claims.billing_data.extra && obj.payment_key_claims.billing_data.extra.merchant_order_id) ||
-    (obj.intention && obj.intention.special_reference);
-
-  const success = obj.success === true || obj.success === 'true';
-
-  if (success && merchantOrderId && merchantOrderId.startsWith('artify_')) {
-    const parts = merchantOrderId.split('_');
-    const email = parts[1];
-    const plan = parts[2];
-    const durationDays = PLAN_DURATION_DAYS[plan] || 30;
-    const expiresAt = Date.now() + durationDays * 24 * 60 * 60 * 1000;
-
-    await supabase.from('users').update({
-      subscription_active: true,
-      plan,
-      expires_at: expiresAt,
-    }).eq('email', email);
-  }
-
-  res.json({ received: true });
 });
 
-// المسار المحمي: تحويل مباشر مع إخفاء الرابط عن المتصفح والواجهة
+// ==========================================
+// 3. التقييمات وتشغيل الأداة (Reviews & Tool)
+// ==========================================
+
+// جلب إحصائيات المشتركين وآخر التقييمات
+app.get('/api/stats', async (req, res) => {
+  try {
+    const { count: subscribersCount } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('subscription_active', true);
+
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('user_name, rating, comment, created_at')
+      .order('created_at', { ascending: false })
+      .limit(6);
+
+    res.json({
+      subscribersCount: subscribersCount || 0,
+      reviews: reviews || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// إضافة تقييم جديد للمشتركين فقط
+app.post('/api/reviews', requireAuth, async (req, res) => {
+  const { rating, comment } = req.body;
+  if (!rating || !comment) return res.status(400).json({ error: 'Missing data' });
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', req.userEmail)
+    .single();
+
+  const active = user && Boolean(user.subscription_active && Number(user.expires_at || 0) > Date.now());
+  if (!active) return res.status(403).json({ error: 'Only active subscribers can leave a review' });
+
+  const { error } = await supabase.from('reviews').insert({
+    user_email: user.email,
+    user_name: user.name || req.userName || 'Subscriber',
+    rating: Number(rating),
+    comment: comment.trim()
+  });
+
+  if (error) return res.status(500).json({ error: 'Failed to save review' });
+  res.json({ success: true });
+});
+
+// تشغيل وتوجيه المشترك إلى أداة التوليد (Canvas Workspace)
 app.get('/api/launch-app', requireAuth, async (req, res) => {
-  const { data: user } = await supabase.from('users').select('*').eq('email', req.userEmail).single();
-  const active = user && !!user.subscription_active && Number(user.expires_at || 0) > Date.now();
+  const { data: user } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', req.userEmail)
+    .single();
 
+  const active = user && Boolean(user.subscription_active && Number(user.expires_at || 0) > Date.now());
   if (!active) {
-    return res.status(403).send('عفواً، لا يوجد اشتراك نشط لهذا الحساب.');
+    return res.status(403).send('Unauthorized: Subscription required');
   }
 
-  // تحويل فوري للرابط الأصلي دون كشفه في JSON
-  res.redirect(TOOL_URL);
+  const toolUrl = process.env.TOOL_URL || 'https://example.com';
+  res.redirect(toolUrl);
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// مسار توجيه افتراضي للواجهة
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// تشغيل السيرفر
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Artify Server is running on port ${PORT}`);
+});
+
+module.exports = app;
