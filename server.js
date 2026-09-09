@@ -178,7 +178,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ==========================================
-// 5. الحذف وإحصائيات الكوبونات
+// 4. الحذف وإحصائيات الكوبونات
 // ==========================================
 app.post('/api/delete-account', requireAuth, async (req, res) => {
     try {
@@ -252,20 +252,20 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// 6. Whop Webhook (استقبال إشعار الدفع وتفعيل الحساب)
+// 5. Whop Webhook (استقبال إشعار الدفع وتفعيل الاشتراك)
 // ==========================================
 app.post('/api/whop-webhook', async (req, res) => {
   try {
     const eventData = req.body;
-    console.log('Received Whop Webhook:', JSON.stringify(eventData));
+    console.log('Received Whop Webhook Action:', eventData?.action || 'Event received');
 
-    // استخراج الإيميل من بيانات الدفع الواردة من Whop
+    // استخراج الإيميل سواء كان الحدث payment أو membership
     let email = '';
-    if (eventData.data && eventData.data.user && eventData.data.user.email) {
+    if (eventData?.data?.user?.email) {
         email = eventData.data.user.email;
-    } else if (eventData.data && eventData.data.email) {
+    } else if (eventData?.data?.email) {
         email = eventData.data.email;
-    } else if (eventData.user && eventData.user.email) {
+    } else if (eventData?.user?.email) {
         email = eventData.user.email;
     }
 
@@ -274,31 +274,41 @@ app.post('/api/whop-webhook', async (req, res) => {
       await connectDB();
       if (isConnected) {
         const user = await User.findOne({ email });
+        const now = Date.now();
+        const duration = 30 * 24 * 60 * 60 * 1000; // مدة افتراضية شهر قابلة للتجديد
+
         if (user) {
-          const now = Date.now();
-          // تفعيل الحساب وتحديد مدة الاشتراك بـ 30 يوم (قابلة للتعديل)
           user.subscription_active = true; 
           user.plan = 'PRO_WHOP'; 
           user.started_at = now; 
-          user.expires_at = now + (30 * 24 * 60 * 60 * 1000); 
+          user.expires_at = now + duration; 
           await user.save();
-          console.log(`✅ User ${email} activated via Whop webhook.`);
+          console.log(`✅ User ${email} successfully activated via Whop.`);
         } else {
-          console.log(`⚠️ User ${email} paid via Whop but is not registered in our database yet.`);
+          // إذا دفع عميل جديد قبل تسجيل الدخول لأول مرة، يُنشأ له الحساب مفعلاً
+          await User.create({
+            email,
+            name: email.split('@')[0],
+            subscription_active: true,
+            plan: 'PRO_WHOP',
+            started_at: now,
+            expires_at: now + duration
+          });
+          console.log(`✅ New user ${email} created & activated via Whop.`);
         }
       }
     }
     
-    // يجب دائماً الرد بـ 200 على Whop ليعرفوا أننا استلمنا الإشعار بنجاح
-    res.sendStatus(200);
+    // تأكيد استلام الطلب لمنصة Whop
+    return res.status(200).json({ received: true });
   } catch (err) {
     console.error('❌ Whop Webhook Error:', err);
-    res.sendStatus(500);
+    return res.status(500).send('Webhook Processing Error');
   }
 });
 
 // ==========================================
-// 7. تشغيل الأداة
+// 6. تشغيل الأداة
 // ==========================================
 app.get('/api/launch-app', requireAuth, async (req, res) => {
   try {
