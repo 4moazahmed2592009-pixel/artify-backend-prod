@@ -61,7 +61,7 @@
         /* المحتوى الرئيسي */
         .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-        /* شريط الإطلاق العالمي */
+        /* شريط الإطلاق العالمي (تم تجهيزه للعداد الحقيقي والمقاعد) */
         .global-launch-banner {
             background: linear-gradient(90deg, #ec4899, #6366f1);
             color: #fff; text-align: center; padding: 10px 20px; font-weight: bold; font-size: 13px;
@@ -78,6 +78,7 @@
             background: #fff; color: #6366f1; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 12px; cursor: pointer; margin-inline-start: 10px; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         .btn-launch-free:hover { transform: scale(1.05); background: #f8fafc; }
+        .btn-launch-free:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         /* الشريط العلوي */
         .topbar {
@@ -123,8 +124,7 @@
 
         /* البانر (Hero) */
         .hero-banner {
-            border-radius: 22px; overflow: hidden; position: relative;
-            background-color: var(--bg-card); 
+            border-radius: 22px; overflow: hidden; position: relative; background-color: var(--bg-card); 
             background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
             min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
@@ -312,6 +312,7 @@
                 <span data-i18n="global_banner_text">🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!</span>
                 <span class="seats-badge"><span id="seatsLeft">15</span> <span data-i18n="global_banner_seats">مقعد مجاني متبقي</span></span>
                 <span class="timer-badge" id="countdownTimer">[ 00 : 00 : 00 : 00 ]</span>
+                <!-- تم إخفاء الكود ويتم إرساله برمجياً في الخلفية -->
                 <button class="btn-launch-free" onclick="activateFreePromo()" data-i18n="global_banner_btn">احجز مقعدك الآن</button>
             </div>
 
@@ -364,7 +365,6 @@
 
                         <div class="banner-buttons">
                             <button class="btn-banner-primary" onclick="handleToolAction()"><span data-i18n="banner_btn_start">ابدأ الآن</span> <span class="dir-arrow">←</span></button>
-                            <!-- تغيير الزر إلى "شاهد فيديو توضيحي" بدلاً من معرض الإلهام -->
                             <button class="btn-banner-ghost" onclick="playPromoVideo()"><span>▶</span> <span data-i18n="banner_btn_video">شاهد فيديو توضيحي</span></button>
                         </div>
                     </div>
@@ -403,7 +403,7 @@
                             <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span></button>
                         </div>
 
-                        <!-- الوثائق والدليل (تجهيز لربط الكتاب) -->
+                        <!-- الوثائق والدليل -->
                         <div class="tool-card">
                             <div class="tool-top">
                                 <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
@@ -424,7 +424,7 @@
                             </div>
                             <div class="tool-content">
                                 <h3>Google Drive Sync</h3>
-                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات.</p>
+                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.</p>
                             </div>
                             <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span data-i18n="tag_soon">قريباً</span></button>
                         </div>
@@ -499,6 +499,7 @@
                 </div>
             </div>
 
+            <!-- الكود أصبح نظيفاً بدون كتابة بداخله -->
             <div class="coupon-box">
                 <h4 data-i18n="coupon_title">هل تمتلك كود تفعيل أو خصم؟</h4>
                 <div class="coupon-input-group">
@@ -671,10 +672,11 @@
         });
 
         // ============================================================
-        // العداد التنازلي الثابت (Target Date) والمقاعد
+        // العداد التنازلي الثابت (Target Date) 7 أيام و 15 ساعة
+        // ينتهي في: 1789656451000 (17 سبتمبر 2026، بتوقيتك)
         // ============================================================
         function startGlobalTimer() {
-            const countDownDate = 1789632451000; // 17 سبتمبر 2026
+            const countDownDate = 1789656451000; // وقت ثابت لا يتغير بالـ Refresh
             
             const timerInterval = setInterval(function() {
                 const now = new Date().getTime();
@@ -701,13 +703,14 @@
             }, 1000);
         }
 
-        // جلب عدد المقاعد المتبقية من السيرفر (محاكاة مؤقتة حتى تضيف السيرفر)
+        // جلب عدد المقاعد المتبقية من السيرفر بشكل حقيقي
         async function fetchPromoStats() {
             try {
-                // سيتم استبداله برابط الـ API الفعلي لجلب الاستخدام
-                // const res = await fetch('/api/promo-stats');
-                // const data = await res.json();
-                const totalUsed = 0; // سيأتي من السيرفر لاحقاً
+                const res = await fetch('/api/promo-stats');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const totalUsed = data.usedSeats || 0;
                 const maxSeats = 15;
                 let seatsLeft = maxSeats - totalUsed;
                 if (seatsLeft < 0) seatsLeft = 0;
@@ -715,9 +718,13 @@
                 const seatsEl = document.getElementById("seatsLeft");
                 if (seatsEl) seatsEl.innerText = seatsLeft;
 
+                // إذا انتهت المقاعد، عطل الزر
                 if (seatsLeft === 0) {
                     const btn = document.querySelector('.btn-launch-free');
-                    if (btn) btn.style.display = 'none';
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerText = currentLang === 'ar' ? 'اكتمل العدد' : 'Sold Out';
+                    }
                 }
             } catch (e) {
                 console.log('Failed to fetch promo stats');
@@ -836,14 +843,14 @@
 
             if (user.subscriptionActive) {
                 lock.style.display = 'none';
-                if (globalBanner) globalBanner.style.display = 'none'; // إخفاء العرض للمشتركين
+                if (globalBanner) globalBanner.style.display = 'none'; // إخفاء العرض للمشتركين نهائياً
                 const dateStr = new Date(user.expiresAt).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
                 document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
                 dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_current');
             } else {
                 lock.style.display = 'flex';
-                if (globalBanner) globalBanner.style.display = 'flex'; // إظهار العرض للحسابات المجانية غير المشتركة
+                if (globalBanner) globalBanner.style.display = 'flex'; // إظهار العرض للحسابات المجانية
                 document.getElementById('sidebarSubStatus').innerText = currentLang === 'ar' ? 'غير مفعل' : 'Inactive';
                 dropSubStatus.innerText = currentLang === 'ar' ? 'حساب غير مفعل' : 'Inactive';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
@@ -856,23 +863,21 @@
             window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight}`);
         }
 
-        // تفعيل الشهر المجاني مباشرة من الشريط العلوي (يستخدم كوداً مخفياً)
+        // تفعيل الشهر المجاني مباشرة (الكود المخفي)
         async function activateFreePromo() {
             if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
             try {
                 const res = await fetch('/api/apply-coupon', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    credentials: 'include', 
-                    body: JSON.stringify({ couponCode: "ARTIFYFREE" }) // الكود المخفي للتفعيل
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', 
+                    body: JSON.stringify({ couponCode: "ARTIFYFREE" }) 
                 });
                 const data = await res.json();
                 if (res.ok && data.type === 'free') {
                     showToast(t('toast_coupon_activated'), 'success');
-                    fetchPromoStats(); // تحديث العداد
+                    fetchPromoStats(); // تحديث العداد من السيرفر
                     setTimeout(() => { closeModals(); checkSession(); }, 1200);
                 } else { 
-                    showToast(t('toast_coupon_invalid'), 'danger'); 
+                    showToast(data.error || t('toast_coupon_invalid'), 'danger'); 
                 }
             } catch (e) { showToast(t('toast_network_error'), 'danger'); }
         }
