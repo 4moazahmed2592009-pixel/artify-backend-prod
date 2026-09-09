@@ -33,7 +33,7 @@
 
         .app-layout { display: flex; min-height: 100vh; }
 
-        /* القائمة الجانبية (Sidebar) */
+        /* القائمة الجانبية */
         .sidebar {
             width: 250px; background: var(--bg-sidebar); border-left: 1px solid var(--border);
             display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px;
@@ -57,8 +57,20 @@
         .sub-quota strong { color: var(--text-main); font-weight: 700; }
         .btn-upgrade-sidebar { width: 100%; padding: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 13px; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .btn-upgrade-sidebar:hover { transform: scale(1.02); }
-        
+
+        /* المحتوى الرئيسي */
         .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+        /* شريط الإطلاق العالمي (مع العداد) */
+        .global-launch-banner {
+            background: linear-gradient(90deg, #ec4899, #6366f1);
+            color: #fff; text-align: center; padding: 10px 20px; font-weight: bold; font-size: 13px;
+            display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;
+            border-bottom: 1px solid rgba(0,0,0,0.2); z-index: 45; position: relative;
+        }
+        .timer-badge {
+            background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 6px; font-family: monospace; font-size: 14px; letter-spacing: 1px; backdrop-filter: blur(4px);
+        }
 
         /* الشريط العلوي */
         .topbar {
@@ -100,18 +112,17 @@
         .dropdown-status .label { font-size: 10px; color: var(--text-muted); text-transform: none; }
         .dropdown-status .value { font-size: 13px; color: var(--primary); font-weight: 700; margin-top: 2px; }
 
-        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; }
+        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; scroll-behavior: smooth; }
 
-        /* 1. البانر (الدمج الاحترافي للصورة) */
+        /* 1. البانر (Hero) */
         .hero-banner {
             border-radius: 22px; overflow: hidden; position: relative;
-            background-color: var(--bg-card); /* يطابق لون الموقع للدمج السلس */
+            background-color: var(--bg-card); 
             background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
             min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
         html[dir="rtl"] .hero-banner { background-position: center right; }
 
-        /* قناع ذكي: كثيف خلف النص ويختفي تدريجياً ليظهر الصورة بوضوح تام */
         .banner-mask { position: absolute; inset: 0; background: linear-gradient(to right, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); z-index: 1; pointer-events: none; }
         html[dir="rtl"] .banner-mask { background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); }
 
@@ -143,7 +154,6 @@
         .tool-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .tool-card.primary-tool { border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, #11182c 0%, #0e1424 100%); }
 
-        /* تنسيق علوي للأدوات مطابق للصورة */
         .tool-top { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: row-reverse; }
         html[dir="ltr"] .tool-top { flex-direction: row; }
         
@@ -181,7 +191,7 @@
         .insp-prompt { font-size: 11px; color: #f1f5f9; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
         .insp-copy-btn { padding: 6px 12px; background: var(--primary); border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; }
 
-        /* النوافذ المنبثقة (Modals) للأسعار والأسئلة وحذف الحساب */
+        /* النوافذ المنبثقة (Modals) */
         .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.75); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
         .modal-overlay.show { display: flex; }
         
@@ -200,7 +210,7 @@
         .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border);}
         .modal-btn-danger { background: var(--danger); color: #fff; }
         
-        /* تصميم خطط الأسعار داخل النافذة المنبثقة */
+        /* تصميم خطط الأسعار */
         .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 15px; }
         .pricing-card { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
         .pricing-card.featured { border-color: var(--primary); box-shadow: 0 0 25px rgba(99, 102, 241, 0.2); }
@@ -214,7 +224,7 @@
         .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
         .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
 
-        /* الأسئلة الشائعة داخل النافذة المنبثقة */
+        /* الأسئلة الشائعة */
         .faq-wrap { width: 100%; text-align: right; }
         html[dir="ltr"] .faq-wrap { text-align: left; }
         .faq-item { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
@@ -245,6 +255,12 @@
         .telegram-btn:hover { transform: scale(1.08); }
         html[dir="rtl"] .telegram-btn { left: auto; right: 20px; }
         .telegram-btn svg { width: 24px; height: 24px; fill: currentColor; }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .banner-float-card { display: none; }
+            .search-container { width: 180px; }
+        }
     </style>
 </head>
 <body>
@@ -283,6 +299,13 @@
 
         <!-- المحتوى الرئيسي -->
         <main class="main-wrapper">
+            
+            <!-- شريط الإطلاق العالمي (جديد: يظهر للجميع بالأعلى مع العداد) -->
+            <div class="global-launch-banner" id="globalBanner">
+                <span data-i18n="global_banner_text">🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني لأول 10 حسابات! ينتهي العرض في:</span>
+                <span class="timer-badge" id="countdownTimer">[ 00 : 00 : 00 : 00 ]</span>
+            </div>
+
             <!-- الشريط العلوي -->
             <header class="topbar">
                 <div class="search-container">
@@ -292,7 +315,6 @@
                 </div>
 
                 <div class="topbar-actions">
-                    <!-- اللغات -->
                     <div class="lang-menu-rel" id="langMenuArea">
                         <button class="lang-switch" onclick="toggleLangDropdown()" type="button">
                             🌐 <span id="langCurrentLabel">العربية</span> <span style="font-size:10px;">▼</span>
@@ -333,7 +355,8 @@
 
                         <div class="banner-buttons">
                             <button class="btn-banner-primary" onclick="handleToolAction()"><span data-i18n="banner_btn_start">ابدأ الآن</span> <span class="dir-arrow">←</span></button>
-                            <button class="btn-banner-ghost" onclick="scrollToSection('inspirationSection')"><span>▶</span> <span data-i18n="banner_btn_gallery">معرض الإلهام</span></button>
+                            <!-- تغيير الزر إلى "شاهد فيديو توضيحي" بدلاً من معرض الإلهام -->
+                            <button class="btn-banner-ghost" onclick="playPromoVideo()"><span>▶</span> <span data-i18n="banner_btn_video">شاهد فيديو توضيحي</span></button>
                         </div>
                     </div>
 
@@ -371,7 +394,7 @@
                             <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span></button>
                         </div>
 
-                        <!-- الوثائق -->
+                        <!-- الوثائق والدليل (تجهيز لربط الكتاب) -->
                         <div class="tool-card">
                             <div class="tool-top">
                                 <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
@@ -381,7 +404,7 @@
                                 <h3 data-i18n="tool2_title">الوثائق والدليل</h3>
                                 <p data-i18n="tool2_desc">دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="tool2_btn">عرض الأسئلة والدليل</span> <span class="dir-arrow">←</span></button>
+                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="tool2_btn">عرض الدليل والأسئلة</span> <span class="dir-arrow">←</span></button>
                         </div>
 
                         <!-- Google Drive -->
@@ -392,7 +415,7 @@
                             </div>
                             <div class="tool-content">
                                 <h3>Google Drive Sync</h3>
-                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.</p>
+                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات.</p>
                             </div>
                             <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span data-i18n="tag_soon">قريباً</span></button>
                         </div>
@@ -440,7 +463,7 @@
         </div>
     </div>
 
-    <!-- 2. نافذة خطط الأسعار (للاشتراك أو التجديد) -->
+    <!-- 2. نافذة خطط الأسعار -->
     <div class="modal-overlay" id="pricingModal">
         <div class="modal-box large">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
@@ -502,20 +525,21 @@
 
     <script>
         // ============================================================
-        // الترجمة
+        // الترجمة والقواميس
         // ============================================================
         const translations = {
             ar: {
+                global_banner_text:"🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني لأول 10 حسابات! ينتهي العرض في:",
                 nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_projects:"المشاريع", nav_gallery:"المعرض", nav_docs:"الأسئلة الشائعة", nav_plans:"الاشتراك",
                 sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات...",
                 dropdown_status_label:"حالة الاشتراك", user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
                 welcome_pill:"مرحباً بك في Artify PRO", banner_title:'حوّل أفكارك إلى <span style="color:#38bdf8;">صور مذهلة</span>',
                 banner_desc:"أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
-                banner_btn_start:"ابدأ الآن", banner_btn_gallery:"معرض الإلهام", float_title:"الذكاء الاصطناعي المتقدم",
+                banner_btn_start:"ابدأ الآن", banner_btn_video:"شاهد فيديو توضيحي", float_title:"الذكاء الاصطناعي المتقدم",
                 float_1:"ثبات ملامح الوجه 100%", float_2:"توليد المشاهد المتسلسلة", float_3:"دقة سينمائية فائقة الوضوح",
                 tools_title:"أدواتك", tools_subtitle:"اختر الأداة للبدء", tag_popular:"الأكثر استخداماً", tag_handbook:"دليل وتوثيق", tag_soon:"قريباً",
                 tool1_title:"Canvas Pro (مولد الصور)", tool1_desc:"استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.", tool1_btn:"فتح الأداة",
-                tool2_title:"الأسئلة الشائعة والدليل", tool2_desc:"تعرف على كافة التفاصيل لضمان أفضل استخدام للأداة.", tool2_btn:"عرض الأسئلة والدليل",
+                tool2_title:"الوثائق والدليل", tool2_desc:"دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.", tool2_btn:"عرض الدليل والأسئلة",
                 tool3_desc:"مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.",
                 lock_text:"اضغط للاشتراك وفتح الأداة", insp_title:"إلهام", insp_subtitle:"مرر الماوس لنسخ البرومبت",
                 sub_info_title:"تفاصيل اشتراكك", sub_info_plan:"الباقة الحالية", sub_info_start:"تاريخ البدء", sub_info_expiry:"تاريخ الانتهاء", sub_info_remaining:"الأيام المتبقية",
@@ -534,6 +558,7 @@
                 toast_coupon_login:"سجّل الدخول أولاً لتطبيق الكوبون", toast_coupon_activated:"تمت ترقية حسابك إلى PRO مجاناً!",
                 toast_coupon_discount:"تم تطبيق خصم {p}% بنجاح", toast_coupon_invalid:"الكود غير صحيح أو منتهي",
                 toast_payment_error:"تعذّر بدء الدفع", toast_delete_success:"تم حذف الحساب نهائياً", toast_logout:"تم تسجيل الخروج", toast_soon:"هذه الميزة ستتوفر قريباً",
+                toast_video_soon:"سيتم إضافة الفيديو التوضيحي قريباً!",
                 faqs: [
                     { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." },
                     { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO." },
@@ -543,16 +568,17 @@
                 ]
             },
             en: {
+                global_banner_text:"🔥 Launch Week: 30% OFF + 1 Free Month for first 10 users! Ends in:",
                 nav_home:"Home", nav_studio:"Canvas Pro", nav_projects:"Projects", nav_gallery:"Gallery", nav_docs:"FAQs", nav_plans:"Plans",
                 sidebar_free:"Free Plan", sidebar_upgrade:"Manage Sub", search_placeholder:"Search tools...",
                 dropdown_status_label:"Subscription Status", user_manage_billing:"Manage Subscription", user_delete_account:"Delete Account", user_logout:"Logout",
                 welcome_pill:"Welcome to Artify PRO", banner_title:'Turn your ideas into <span style="color:#38bdf8;">stunning visuals</span>',
                 banner_desc:"Create high-end, professional-grade visuals with state-of-the-art AI engines and full character consistency.",
-                banner_btn_start:"Start Creating", banner_btn_gallery:"Showcase", float_title:"Advanced AI Engine",
+                banner_btn_start:"Start Creating", banner_btn_video:"Watch Explainer Video", float_title:"Advanced AI Engine",
                 float_1:"100% Face Consistency", float_2:"Sequential Generation", float_3:"Ultra HD Renders",
                 tools_title:"Your Tools", tools_subtitle:"Select a tool to begin", tag_popular:"Popular", tag_handbook:"Guide & Docs", tag_soon:"Soon",
                 tool1_title:"Canvas Pro (Studio)", tool1_desc:"The all-in-one generation, consistency, and prompt studio.", tool1_btn:"Launch Studio",
-                tool2_title:"FAQs & Guide", tool2_desc:"Comprehensive details to help you master the tool.", tool2_btn:"View FAQs",
+                tool2_title:"Docs & Guide", tool2_desc:"Comprehensive details to help you master the tool and prompts.", tool2_btn:"View Guide & FAQs",
                 tool3_desc:"Automatic cloud backup for projects, and ability to download local apps and files.",
                 lock_text:"Click to unlock PRO", insp_title:"Inspiration Gallery", insp_subtitle:"Hover to copy prompt",
                 sub_info_title:"Subscription Details", sub_info_plan:"Current Plan", sub_info_start:"Started On", sub_info_expiry:"Expires On", sub_info_remaining:"Days Left",
@@ -569,6 +595,7 @@
                 toast_network_error:"Connection error", toast_sub_required:"PRO subscription required", toast_copy_locked:"PRO feature only", toast_copy_success:"Copied!",
                 toast_coupon_login:"Sign in first", toast_coupon_activated:"Upgraded to PRO for free!", toast_coupon_discount:"{p}% discount applied", toast_coupon_invalid:"Invalid code",
                 toast_payment_error:"Payment error", toast_delete_success:"Account deleted", toast_logout:"Logged out", toast_soon:"Feature coming soon",
+                toast_video_soon:"The explainer video will be added soon!",
                 faqs: [
                     { q:"Does any Google account work?", a:"Image generation requires a Google account registered for users 18+. Supervised accounts cannot generate images." },
                     { q:"Do I need to pay Google any extra fees?", a:"No, the tool runs on your account's free tier. Your Artify subscription covers the features." },
@@ -622,6 +649,7 @@
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
         function showSoonToast() { showToast(t('toast_soon'), 'warning'); }
+        function playPromoVideo() { showToast(t('toast_video_soon'), 'success'); } // وظيفة الفيديو التوضيحي
 
         function scrollToSection(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
         function scrollToTop() { document.getElementById('topAnchor').scrollIntoView({ behavior: 'smooth' }); }
@@ -630,6 +658,37 @@
             if (!document.getElementById('userMenuArea').contains(e.target)) document.getElementById('userDropdown').classList.remove('show');
             if (!document.getElementById('langMenuArea').contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
         });
+
+        // ============================================================
+        // العداد التنازلي العالمي
+        // ============================================================
+        function startGlobalTimer() {
+            // تحديد وقت الانتهاء بعد 7 أيام من الآن (للتجربة) - يمكنك تغييره لاحقاً
+            const countDownDate = new Date().getTime() + (7 * 24 * 60 * 60 * 1000); 
+            
+            const timerInterval = setInterval(function() {
+                const now = new Date().getTime();
+                const distance = countDownDate - now;
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                // تنسيق الأرقام لتكون دائماً من خانتين (مثل: 07)
+                const d = days < 10 ? "0" + days : days;
+                const h = hours < 10 ? "0" + hours : hours;
+                const m = minutes < 10 ? "0" + minutes : minutes;
+                const s = seconds < 10 ? "0" + seconds : seconds;
+
+                document.getElementById("countdownTimer").innerText = `[ ${d} : ${h} : ${m} : ${s} ]`;
+
+                if (distance < 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById("countdownTimer").innerText = "[ 00 : 00 : 00 : 00 ]";
+                }
+            }, 1000);
+        }
 
         const showcaseItems = [
             { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light." },
@@ -672,7 +731,7 @@
         }
 
         // ============================================================
-        // نظام النوافذ المنبثقة (Modals) للأسعار والأسئلة وغيرها
+        // نظام النوافذ المنبثقة (Modals)
         // ============================================================
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
         
@@ -702,6 +761,7 @@
 
         window.onload = function () {
             setLanguage('ar');
+            startGlobalTimer(); // تشغيل العداد التنازلي
             google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
             google.accounts.id.renderButton(document.getElementById("g_id_signin_container"), { theme: "outline", size: "medium", text: "signin_with", shape: "pill" });
             checkSession();
