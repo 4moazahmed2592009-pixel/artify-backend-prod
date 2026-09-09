@@ -947,19 +947,18 @@
         }
 
         // ============================================================
-        // الدالة المحدثة للربط المباشر بـ Whop
+        // الدالة المحدثة للربط المباشر بـ Whop وتطبيق كود الخصم تلقائياً
         // ============================================================
         async function promptPlan(plan) {
             // التأكد من تسجيل الدخول
             if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
             
-// روابط Whop مدمج معها كود الخصم التلقائي
+            // روابط Whop المباشرة بدون أي سلاش زائدة لضمان عمل كود الخصم فوراً
             const whopLinks = {
                 'month1': 'https://whop.com/checkout/plan_1AFMWzPSMlWF7?d=LAUNCH30',
                 'month3': 'https://whop.com/checkout/plan_hhPYAFHhQnZ2p?d=LAUNCH30',
                 'month6': 'https://whop.com/checkout/plan_SFcazKZDf63GC?d=LAUNCH30',
                 'year1': 'https://whop.com/checkout/plan_PJeLIwlopBsLV?d=LAUNCH30'
-            };
             };
 
             const checkoutUrl = whopLinks[plan];
