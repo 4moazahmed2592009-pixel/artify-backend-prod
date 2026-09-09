@@ -582,7 +582,7 @@
                     { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO." },
                     { q:"هل هناك حد أقصى لعدد الصور التي يمكنني توليدها؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك." },
                     { q:"هل الصور الناتجة مملوكة لي بالكامل ويمكن استخدامها تجارياً؟", a:"نعم، جميع الصور التي تولّدها عبر حسابك مملوكة لك بالكامل ويمكنك استخدامها في مشاريعك التجارية دون قيود." },
-                    { q:"ما هي طرق الدفع المتاحة وسياسة الاسترجاع؟", a:"ندعم الدفع بأمان عبر Gumroad، مع ضمان استرجاع 7 أيام للمشاكل التقنية." }
+                    { q:"ما هي طرق الدفع المتاحة وسياسة الاسترجاع؟", a:"ندعم الدفع بأمان عبر Whop (بطاقات ائتمان و Apple Pay)، مع ضمان استرجاع 7 أيام للمشاكل التقنية." }
                 ]
             },
             en: {
@@ -620,7 +620,7 @@
                     { q:"Do I need to pay Google any extra fees?", a:"No, the tool runs on your account's free tier. Your Artify subscription covers the features." },
                     { q:"Is there a limit on how many images I can generate?", a:"PRO subscribers enjoy unlimited generation for the duration of their subscription." },
                     { q:"Do I own the generated images commercially?", a:"Yes, every image is fully yours and can be used for commercial projects without restriction." },
-                    { q:"Payment methods and refunds?", a:"Secure payments via Gumroad with a 7-day technical refund guarantee." }
+                    { q:"Payment methods and refunds?", a:"Secure payments via Whop with a 7-day technical refund guarantee." }
                 ]
             }
         };
@@ -946,13 +946,27 @@
             }
         }
 
+        // ============================================================
+        // الدالة المحدثة للربط المباشر بـ Whop
+        // ============================================================
         async function promptPlan(plan) {
+            // التأكد من تسجيل الدخول
             if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
-            try {
-                const res = await fetch('/api/create-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ plan }) });
-                const data = await res.json();
-                if (data.url) window.location.href = data.url; else showToast(data.error || t('toast_payment_error'), 'danger');
-            } catch(e) { showToast(t('toast_network_error'), 'danger'); }
+            
+            // روابط Whop مدمج معها كود الخصم التلقائي
+            const whopLinks = {
+                'month1': 'https://whop.com/checkout/plan_1AFMWzPSMlWF7?d=LAUNCH30',
+                'month3': 'https://whop.com/checkout/plan_hhPYAFHhQnZ2p?d=LAUNCH30',
+                'month6': 'https://whop.com/checkout/plan_SFcazKZDf63GC?d=LAUNCH30',
+                'year1': 'https://whop.com/checkout/plan_PJeLIwlopBsLV?d=LAUNCH30'
+            };
+
+            const checkoutUrl = whopLinks[plan];
+            
+            if (checkoutUrl) {
+                // فتح صفحة الدفع الخاصة بـ Whop مباشرة
+                window.location.href = checkoutUrl; 
+            }
         }
 
         async function executeDeleteAccount() {
