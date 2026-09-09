@@ -28,27 +28,16 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
 
-        /* تحسين شكل النصوص عند التبديل بين اللغات */
         [dir="rtl"] body { letter-spacing: 0; }
         [dir="ltr"] body { font-family: 'Cairo', 'Segoe UI', sans-serif; }
 
-        /* هيكل لوحة التحكم الرئيسي */
         .app-layout { display: flex; min-height: 100vh; }
 
         /* القائمة الجانبية (Sidebar) */
         .sidebar {
-            width: 250px;
-            background: var(--bg-sidebar);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 24px 16px;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            flex-shrink: 0;
-            z-index: 50;
+            width: 250px; background: var(--bg-sidebar); border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px;
+            position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 50;
         }
         html[dir="ltr"] .sidebar { border-left: none; border-right: 1px solid var(--border); }
 
@@ -63,31 +52,19 @@
         .nav-item.active { background: #1a233a; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
         .nav-item span.icon { font-size: 18px; width: 20px; text-align: center; }
 
-        /* كارت الترقية / حالة الاشتراك أسفل القائمة الجانبية */
         .sidebar-bottom-card { background: rgba(20, 29, 51, 0.6); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
         .sub-quota { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .sub-quota strong { color: var(--text-main); font-weight: 700; }
         .btn-upgrade-sidebar { width: 100%; padding: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 13px; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .btn-upgrade-sidebar:hover { transform: scale(1.02); }
-        .btn-upgrade-sidebar:focus-visible, .nav-item:focus-visible, .action-icon-btn:focus-visible, button:focus-visible, .tool-btn:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
-
-        /* مساحة المحتوى الرئيسية */
+        
         .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-        /* الشريط العلوي (Top Navbar) */
+        /* الشريط العلوي */
         .topbar {
-            height: 70px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 30px;
-            border-bottom: 1px solid var(--border);
-            background: rgba(7, 10, 19, 0.85);
-            backdrop-filter: blur(12px);
-            position: sticky;
-            top: 0;
-            z-index: 40;
-            gap: 16px;
+            height: 70px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px; border-bottom: 1px solid var(--border); background: rgba(7, 10, 19, 0.85);
+            backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; gap: 16px;
         }
 
         .search-container { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; width: 360px; transition: 0.2s; }
@@ -96,10 +73,8 @@
         .search-shortcut { font-size: 11px; background: rgba(255, 255, 255, 0.08); padding: 2px 6px; border-radius: 4px; color: var(--text-muted); flex-shrink: 0; }
 
         .topbar-actions { display: flex; align-items: center; gap: 12px; }
-        .action-icon-btn { background: var(--bg-card); border: 1px solid var(--border); width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-main); cursor: pointer; transition: 0.2s; font-size: 16px; }
-        .action-icon-btn:hover { border-color: var(--primary); }
-
-        /* قائمة اللغة المنسدلة الجديدة (أكثر من 10 لغات) */
+        
+        /* اللغات */
         .lang-menu-rel { position: relative; }
         .lang-switch { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .lang-switch:hover { border-color: var(--primary); }
@@ -110,7 +85,7 @@
         .lang-option:hover { color: #fff; background: rgba(255,255,255,0.06); }
         .lang-option.active { color: #38bdf8; background: rgba(56,189,248,0.08); font-weight: 700; }
 
-        /* قائمة المستخدم المنسدلة */
+        /* المستخدم */
         .user-menu-rel { position: relative; }
         .user-badge { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 12px; border-radius: 25px; cursor: pointer; }
         .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0; }
@@ -125,40 +100,20 @@
         .dropdown-status .label { font-size: 10px; color: var(--text-muted); text-transform: none; }
         .dropdown-status .value { font-size: 13px; color: var(--primary); font-weight: 700; margin-top: 2px; }
 
-        /* منطقة المحتوى الداخلي */
         .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; }
 
-        /* 1. كارت البانر (Hero Banner) */
+        /* 1. البانر (الدمج الاحترافي للصورة) */
         .hero-banner {
-            border-radius: 22px;
-            overflow: hidden;
-            position: relative;
-            background-color: #101626;
-            background-image: url('/hero-bg.jpg');
-            background-position: center left;
-            background-size: cover;
-            background-repeat: no-repeat;
-            min-height: 270px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 35px 45px;
-            border: 1px solid var(--border);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-radius: 22px; overflow: hidden; position: relative;
+            background-color: var(--bg-card); /* يطابق لون الموقع للدمج السلس */
+            background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
+            min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
         html[dir="rtl"] .hero-banner { background-position: center right; }
 
-        /* تم تخفيف التظليل حتى لا تبدو الصورة معتّمة بالكامل خلف طبقة سوداء */
-        .banner-mask {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to left, rgba(7, 10, 19, 0.82) 0%, rgba(7, 10, 19, 0.55) 45%, rgba(7, 10, 19, 0.1) 100%);
-            z-index: 1;
-            pointer-events: none;
-        }
-        html[dir="ltr"] .banner-mask {
-            background: linear-gradient(to right, rgba(7, 10, 19, 0.82) 0%, rgba(7, 10, 19, 0.55) 45%, rgba(7, 10, 19, 0.1) 100%);
-        }
+        /* قناع ذكي: كثيف خلف النص ويختفي تدريجياً ليظهر الصورة بوضوح تام */
+        .banner-mask { position: absolute; inset: 0; background: linear-gradient(to right, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); z-index: 1; pointer-events: none; }
+        html[dir="rtl"] .banner-mask { background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); }
 
         .banner-text { position: relative; z-index: 2; max-width: 580px; }
         .welcome-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 5px 14px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; font-weight: bold; }
@@ -172,48 +127,28 @@
         .btn-banner-ghost { padding: 12px 24px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-banner-ghost:hover { background: rgba(255, 255, 255, 0.12); }
 
-        /* الكارت الشفاف العائم داخل البانر */
-        .banner-float-card {
-            position: relative;
-            z-index: 2;
-            background: rgba(14, 20, 36, 0.7);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 16px;
-            padding: 20px 24px;
-            width: 260px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
-        }
+        .banner-float-card { position: relative; z-index: 2; background: rgba(14, 20, 36, 0.7); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 20px 24px; width: 260px; box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
         .float-header { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; margin-bottom: 12px; color: #fff; }
         .float-list { list-style: none; font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; }
         .float-list li { display: flex; align-items: center; gap: 6px; }
         .float-list li span.check { color: var(--success); font-weight: bold; }
 
-        /* 2. قسم شبكة الأدوات (Tools Grid) */
+        /* 2. شبكة الأدوات */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .section-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .section-subtitle { font-size: 12px; color: var(--text-muted); font-weight: normal; }
 
         .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .tool-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 24px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 190px;
-            transition: all 0.3s ease;
-        }
+        .tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 24px; position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 190px; transition: all 0.3s ease; }
         .tool-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .tool-card.primary-tool { border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, #11182c 0%, #0e1424 100%); }
-        .tool-card.is-hidden-by-search { display: none; }
 
-        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        /* تنسيق علوي للأدوات مطابق للصورة */
+        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: row-reverse; }
+        html[dir="ltr"] .tool-top { flex-direction: row; }
+        
         .tool-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-        .tool-tag { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: bold; white-space: nowrap; }
+        .tool-tag { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: bold; white-space: nowrap; height: fit-content; }
         .tag-popular { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
         .tag-soon { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
 
@@ -227,18 +162,16 @@
         .btn-secondary-tool { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border); }
         .tool-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* حالة القفل لغير المشتركين */
         .lock-overlay { position: absolute; inset: 0; background: rgba(14, 20, 36, 0.65); backdrop-filter: blur(2px); border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; cursor: pointer; text-align: center; padding: 10px; }
         .lock-icon { font-size: 24px; }
         .lock-text { font-size: 12px; font-weight: bold; color: #cbd5e1; }
 
-        /* 3. معرض الإلهام (Inspiration Marquee) - تم إصلاح الحلقة اللانهائية */
+        /* 3. الإلهام */
         .inspiration-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px 20px; overflow: hidden; }
         .marquee-viewport { overflow: hidden; }
         .marquee-track { display: flex; gap: 16px; width: max-content; animation: scrollShowcase 40s linear infinite; will-change: transform; }
         .marquee-track:hover { animation-play-state: paused; }
         @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
 
         .inspiration-card { width: 260px; height: 160px; border-radius: 14px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; }
         .inspiration-card img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; display: block; background: #0e1424; }
@@ -248,115 +181,70 @@
         .insp-prompt { font-size: 11px; color: #f1f5f9; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
         .insp-copy-btn { padding: 6px 12px; background: var(--primary); border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; }
 
-        /* 4. قسم الاشتراك (يبقى ظاهرًا دائمًا: يعرض الخطط قبل الاشتراك، والتجديد/الترقية بعده) */
-        #purchase-section { display: flex; flex-direction: column; gap: 25px; margin-top: 10px; }
+        /* النوافذ المنبثقة (Modals) للأسعار والأسئلة وحذف الحساب */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.75); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+        .modal-overlay.show { display: flex; }
+        
+        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 420px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
+        .modal-box.large { max-width: 850px; }
+        
+        .modal-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        html[dir="rtl"] .modal-close-btn { right: auto; left: 15px; }
+        .modal-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-        .launch-banner { background: linear-gradient(90deg, var(--accent), var(--primary)); text-align: center; padding: 10px; font-weight: bold; font-size: 13px; color: #fff; border-radius: 12px; }
-
-        /* بطاقة تفاصيل الاشتراك الحالي - تظهر فقط للمشتركين */
-        .sub-info-card {
-            display: none;
-            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(236,72,153,0.08));
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            border-radius: 18px;
-            padding: 24px;
-            gap: 20px;
-        }
-        .sub-info-card.show { display: flex; flex-direction: column; }
-        .sub-info-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-        .sub-info-title { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-        .sub-status-badge { font-size: 11px; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
-        .sub-status-badge.active { background: rgba(16,185,129,0.15); color: var(--success); }
-        .sub-status-badge.ending-soon { background: rgba(245,158,11,0.15); color: var(--warning); }
-        .sub-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
-        .sub-info-item { background: rgba(7,10,19,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-        .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .sub-info-item .value { font-size: 15px; font-weight: 700; }
-        .sub-progress-wrap { display: flex; flex-direction: column; gap: 6px; }
-        .sub-progress-bar { height: 8px; border-radius: 20px; background: rgba(255,255,255,0.08); overflow: hidden; }
-        .sub-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 20px; transition: width 0.4s; }
-        .sub-progress-label { font-size: 11px; color: var(--text-muted); }
-        .sub-info-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-        .btn-sub-action { padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; display: flex; align-items: center; gap: 6px; }
-        .btn-sub-renew { background: var(--primary); color: #fff; }
-        .btn-sub-renew:hover { background: #4f46e5; }
-        .btn-sub-autorenew { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border); }
-        .btn-sub-autorenew.is-off { color: var(--danger); border-color: rgba(239,68,68,0.3); }
-
-        .coupon-box { max-width: 460px; margin: 0 auto; background: var(--bg-card); border: 1px dashed var(--primary); border-radius: 14px; padding: 20px; text-align: center; }
-        .coupon-input-group { display: flex; gap: 8px; margin-top: 12px; }
-        .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
-        .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
-
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-        .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
+        .modal-title { font-size: 22px; font-weight: 800; margin-bottom: 20px; text-align: center; }
+        .modal-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; text-align: center;}
+        
+        .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px;}
+        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
+        .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border);}
+        .modal-btn-danger { background: var(--danger); color: #fff; }
+        
+        /* تصميم خطط الأسعار داخل النافذة المنبثقة */
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 15px; }
+        .pricing-card { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
         .pricing-card.featured { border-color: var(--primary); box-shadow: 0 0 25px rgba(99, 102, 241, 0.2); }
         .pricing-card.current-plan { border-color: var(--success); }
         .current-plan-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--success); color: #fff; font-size: 10px; font-weight: bold; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
         .price-num { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 8px 0 4px; }
         .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 14px; }
 
-        /* الأسئلة الشائعة */
-        .faq-wrap { max-width: 800px; margin: 0 auto; width: 100%; }
-        .faq-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
-        .faq-item.is-hidden-by-search { display: none; }
+        .coupon-box { max-width: 400px; margin: 20px auto 0; background: rgba(255,255,255,0.03); border: 1px dashed var(--primary); border-radius: 14px; padding: 15px; text-align: center; }
+        .coupon-input-group { display: flex; gap: 8px; margin-top: 10px; }
+        .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
+        .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
+
+        /* الأسئلة الشائعة داخل النافذة المنبثقة */
+        .faq-wrap { width: 100%; text-align: right; }
+        html[dir="ltr"] .faq-wrap { text-align: left; }
+        .faq-item { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
         .faq-question { padding: 14px 18px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; background: none; border: none; width: 100%; text-align: inherit; color: inherit; font-family: inherit; }
         .faq-question .plus { transition: transform 0.2s; color: var(--text-muted); flex-shrink: 0; }
         .faq-item.active .faq-question .plus { transform: rotate(45deg); }
         .faq-answer { padding: 0 18px; max-height: 0; overflow: hidden; transition: 0.3s; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
         .faq-item.active .faq-answer { padding: 12px 18px 16px; max-height: 300px; border-top: 1px solid var(--border); }
 
-        /* نافذة منبثقة عامة (Modal) */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
-        .modal-overlay.show { display: flex; }
-        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 420px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); }
-        .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 10px; }
-        .modal-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
-        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
-        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
-        .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); }
-        .modal-btn-danger { background: var(--danger); color: #fff; }
-        .modal-btn-primary { background: var(--primary); color: #fff; }
+        /* تفاصيل اشتراك PRO */
+        .sub-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: center; margin-bottom: 20px;}
+        .sub-info-item { background: rgba(7,10,19,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+        .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .sub-info-item .value { font-size: 15px; font-weight: 700; color: #fff;}
 
-        /* Toasts - تصميم أكثر احترافية */
+        /* Toasts */
         #toast-container { position: fixed; bottom: 25px; left: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
         html[dir="rtl"] #toast-container { left: auto; right: 25px; }
-        .toast {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-inline-start: 4px solid var(--success);
-            color: var(--text-main);
-            font-size: 13px;
-            opacity: 0;
-            transform: translateY(15px);
-            transition: 0.3s;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        }
+        .toast { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); border-inline-start: 4px solid var(--success); color: var(--text-main); font-size: 13px; opacity: 0; transform: translateY(15px); transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.danger { border-inline-start-color: var(--danger); }
-        .toast.success { border-inline-start-color: var(--success); }
+        .toast.warning { border-inline-start-color: var(--warning); }
         .toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
         .toast-text { font-weight: 600; }
 
-        /* زر تليجرام العائم للتواصل والدعم (سيتم ربطه بقناة الدعم الرسمية) */
+        /* زر تليجرام */
         .telegram-btn { position: fixed; bottom: 20px; left: 20px; background: #0088cc; color: white; width: 46px; height: 46px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; text-decoration: none; box-shadow: 0 4px 15px rgba(0,136,204,0.4); z-index: 90; transition: transform 0.2s; }
         .telegram-btn:hover { transform: scale(1.08); }
         html[dir="rtl"] .telegram-btn { left: auto; right: 20px; }
-
-        @media (max-width: 900px) {
-            .sidebar { display: none; }
-            .banner-float-card { display: none; }
-            .search-container { width: 180px; }
-        }
-        @media (max-width: 560px) {
-            .search-container { display: none; }
-            .content-scroll { padding: 18px; }
-        }
+        .telegram-btn svg { width: 24px; height: 24px; fill: currentColor; }
     </style>
 </head>
 <body>
@@ -364,23 +252,21 @@
     <div id="toast-container"></div>
 
     <div class="app-layout">
-        <!-- القائمة الجانبية (Sidebar) -->
+        <!-- القائمة الجانبية -->
         <aside class="sidebar">
             <div>
                 <div class="sidebar-logo">
                     <div class="logo-icon">A</div>
-                    <div class="logo-text">
-                        <h2>Artify PRO</h2>
-                        <p>Create • Edit • Inspire</p>
-                    </div>
+                    <div class="logo-text"><h2>Artify PRO</h2><p>Create • Edit • Inspire</p></div>
                 </div>
 
                 <ul class="nav-links">
                     <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span data-i18n="nav_home">الرئيسية</span></li>
                     <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span data-i18n="nav_studio">مولد الصور</span></li>
+                    <li class="nav-item" onclick="showSoonToast()"><span class="icon">📁</span> <span data-i18n="nav_projects">المشاريع</span></li>
                     <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span data-i18n="nav_gallery">المعرض</span></li>
-                    <li class="nav-item" onclick="scrollToSection('faqSection')"><span class="icon">📖</span> <span data-i18n="nav_docs">الوثائق</span></li>
-                    <li class="nav-item" onclick="scrollToSection('pricingSection')"><span class="icon">⚙️</span> <span data-i18n="nav_plans">الاشتراك</span></li>
+                    <li class="nav-item" onclick="openFaqModal()"><span class="icon">📖</span> <span data-i18n="nav_docs">الأسئلة الشائعة</span></li>
+                    <li class="nav-item" onclick="openPricingModal()"><span class="icon">⚙️</span> <span data-i18n="nav_plans">الاشتراك</span></li>
                 </ul>
             </div>
 
@@ -389,28 +275,27 @@
                     <span id="sidebarSubStatus" data-i18n="sidebar_free">حساب مجاني</span>
                     <strong id="quotaCount">0 / 10</strong>
                 </div>
-                <button class="btn-upgrade-sidebar" onclick="scrollToSection('pricingSection')">
+                <button class="btn-upgrade-sidebar" onclick="manageSubscriptionFlow()">
                     👑 <span id="sidebarBtnLabel" data-i18n="sidebar_upgrade">إدارة الاشتراك</span>
                 </button>
             </div>
         </aside>
 
-        <!-- مساحة العمل الرئيسية -->
+        <!-- المحتوى الرئيسي -->
         <main class="main-wrapper">
             <!-- الشريط العلوي -->
             <header class="topbar">
                 <div class="search-container">
                     <span style="color:var(--text-muted);">🔍</span>
-                    <input type="text" id="globalSearchInput" data-i18n-ph="search_placeholder" placeholder="ابحث عن أدوات وأسئلة شائعة...">
+                    <input type="text" id="globalSearchInput" data-i18n-ph="search_placeholder" placeholder="ابحث عن أدوات أو مشاريع...">
                     <span class="search-shortcut">Ctrl + K</span>
                 </div>
 
                 <div class="topbar-actions">
-
-                    <!-- قائمة اللغات: أكثر من 10 لغات + تحويل تلقائي حسب لغة المتصفح -->
+                    <!-- اللغات -->
                     <div class="lang-menu-rel" id="langMenuArea">
                         <button class="lang-switch" onclick="toggleLangDropdown()" type="button">
-                            🌐 <span id="langCurrentLabel">العربية</span>
+                            🌐 <span id="langCurrentLabel">العربية</span> <span style="font-size:10px;">▼</span>
                         </button>
                         <div class="lang-dropdown" id="langDropdown"></div>
                     </div>
@@ -428,44 +313,32 @@
                                 <div class="label" data-i18n="dropdown_status_label">حالة الاشتراك</div>
                                 <div class="value" id="dropSubStatus">حساب PRO</div>
                             </div>
-                            <button class="dropdown-link" onclick="scrollToSection('pricingSection'); toggleUserDropdown();">💳 <span data-i18n="user_manage_billing">إدارة الاشتراك</span></button>
-                            <button class="dropdown-link danger" onclick="confirmDeleteAccount()">🗑️ <span data-i18n="user_delete_account">حذف الحساب</span></button>
+                            <button class="dropdown-link" onclick="manageSubscriptionFlow()">💳 <span data-i18n="user_manage_billing">إدارة الاشتراك</span></button>
+                            <button class="dropdown-link danger" onclick="openDeleteModal()">🗑️ <span data-i18n="user_delete_account">حذف الحساب</span></button>
                             <button class="dropdown-link" onclick="logout()">🚪 <span data-i18n="user_logout">تسجيل الخروج</span></button>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <!-- المحتوى التفاعلي -->
             <div class="content-scroll" id="topAnchor">
-
-                <!-- 1. البانر الرئيسي -->
+                
+                <!-- البانر الرئيسي -->
                 <section class="hero-banner">
                     <div class="banner-mask"></div>
                     <div class="banner-text">
-                        <div class="welcome-pill">
-                            <span>👑</span>
-                            <span data-i18n="welcome_pill">مرحباً بك في Artify PRO</span>
-                        </div>
+                        <div class="welcome-pill"><span>👑</span><span data-i18n="welcome_pill">مرحباً بك في Artify PRO</span></div>
                         <h1 class="banner-title" id="bannerTitle" data-i18n-html="banner_title">حوّل أفكارك إلى <span>صور مذهلة</span></h1>
                         <p class="banner-desc" data-i18n="banner_desc">أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.</p>
 
                         <div class="banner-buttons">
-                            <button class="btn-banner-primary" onclick="handleToolAction()">
-                                <span data-i18n="banner_btn_start">ابدأ الآن</span> <span class="dir-arrow">←</span>
-                            </button>
-                            <button class="btn-banner-ghost" onclick="scrollToSection('inspirationSection')">
-                                <span>▶</span> <span data-i18n="banner_btn_gallery">معرض الإلهام</span>
-                            </button>
+                            <button class="btn-banner-primary" onclick="handleToolAction()"><span data-i18n="banner_btn_start">ابدأ الآن</span> <span class="dir-arrow">←</span></button>
+                            <button class="btn-banner-ghost" onclick="scrollToSection('inspirationSection')"><span>▶</span> <span data-i18n="banner_btn_gallery">معرض الإلهام</span></button>
                         </div>
                     </div>
 
-                    <!-- الكارت العائم -->
                     <div class="banner-float-card">
-                        <div class="float-header">
-                            <span style="color:#818cf8;">✨</span>
-                            <span data-i18n="float_title">الذكاء الاصطناعي المتقدم</span>
-                        </div>
+                        <div class="float-header"><span style="color:#818cf8;">✨</span><span data-i18n="float_title">الذكاء الاصطناعي المتقدم</span></div>
                         <ul class="float-list">
                             <li><span class="check">✓</span> <span data-i18n="float_1">ثبات ملامح الوجه 100%</span></li>
                             <li><span class="check">✓</span> <span data-i18n="float_2">توليد المشاهد المتسلسلة</span></li>
@@ -474,737 +347,321 @@
                     </div>
                 </section>
 
-                <!-- 2. شبكة أدواتك -->
+                <!-- شبكة أدواتك -->
                 <section>
                     <div class="section-header">
-                        <div class="section-title">
-                            <span style="color:var(--primary);">🎛️</span>
-                            <span data-i18n="tools_title">أدواتك</span>
-                            <span class="section-subtitle" data-i18n="tools_subtitle">اختر الأداة التي تريد استخدامها للبدء</span>
-                        </div>
+                        <div class="section-title"><span style="color:var(--primary);">🎛️</span><span data-i18n="tools_title">أدواتك</span> <span class="section-subtitle" data-i18n="tools_subtitle">اختر الأداة للبدء</span></div>
                     </div>
 
                     <div class="tools-grid" id="toolsGrid">
-                        <!-- أداة Canvas Pro -->
-                        <div class="tool-card primary-tool" data-search-tags="canvas pro studio صور مولد">
+                        <!-- Canvas Pro -->
+                        <div class="tool-card primary-tool">
                             <div class="lock-overlay" id="canvasLock" onclick="handleToolAction()">
                                 <span class="lock-icon">🔒</span>
                                 <span class="lock-text" data-i18n="lock_text">اضغط للاشتراك وفتح الأداة</span>
                             </div>
                             <div class="tool-top">
-                                <div class="tool-icon">🎨</div>
                                 <span class="tool-tag tag-popular" data-i18n="tag_popular">الأكثر استخداماً</span>
+                                <div class="tool-icon">🎨</div>
                             </div>
                             <div class="tool-content">
                                 <h3 data-i18n="tool1_title">Canvas Pro (مولد الصور)</h3>
                                 <p data-i18n="tool1_desc">استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.</p>
                             </div>
-                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()">
-                                <span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span>
-                            </button>
+                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span></button>
                         </div>
 
-                        <!-- دليل الاستخدام -->
-                        <div class="tool-card" data-search-tags="دليل وثائق guide docs help مساعدة">
+                        <!-- الوثائق -->
+                        <div class="tool-card">
                             <div class="tool-top">
-                                <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
                                 <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
+                                <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
                             </div>
                             <div class="tool-content">
                                 <h3 data-i18n="tool2_title">الوثائق والدليل</h3>
                                 <p data-i18n="tool2_desc">دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="scrollToSection('faqSection')">
-                                <span data-i18n="tool2_btn">عرض الدليل</span> <span class="dir-arrow">←</span>
-                            </button>
+                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="tool2_btn">عرض الأسئلة والدليل</span> <span class="dir-arrow">←</span></button>
                         </div>
 
-                        <!-- Google Drive Sync (سيتم تفعيلها لاحقاً - تُركت كإعلان قادم كما طلبت) -->
-                        <div class="tool-card" style="opacity:0.7;" data-search-tags="drive سحابة مزامنة google">
+                        <!-- Google Drive -->
+                        <div class="tool-card" style="opacity:0.7;">
                             <div class="tool-top">
-                                <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
                                 <span class="tool-tag tag-soon" data-i18n="tag_soon">قريباً</span>
+                                <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
                             </div>
                             <div class="tool-content">
                                 <h3>Google Drive Sync</h3>
-                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.</p>
+                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;">
-                                <span data-i18n="tag_soon">قريباً</span>
-                            </button>
+                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span data-i18n="tag_soon">قريباً</span></button>
                         </div>
                     </div>
                 </section>
 
-                <!-- 3. شريط الإلهام المتحرك -->
+                <!-- شريط الإلهام المتحرك -->
                 <section class="inspiration-wrap" id="inspirationSection">
                     <div class="section-header" style="margin-bottom:15px;">
-                        <div class="section-title">
-                            <span style="color:#eab308;">💡</span>
-                            <span data-i18n="insp_title">إلهام</span>
-                            <span class="section-subtitle" data-i18n="insp_subtitle">مرر الماوس لنسخ البرومبت</span>
-                        </div>
+                        <div class="section-title"><span style="color:#eab308;">💡</span><span data-i18n="insp_title">إلهام</span><span class="section-subtitle" data-i18n="insp_subtitle">مرر الماوس لنسخ البرومبت</span></div>
                     </div>
                     <div class="marquee-viewport">
                         <div class="marquee-track" id="marqueeTrack"></div>
                     </div>
                 </section>
 
-                <!-- 4. منطقة الاشتراك: تعرض الخطط قبل الاشتراك، وتفاصيل التجديد بعده -->
-                <div id="purchase-section">
-
-                    <div class="launch-banner" id="launchBanner" data-i18n="launch_banner">
-                        🔥 عرض أسبوع الإطلاق: مقاعد محدودة للمشتركين الأوائل بخصم 30%!
-                    </div>
-
-                    <!-- بطاقة تفاصيل الاشتراك الحالي (تظهر فقط عند وجود اشتراك فعّال) -->
-                    <div class="sub-info-card" id="subInfoCard">
-                        <div class="sub-info-top">
-                            <div class="sub-info-title">
-                                👑 <span data-i18n="sub_info_title">تفاصيل اشتراكك</span>
-                            </div>
-                            <span class="sub-status-badge active" id="subStatusBadge" data-i18n="sub_status_active">مفعّل</span>
-                        </div>
-                        <div class="sub-info-grid">
-                            <div class="sub-info-item">
-                                <div class="label" data-i18n="sub_info_plan">الباقة الحالية</div>
-                                <div class="value" id="subPlanName">—</div>
-                            </div>
-                            <div class="sub-info-item">
-                                <div class="label" data-i18n="sub_info_start">تاريخ الاشتراك</div>
-                                <div class="value" id="subStartDate">—</div>
-                            </div>
-                            <div class="sub-info-item">
-                                <div class="label" data-i18n="sub_info_expiry">تاريخ الانتهاء</div>
-                                <div class="value" id="subExpiryDate">—</div>
-                            </div>
-                            <div class="sub-info-item">
-                                <div class="label" data-i18n="sub_info_remaining">الأيام المتبقية</div>
-                                <div class="value" id="subDaysLeft">—</div>
-                            </div>
-                        </div>
-                        <div class="sub-progress-wrap">
-                            <div class="sub-progress-bar"><div class="sub-progress-fill" id="subProgressFill" style="width:0%;"></div></div>
-                            <div class="sub-progress-label" id="subProgressLabel" data-i18n="sub_progress_label">مسار الاشتراك الحالي</div>
-                        </div>
-                        <div class="sub-info-actions">
-                            <button class="btn-sub-action btn-sub-renew" onclick="scrollToSection('renewPlansAnchor')">
-                                🔄 <span data-i18n="sub_btn_renew">تجديد أو ترقية الباقة</span>
-                            </button>
-                            <button class="btn-sub-action btn-sub-autorenew" id="autoRenewBtn" onclick="toggleAutoRenew()">
-                                <span id="autoRenewIcon">✅</span> <span id="autoRenewLabel" data-i18n="sub_btn_autorenew_on">التجديد التلقائي مفعّل</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- كرت الكوبون -->
-                    <div class="coupon-box">
-                        <h4 data-i18n="coupon_title">هل تمتلك كود تفعيل أو خصم؟</h4>
-                        <div class="coupon-input-group">
-                            <input type="text" id="couponInput" placeholder="VIP2026">
-                            <button onclick="applyCoupon()" data-i18n="coupon_apply">تطبيق</button>
-                        </div>
-                        <div id="couponMsg" style="font-size:12px; margin-top:8px; font-weight:bold;"></div>
-                    </div>
-
-                    <div id="renewPlansAnchor"></div>
-                    <div class="section-title" style="justify-content:center;" id="plansSectionLabel">
-                        <span data-i18n="plans_label_new">اختر باقتك</span>
-                    </div>
-
-                    <!-- خطط الأسعار (الأربع خطط الكاملة كما كانت) -->
-                    <div class="pricing-grid" id="pricingSection">
-                        <div class="pricing-card" data-plan="month1">
-                            <h4 data-i18n="plan1_name">شهر واحد</h4>
-                            <div class="old-price">$15</div>
-                            <div class="price-num" id="p-val-month1">$10.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan1_desc">تجديد شهري مرن للأفراد</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="plan1_btn">اشتراك شهري</button>
-                        </div>
-
-                        <div class="pricing-card" data-plan="month3">
-                            <h4 data-i18n="plan2_name">3 شهور</h4>
-                            <div class="old-price">$38</div>
-                            <div class="price-num" id="p-val-month3">$26.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan2_desc">الخيار الأكثر طلباً</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="plan2_btn">اشتراك 3 شهور</button>
-                        </div>
-
-                        <div class="pricing-card featured" data-plan="month6">
-                            <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="best_value">الأكثر توفيراً</div>
-                            <h4 data-i18n="plan3_name">6 شهور</h4>
-                            <div class="old-price">$65</div>
-                            <div class="price-num" id="p-val-month6">$45.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan3_desc">قيمة استثنائية لصناع المحتوى</p>
-                            <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent));" onclick="promptPlan('month6')" data-i18n="plan3_btn">اشتراك 6 شهور</button>
-                        </div>
-
-                        <div class="pricing-card" data-plan="year1">
-                            <h4 data-i18n="plan4_name">سنة كاملة</h4>
-                            <div class="old-price">$110</div>
-                            <div class="price-num" id="p-val-year1">$77.00</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan4_desc">أقصى توفير مع دعم دائم</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="plan4_btn">اشتراك سنوي</button>
-                        </div>
-                    </div>
-
-                    <!-- الأسئلة الشائعة (تم توسيعها لتغطية كل ما يحتاج المشترك معرفته) -->
-                    <div class="faq-wrap" id="faqSection">
-                        <h3 style="text-align:center; margin-bottom:15px;" data-i18n="faq_title">الأسئلة الشائعة</h3>
-                        <div id="faqList"></div>
-                    </div>
-                </div>
-
             </div>
         </main>
     </div>
 
-    <!-- زر تليجرام العائم للدعم (سيتم استبدال الرابط بقناة الدعم الفعلية لاحقاً) -->
-    <a href="https://t.me/YOUR_CHANNEL_HERE" target="_blank" class="telegram-btn" title="Support">✈️</a>
+    <!-- زر تليجرام -->
+    <a href="https://t.me/YOUR_CHANNEL_HERE" target="_blank" class="telegram-btn" title="Telegram Support">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.892-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+    </a>
 
-    <!-- نافذة تأكيد حذف الحساب -->
+    <!-- النوافذ المنبثقة (Modals) -->
+
+    <!-- 1. نافذة تفاصيل اشتراك PRO -->
+    <div class="modal-overlay" id="subStatusModal">
+        <div class="modal-box">
+            <button class="modal-close-btn" onclick="closeModals()">✕</button>
+            <div class="modal-title" data-i18n="sub_info_title">تفاصيل اشتراكك</div>
+            
+            <div class="sub-info-grid">
+                <div class="sub-info-item"><div class="label" data-i18n="sub_info_plan">الباقة الحالية</div><div class="value" id="modalPlanName">PRO</div></div>
+                <div class="sub-info-item"><div class="label" data-i18n="sub_info_start">تاريخ الاشتراك</div><div class="value" id="modalStartDate">—</div></div>
+                <div class="sub-info-item"><div class="label" data-i18n="sub_info_expiry">تاريخ الانتهاء</div><div class="value" id="modalExpiryDate">—</div></div>
+                <div class="sub-info-item"><div class="label" data-i18n="sub_info_remaining">الأيام المتبقية</div><div class="value" id="modalDaysLeft">—</div></div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="modal_cancel">إغلاق</button>
+                <button class="modal-btn modal-btn-primary" onclick="openPricingModal()" data-i18n="sub_btn_renew">تجديد أو ترقية الباقة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. نافذة خطط الأسعار (للاشتراك أو التجديد) -->
+    <div class="modal-overlay" id="pricingModal">
+        <div class="modal-box large">
+            <button class="modal-close-btn" onclick="closeModals()">✕</button>
+            <div class="modal-title" id="pricingModalTitle" data-i18n="plans_label_new">اختر باقتك</div>
+            
+            <div class="pricing-grid">
+                <div class="pricing-card" data-plan="month1">
+                    <h4 data-i18n="plan1_name">شهر واحد</h4><div class="old-price">$15</div><div class="price-num" id="p-val-month1">$10.50</div>
+                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="plan1_btn">اشتراك شهري</button>
+                </div>
+                <div class="pricing-card" data-plan="month3">
+                    <h4 data-i18n="plan2_name">3 شهور</h4><div class="old-price">$38</div><div class="price-num" id="p-val-month3">$26.50</div>
+                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="plan2_btn">اشتراك 3 شهور</button>
+                </div>
+                <div class="pricing-card featured" data-plan="month6">
+                    <div class="current-plan-tag" style="display:none;" data-i18n="current_plan_tag">باقتك الحالية</div>
+                    <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="best_value">الأكثر توفيراً</div>
+                    <h4 data-i18n="plan3_name">6 شهور</h4><div class="old-price">$65</div><div class="price-num" id="p-val-month6">$45.50</div>
+                    <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')" data-i18n="plan3_btn">اشتراك 6 شهور</button>
+                </div>
+                <div class="pricing-card" data-plan="year1">
+                    <h4 data-i18n="plan4_name">سنة كاملة</h4><div class="old-price">$110</div><div class="price-num" id="p-val-year1">$77.00</div>
+                    <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="plan4_btn">اشتراك سنوي</button>
+                </div>
+            </div>
+
+            <div class="coupon-box">
+                <h4 data-i18n="coupon_title">هل تمتلك كود تفعيل أو خصم؟</h4>
+                <div class="coupon-input-group">
+                    <input type="text" id="couponInput" placeholder="VIP2026">
+                    <button onclick="applyCoupon()" data-i18n="coupon_apply">تطبيق</button>
+                </div>
+                <div id="couponMsg" style="font-size:12px; margin-top:8px; font-weight:bold;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. نافذة الأسئلة الشائعة -->
+    <div class="modal-overlay" id="faqModal">
+        <div class="modal-box large">
+            <button class="modal-close-btn" onclick="closeModals()">✕</button>
+            <div class="modal-title" data-i18n="faq_title">الأسئلة الشائعة</div>
+            <div class="faq-wrap" id="faqList"></div>
+        </div>
+    </div>
+
+    <!-- 4. نافذة تأكيد الحذف -->
     <div class="modal-overlay" id="deleteModal">
         <div class="modal-box">
+            <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">⚠️</div>
             <div class="modal-title" data-i18n="delete_modal_title">حذف الحساب نهائياً</div>
             <div class="modal-text" data-i18n="delete_modal_text">سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.</div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()" data-i18n="modal_cancel">إلغاء</button>
-                <button class="modal-btn modal-btn-danger" onclick="deleteAccount()" data-i18n="modal_confirm_delete">حذف نهائي</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="modal_cancel">إلغاء</button>
+                <button class="modal-btn modal-btn-danger" onclick="executeDeleteAccount()" data-i18n="modal_confirm_delete">حذف نهائي</button>
             </div>
         </div>
     </div>
 
     <script>
         // ============================================================
-        // نظام الترجمة: أكثر من 10 لغات + كشف تلقائي للغة المتصفح
+        // الترجمة
         // ============================================================
         const translations = {
             ar: {
-                nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_gallery:"المعرض", nav_docs:"الوثائق", nav_plans:"الاشتراك",
-                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك",
-                search_placeholder:"ابحث عن أدوات وأسئلة شائعة...",
-                dropdown_status_label:"حالة الاشتراك",
-                user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
-                welcome_pill:"مرحباً بك في Artify PRO",
-                banner_title:'حوّل أفكارك إلى <span>صور مذهلة</span>',
+                nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_projects:"المشاريع", nav_gallery:"المعرض", nav_docs:"الأسئلة الشائعة", nav_plans:"الاشتراك",
+                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات...",
+                dropdown_status_label:"حالة الاشتراك", user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
+                welcome_pill:"مرحباً بك في Artify PRO", banner_title:'حوّل أفكارك إلى <span style="color:#38bdf8;">صور مذهلة</span>',
                 banner_desc:"أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
-                banner_btn_start:"ابدأ الآن", banner_btn_gallery:"معرض الإلهام",
-                float_title:"الذكاء الاصطناعي المتقدم",
+                banner_btn_start:"ابدأ الآن", banner_btn_gallery:"معرض الإلهام", float_title:"الذكاء الاصطناعي المتقدم",
                 float_1:"ثبات ملامح الوجه 100%", float_2:"توليد المشاهد المتسلسلة", float_3:"دقة سينمائية فائقة الوضوح",
-                tools_title:"أدواتك", tools_subtitle:"اختر الأداة التي تريد استخدامها للبدء",
-                tag_popular:"الأكثر استخداماً", tag_handbook:"دليل تفاعلي", tag_soon:"قريباً",
+                tools_title:"أدواتك", tools_subtitle:"اختر الأداة للبدء", tag_popular:"الأكثر استخداماً", tag_handbook:"دليل وتوثيق", tag_soon:"قريباً",
                 tool1_title:"Canvas Pro (مولد الصور)", tool1_desc:"استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.", tool1_btn:"فتح الأداة",
-                tool2_title:"الوثائق والدليل", tool2_desc:"دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.", tool2_btn:"عرض الدليل",
-                tool3_desc:"مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.",
-                lock_text:"اضغط للاشتراك وفتح الأداة",
-                insp_title:"إلهام", insp_subtitle:"مرر الماوس لنسخ البرومبت",
-                launch_banner:"🔥 عرض أسبوع الإطلاق: مقاعد محدودة للمشتركين الأوائل بخصم 30%!",
-                sub_info_title:"تفاصيل اشتراكك", sub_status_active:"مفعّل", sub_status_ending:"قارب على الانتهاء",
-                sub_info_plan:"الباقة الحالية", sub_info_start:"تاريخ الاشتراك", sub_info_expiry:"تاريخ الانتهاء", sub_info_remaining:"الأيام المتبقية",
-                sub_progress_label:"مسار الاشتراك الحالي",
-                sub_btn_renew:"تجديد أو ترقية الباقة",
-                sub_btn_autorenew_on:"التجديد التلقائي مفعّل", sub_btn_autorenew_off:"التجديد التلقائي متوقف",
-                coupon_title:"هل تمتلك كود تفعيل أو خصم؟", coupon_apply:"تطبيق",
+                tool2_title:"الأسئلة الشائعة والدليل", tool2_desc:"تعرف على كافة التفاصيل لضمان أفضل استخدام للأداة.", tool2_btn:"عرض الأسئلة والدليل",
+                tool3_desc:"مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.",
+                lock_text:"اضغط للاشتراك وفتح الأداة", insp_title:"إلهام", insp_subtitle:"مرر الماوس لنسخ البرومبت",
+                sub_info_title:"تفاصيل اشتراكك", sub_info_plan:"الباقة الحالية", sub_info_start:"تاريخ البدء", sub_info_expiry:"تاريخ الانتهاء", sub_info_remaining:"الأيام المتبقية",
+                sub_btn_renew:"تجديد أو ترقية الباقة", coupon_title:"هل تمتلك كود تفعيل أو خصم؟", coupon_apply:"تطبيق",
                 plans_label_current:"تجديد أو ترقية باقتك", plans_label_new:"اختر باقتك",
                 plan1_name:"شهر واحد", plan1_desc:"تجديد شهري مرن للأفراد", plan1_btn:"اشتراك شهري",
                 plan2_name:"3 شهور", plan2_desc:"الخيار الأكثر طلباً", plan2_btn:"اشتراك 3 شهور",
                 plan3_name:"6 شهور", plan3_desc:"قيمة استثنائية لصناع المحتوى", plan3_btn:"اشتراك 6 شهور",
                 plan4_name:"سنة كاملة", plan4_desc:"أقصى توفير مع دعم دائم", plan4_btn:"اشتراك سنوي",
-                best_value:"الأكثر توفيراً", current_plan_tag:"باقتك الحالية",
-                faq_title:"الأسئلة الشائعة",
-                delete_modal_title:"حذف الحساب نهائياً",
-                delete_modal_text:"سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.",
+                best_value:"الأكثر توفيراً", current_plan_tag:"باقتك الحالية", faq_title:"الأسئلة الشائعة",
+                delete_modal_title:"حذف الحساب نهائياً", delete_modal_text:"سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.",
                 modal_cancel:"إلغاء", modal_confirm_delete:"حذف نهائي",
-                toast_login_required:"يرجى تسجيل الدخول بحساب Google أولاً للمتابعة",
-                toast_login_success:"تم تسجيل الدخول بنجاح، أهلاً بك!",
-                toast_login_failed:"تعذّر تسجيل الدخول، حاول مرة أخرى",
-                toast_network_error:"حدث خطأ في الاتصال، تحقق من الإنترنت وحاول مجدداً",
-                toast_sub_required:"يلزم تفعيل اشتراك PRO لاستخدام هذه الأداة",
-                toast_copy_locked:"ميزة نسخ البرومبت متاحة لمشتركي PRO فقط",
-                toast_copy_success:"تم نسخ البرومبت إلى الحافظة",
-                toast_coupon_login:"سجّل الدخول أولاً لتطبيق الكوبون",
-                toast_coupon_activated:"تمت ترقية حسابك إلى PRO مجاناً!",
-                toast_coupon_discount:"تم تطبيق خصم {p}% على جميع الباقات",
-                toast_coupon_invalid:"الكود المُدخل غير صحيح أو منتهي الصلاحية",
-                toast_payment_error:"تعذّر بدء عملية الدفع، حاول مرة أخرى",
-                toast_delete_success:"تم حذف الحساب بنجاح",
-                toast_delete_error:"حدث خطأ أثناء حذف الحساب",
-                toast_logout:"تم تسجيل الخروج بنجاح",
-                toast_autorenew_on:"تم تفعيل التجديد التلقائي",
-                toast_autorenew_off:"تم إيقاف التجديد التلقائي، سينتهي اشتراكك في تاريخ الاستحقاق",
-                toast_search_none:"لا توجد نتائج مطابقة لبحثك",
+                toast_login_required:"يرجى تسجيل الدخول بحساب Google أولاً", toast_login_success:"تم تسجيل الدخول بنجاح!", toast_login_failed:"تعذّر تسجيل الدخول",
+                toast_network_error:"حدث خطأ في الاتصال، حاول مجدداً", toast_sub_required:"يلزم تفعيل اشتراك PRO لفتح الأداة",
+                toast_copy_locked:"ميزة نسخ البرومبت لمشتركي PRO فقط", toast_copy_success:"تم نسخ البرومبت بنجاح",
+                toast_coupon_login:"سجّل الدخول أولاً لتطبيق الكوبون", toast_coupon_activated:"تمت ترقية حسابك إلى PRO مجاناً!",
+                toast_coupon_discount:"تم تطبيق خصم {p}% بنجاح", toast_coupon_invalid:"الكود غير صحيح أو منتهي",
+                toast_payment_error:"تعذّر بدء الدفع", toast_delete_success:"تم حذف الحساب نهائياً", toast_logout:"تم تسجيل الخروج", toast_soon:"هذه الميزة ستتوفر قريباً",
                 faqs: [
                     { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." },
                     { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO." },
-                    { q:"هل يمكنني إلغاء الاشتراك في أي وقت؟", a:"نعم، يمكنك إيقاف التجديد التلقائي في أي وقت من قسم إدارة الاشتراك، وستستمر في استخدام الأداة حتى نهاية الفترة المدفوعة بالفعل." },
-                    { q:"هل الصور الناتجة مملوكة لي بالكامل ويمكن استخدامها تجارياً؟", a:"نعم، جميع الصور التي تولّدها من خلال حسابك مملوكة لك بالكامل ويمكنك استخدامها في مشاريعك الشخصية أو التجارية دون قيود." },
-                    { q:"هل هناك حد أقصى لعدد الصور التي يمكنني توليدها؟", a:"المستخدمون على الباقة المجانية لديهم 10 عمليات توليد شهرياً، بينما يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك." },
-                    { q:"ما هي طرق الدفع المتاحة؟", a:"ندعم الدفع عبر البطاقات الائتمانية الرئيسية إضافة إلى المحافظ الرقمية المدعومة عبر بوابة الدفع، وستظهر جميع الخيارات المتاحة عند اختيار الباقة." },
-                    { q:"هل يمكنني استخدام حسابي على أكثر من جهاز؟", a:"نعم، يمكنك تسجيل الدخول بنفس حساب Google على أي عدد من الأجهزة، وسيتم مزامنة اشتراكك ومشاريعك تلقائياً." },
-                    { q:"كيف أحصل على الدعم الفني إذا واجهت مشكلة؟", a:"يمكنك التواصل معنا مباشرة عبر زر تليجرام العائم أسفل يمين الشاشة، وسيقوم فريق الدعم بالرد عليك في أقرب وقت ممكن." }
+                    { q:"هل هناك حد أقصى لعدد الصور التي يمكنني توليدها؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك." },
+                    { q:"هل الصور الناتجة مملوكة لي بالكامل ويمكن استخدامها تجارياً؟", a:"نعم، جميع الصور التي تولّدها عبر حسابك مملوكة لك بالكامل ويمكنك استخدامها في مشاريعك التجارية دون قيود." },
+                    { q:"ما هي طرق الدفع المتاحة وسياسة الاسترجاع؟", a:"ندعم الدفع بأمان عبر Gumroad (بطاقات، Apple Pay، PayPal)، مع ضمان استرجاع 7 أيام للمشاكل التقنية." }
                 ]
             },
             en: {
-                nav_home:"Home", nav_studio:"Canvas Pro", nav_gallery:"Gallery", nav_docs:"Docs", nav_plans:"Plans",
-                sidebar_free:"Free Plan", sidebar_upgrade:"Manage Subscription",
-                search_placeholder:"Search tools & FAQs...",
-                dropdown_status_label:"Subscription Status",
-                user_manage_billing:"Manage Subscription", user_delete_account:"Delete Account", user_logout:"Logout",
-                welcome_pill:"Welcome to Artify PRO",
-                banner_title:'Turn your ideas into <span>stunning visuals</span>',
+                nav_home:"Home", nav_studio:"Canvas Pro", nav_projects:"Projects", nav_gallery:"Gallery", nav_docs:"FAQs", nav_plans:"Plans",
+                sidebar_free:"Free Plan", sidebar_upgrade:"Manage Sub", search_placeholder:"Search tools...",
+                dropdown_status_label:"Subscription Status", user_manage_billing:"Manage Subscription", user_delete_account:"Delete Account", user_logout:"Logout",
+                welcome_pill:"Welcome to Artify PRO", banner_title:'Turn your ideas into <span style="color:#38bdf8;">stunning visuals</span>',
                 banner_desc:"Create high-end, professional-grade visuals with state-of-the-art AI engines and full character consistency.",
-                banner_btn_start:"Start Creating", banner_btn_gallery:"Showcase",
-                float_title:"Advanced AI Engine",
-                float_1:"100% Face Consistency", float_2:"Sequential Scene Generation", float_3:"Ultra HD Cinematic Renders",
-                tools_title:"Your Workspace Tools", tools_subtitle:"Select a tool to launch your studio",
-                tag_popular:"Most Popular", tag_handbook:"Handbook", tag_soon:"Coming Soon",
+                banner_btn_start:"Start Creating", banner_btn_gallery:"Showcase", float_title:"Advanced AI Engine",
+                float_1:"100% Face Consistency", float_2:"Sequential Generation", float_3:"Ultra HD Renders",
+                tools_title:"Your Tools", tools_subtitle:"Select a tool to begin", tag_popular:"Popular", tag_handbook:"Guide & Docs", tag_soon:"Soon",
                 tool1_title:"Canvas Pro (Studio)", tool1_desc:"The all-in-one generation, consistency, and prompt studio.", tool1_btn:"Launch Studio",
-                tool2_title:"Docs & Guide", tool2_desc:"A complete guide to getting the best results and mastering prompts.", tool2_btn:"View Guide",
-                tool3_desc:"Automatic cloud backup for your scenes and projects.",
-                lock_text:"Click to unlock PRO",
-                insp_title:"Inspiration Gallery", insp_subtitle:"Hover to view & copy prompts",
-                launch_banner:"🔥 Launch Week Offer: Limited seats for early subscribers at 30% OFF!",
-                sub_info_title:"Your Subscription", sub_status_active:"Active", sub_status_ending:"Ending Soon",
-                sub_info_plan:"Current Plan", sub_info_start:"Started On", sub_info_expiry:"Expires On", sub_info_remaining:"Days Left",
-                sub_progress_label:"Current billing cycle",
-                sub_btn_renew:"Renew or Upgrade Plan",
-                sub_btn_autorenew_on:"Auto-Renew is ON", sub_btn_autorenew_off:"Auto-Renew is OFF",
-                coupon_title:"Have a Promo or VIP Code?", coupon_apply:"Apply",
+                tool2_title:"FAQs & Guide", tool2_desc:"Comprehensive details to help you master the tool.", tool2_btn:"View FAQs",
+                tool3_desc:"Automatic cloud backup for projects, and ability to download local apps and files.",
+                lock_text:"Click to unlock PRO", insp_title:"Inspiration Gallery", insp_subtitle:"Hover to copy prompt",
+                sub_info_title:"Subscription Details", sub_info_plan:"Current Plan", sub_info_start:"Started On", sub_info_expiry:"Expires On", sub_info_remaining:"Days Left",
+                sub_btn_renew:"Renew or Upgrade", coupon_title:"Have a Promo Code?", coupon_apply:"Apply",
                 plans_label_current:"Renew or upgrade your plan", plans_label_new:"Choose your plan",
                 plan1_name:"1 Month", plan1_desc:"Flexible monthly plan", plan1_btn:"Select Plan",
                 plan2_name:"3 Months", plan2_desc:"Creator's choice", plan2_btn:"Select Plan",
                 plan3_name:"6 Months", plan3_desc:"Great long term value", plan3_btn:"Select Plan",
-                plan4_name:"1 Year", plan4_desc:"Full yearly access with priority support", plan4_btn:"Select Plan",
-                best_value:"BEST VALUE", current_plan_tag:"Current Plan",
-                faq_title:"Frequently Asked Questions",
-                delete_modal_title:"Delete Account Permanently",
-                delete_modal_text:"Your account, subscription and all data will be permanently deleted immediately. This cannot be undone.",
-                modal_cancel:"Cancel", modal_confirm_delete:"Delete Permanently",
-                toast_login_required:"Please sign in with Google to continue",
-                toast_login_success:"Signed in successfully, welcome!",
-                toast_login_failed:"Sign-in failed, please try again",
-                toast_network_error:"A connection error occurred. Check your internet and try again",
-                toast_sub_required:"An active PRO subscription is required to use this tool",
-                toast_copy_locked:"Copying prompts is available for PRO subscribers only",
-                toast_copy_success:"Prompt copied to clipboard",
-                toast_coupon_login:"Sign in first to apply a coupon",
-                toast_coupon_activated:"Your account was upgraded to PRO for free!",
-                toast_coupon_discount:"A {p}% discount was applied to all plans",
-                toast_coupon_invalid:"This code is invalid or has expired",
-                toast_payment_error:"Couldn't start the payment process, please try again",
-                toast_delete_success:"Account deleted successfully",
-                toast_delete_error:"An error occurred while deleting the account",
-                toast_logout:"Logged out successfully",
-                toast_autorenew_on:"Auto-renew has been enabled",
-                toast_autorenew_off:"Auto-renew disabled — your subscription will end on the due date",
-                toast_search_none:"No results match your search",
+                plan4_name:"1 Year", plan4_desc:"Full yearly access", plan4_btn:"Select Plan",
+                best_value:"BEST VALUE", current_plan_tag:"Current Plan", faq_title:"Frequently Asked Questions",
+                delete_modal_title:"Delete Account", delete_modal_text:"Your account, subscription and data will be permanently deleted.",
+                modal_cancel:"Cancel", modal_confirm_delete:"Delete",
+                toast_login_required:"Please sign in with Google first", toast_login_success:"Signed in successfully!", toast_login_failed:"Sign-in failed",
+                toast_network_error:"Connection error", toast_sub_required:"PRO subscription required", toast_copy_locked:"PRO feature only", toast_copy_success:"Copied!",
+                toast_coupon_login:"Sign in first", toast_coupon_activated:"Upgraded to PRO for free!", toast_coupon_discount:"{p}% discount applied", toast_coupon_invalid:"Invalid code",
+                toast_payment_error:"Payment error", toast_delete_success:"Account deleted", toast_logout:"Logged out", toast_soon:"Feature coming soon",
                 faqs: [
-                    { q:"Does any Google account work?", a:"Image generation requires a Google account registered for users 18+. Supervised (parent-managed) accounts cannot generate images." },
-                    { q:"Do I need to pay Google any extra fees?", a:"No, the tool runs on your account's free Google tier. Your Artify subscription covers all of the platform's software features." },
-                    { q:"Can I cancel anytime?", a:"Yes, you can turn off auto-renew anytime from the subscription management section, and you'll keep access until your paid period ends." },
-                    { q:"Do I fully own the generated images and can I use them commercially?", a:"Yes, every image you generate is fully yours and can be used for personal or commercial projects without restriction." },
-                    { q:"Is there a limit on how many images I can generate?", a:"Free plan users get 10 generations per month, while PRO subscribers enjoy unlimited generation for the duration of their subscription." },
-                    { q:"What payment methods are supported?", a:"We support all major credit cards plus supported digital wallets through our payment gateway, shown when you select a plan." },
-                    { q:"Can I use my account on more than one device?", a:"Yes, sign in with the same Google account on any number of devices — your subscription and projects sync automatically." },
-                    { q:"How do I get support if I run into an issue?", a:"Reach us directly through the floating Telegram button at the bottom of the screen, and our support team will respond as soon as possible." }
+                    { q:"Does any Google account work?", a:"Image generation requires a Google account registered for users 18+. Supervised accounts cannot generate images." },
+                    { q:"Do I need to pay Google any extra fees?", a:"No, the tool runs on your account's free tier. Your Artify subscription covers the features." },
+                    { q:"Is there a limit on how many images I can generate?", a:"PRO subscribers enjoy unlimited generation for the duration of their subscription." },
+                    { q:"Do I own the generated images commercially?", a:"Yes, every image is fully yours and can be used for commercial projects without restriction." },
+                    { q:"Payment methods and refunds?", a:"Secure payments via Gumroad with a 7-day technical refund guarantee." }
                 ]
-            },
-            fr: {
-                nav_home:"Accueil", nav_studio:"Studio", nav_gallery:"Galerie", nav_docs:"Docs", nav_plans:"Abonnement",
-                sidebar_free:"Plan Gratuit", sidebar_upgrade:"Gérer l'abonnement",
-                search_placeholder:"Rechercher des outils...",
-                user_manage_billing:"Gérer l'abonnement", user_delete_account:"Supprimer le compte", user_logout:"Déconnexion",
-                welcome_pill:"Bienvenue sur Artify PRO",
-                banner_title:'Transformez vos idées en <span>visuels superbes</span>',
-                banner_desc:"Créez des visuels professionnels grâce aux meilleurs moteurs d'IA avec une cohérence totale des personnages.",
-                banner_btn_start:"Commencer", banner_btn_gallery:"Galerie",
-                tools_title:"Vos outils", tools_subtitle:"Choisissez un outil pour commencer",
-                insp_title:"Inspiration", insp_subtitle:"Survolez pour copier",
-                faq_title:"Questions fréquentes",
-                coupon_title:"Vous avez un code promo ?", coupon_apply:"Appliquer",
-                best_value:"MEILLEURE OFFRE",
-                modal_cancel:"Annuler", modal_confirm_delete:"Supprimer",
-                sub_btn_renew:"Renouveler ou améliorer",
-                sub_info_title:"Votre abonnement", sub_info_plan:"Plan actuel", sub_info_start:"Date de début", sub_info_expiry:"Date d'expiration", sub_info_remaining:"Jours restants",
-                toast_login_required:"Veuillez vous connecter avec Google pour continuer"
-            },
-            es: {
-                nav_home:"Inicio", nav_studio:"Estudio", nav_gallery:"Galería", nav_docs:"Docs", nav_plans:"Plan",
-                sidebar_free:"Plan Gratis", sidebar_upgrade:"Gestionar suscripción",
-                search_placeholder:"Buscar herramientas...",
-                user_manage_billing:"Gestionar suscripción", user_delete_account:"Eliminar cuenta", user_logout:"Cerrar sesión",
-                welcome_pill:"Bienvenido a Artify PRO",
-                banner_title:'Convierte tus ideas en <span>imágenes impresionantes</span>',
-                banner_desc:"Crea imágenes profesionales con los motores de IA más avanzados y consistencia total de personajes.",
-                banner_btn_start:"Empezar", banner_btn_gallery:"Galería",
-                tools_title:"Tus herramientas", tools_subtitle:"Elige una herramienta para comenzar",
-                insp_title:"Inspiración", insp_subtitle:"Pasa el cursor para copiar",
-                faq_title:"Preguntas frecuentes",
-                coupon_title:"¿Tienes un código promocional?", coupon_apply:"Aplicar",
-                best_value:"MEJOR VALOR",
-                modal_cancel:"Cancelar", modal_confirm_delete:"Eliminar",
-                sub_btn_renew:"Renovar o mejorar plan",
-                sub_info_title:"Tu suscripción", sub_info_plan:"Plan actual", sub_info_start:"Fecha de inicio", sub_info_expiry:"Fecha de vencimiento", sub_info_remaining:"Días restantes",
-                toast_login_required:"Inicia sesión con Google para continuar"
-            },
-            de: {
-                nav_home:"Start", nav_studio:"Studio", nav_gallery:"Galerie", nav_docs:"Docs", nav_plans:"Abo",
-                sidebar_free:"Kostenloser Plan", sidebar_upgrade:"Abo verwalten",
-                search_placeholder:"Tools durchsuchen...",
-                user_manage_billing:"Abo verwalten", user_delete_account:"Konto löschen", user_logout:"Abmelden",
-                welcome_pill:"Willkommen bei Artify PRO",
-                banner_title:'Verwandle deine Ideen in <span>beeindruckende Bilder</span>',
-                banner_desc:"Erstelle hochwertige Visuals mit modernsten KI-Modellen und voller Charakterkonsistenz.",
-                banner_btn_start:"Loslegen", banner_btn_gallery:"Galerie",
-                tools_title:"Deine Werkzeuge", tools_subtitle:"Wähle ein Werkzeug zum Starten",
-                insp_title:"Inspiration", insp_subtitle:"Zum Kopieren hovern",
-                faq_title:"Häufige Fragen",
-                coupon_title:"Hast du einen Gutscheincode?", coupon_apply:"Anwenden",
-                best_value:"BESTER WERT",
-                modal_cancel:"Abbrechen", modal_confirm_delete:"Löschen",
-                sub_btn_renew:"Plan erneuern/upgraden",
-                sub_info_title:"Dein Abo", sub_info_plan:"Aktueller Plan", sub_info_start:"Startdatum", sub_info_expiry:"Ablaufdatum", sub_info_remaining:"Verbleibende Tage",
-                toast_login_required:"Bitte melde dich mit Google an, um fortzufahren"
-            },
-            it: {
-                nav_home:"Home", nav_studio:"Studio", nav_gallery:"Galleria", nav_docs:"Docs", nav_plans:"Abbonamento",
-                sidebar_free:"Piano Gratuito", sidebar_upgrade:"Gestisci abbonamento",
-                search_placeholder:"Cerca strumenti...",
-                user_manage_billing:"Gestisci abbonamento", user_delete_account:"Elimina account", user_logout:"Esci",
-                welcome_pill:"Benvenuto su Artify PRO",
-                banner_title:'Trasforma le tue idee in <span>immagini straordinarie</span>',
-                banner_desc:"Crea immagini professionali con i motori IA più avanzati e coerenza totale dei personaggi.",
-                banner_btn_start:"Inizia ora", banner_btn_gallery:"Galleria",
-                tools_title:"I tuoi strumenti", tools_subtitle:"Scegli uno strumento per iniziare",
-                insp_title:"Ispirazione", insp_subtitle:"Passa il mouse per copiare",
-                faq_title:"Domande frequenti",
-                coupon_title:"Hai un codice promozionale?", coupon_apply:"Applica",
-                best_value:"MIGLIOR VALORE",
-                modal_cancel:"Annulla", modal_confirm_delete:"Elimina",
-                sub_btn_renew:"Rinnova o aggiorna piano",
-                sub_info_title:"Il tuo abbonamento", sub_info_plan:"Piano attuale", sub_info_start:"Data di inizio", sub_info_expiry:"Data di scadenza", sub_info_remaining:"Giorni rimanenti",
-                toast_login_required:"Accedi con Google per continuare"
-            },
-            pt: {
-                nav_home:"Início", nav_studio:"Estúdio", nav_gallery:"Galeria", nav_docs:"Docs", nav_plans:"Plano",
-                sidebar_free:"Plano Gratuito", sidebar_upgrade:"Gerenciar assinatura",
-                search_placeholder:"Pesquisar ferramentas...",
-                user_manage_billing:"Gerenciar assinatura", user_delete_account:"Excluir conta", user_logout:"Sair",
-                welcome_pill:"Bem-vindo ao Artify PRO",
-                banner_title:'Transforme suas ideias em <span>imagens incríveis</span>',
-                banner_desc:"Crie imagens profissionais com os motores de IA mais avançados e total consistência de personagens.",
-                banner_btn_start:"Começar", banner_btn_gallery:"Galeria",
-                tools_title:"Suas ferramentas", tools_subtitle:"Escolha uma ferramenta para começar",
-                insp_title:"Inspiração", insp_subtitle:"Passe o mouse para copiar",
-                faq_title:"Perguntas frequentes",
-                coupon_title:"Tem um código promocional?", coupon_apply:"Aplicar",
-                best_value:"MELHOR VALOR",
-                modal_cancel:"Cancelar", modal_confirm_delete:"Excluir",
-                sub_btn_renew:"Renovar ou fazer upgrade",
-                sub_info_title:"Sua assinatura", sub_info_plan:"Plano atual", sub_info_start:"Data de início", sub_info_expiry:"Data de expiração", sub_info_remaining:"Dias restantes",
-                toast_login_required:"Faça login com o Google para continuar"
-            },
-            tr: {
-                nav_home:"Ana Sayfa", nav_studio:"Stüdyo", nav_gallery:"Galeri", nav_docs:"Belgeler", nav_plans:"Abonelik",
-                sidebar_free:"Ücretsiz Plan", sidebar_upgrade:"Aboneliği Yönet",
-                search_placeholder:"Araçlarda ara...",
-                user_manage_billing:"Aboneliği Yönet", user_delete_account:"Hesabı Sil", user_logout:"Çıkış Yap",
-                welcome_pill:"Artify PRO'ya Hoş Geldiniz",
-                banner_title:'Fikirlerini <span>çarpıcı görsellere</span> dönüştür',
-                banner_desc:"En yeni yapay zeka motorlarıyla, karakter tutarlılığı tam olan profesyonel görseller oluştur.",
-                banner_btn_start:"Şimdi Başla", banner_btn_gallery:"Galeri",
-                tools_title:"Araçların", tools_subtitle:"Başlamak için bir araç seç",
-                insp_title:"İlham", insp_subtitle:"Kopyalamak için üzerine gel",
-                faq_title:"Sıkça Sorulan Sorular",
-                coupon_title:"Promosyon kodun var mı?", coupon_apply:"Uygula",
-                best_value:"EN İYİ DEĞER",
-                modal_cancel:"İptal", modal_confirm_delete:"Kalıcı Olarak Sil",
-                sub_btn_renew:"Planı yenile veya yükselt",
-                sub_info_title:"Aboneliğin", sub_info_plan:"Mevcut plan", sub_info_start:"Başlangıç tarihi", sub_info_expiry:"Bitiş tarihi", sub_info_remaining:"Kalan gün",
-                toast_login_required:"Devam etmek için Google ile giriş yap"
-            },
-            ru: {
-                nav_home:"Главная", nav_studio:"Студия", nav_gallery:"Галерея", nav_docs:"Документы", nav_plans:"Подписка",
-                sidebar_free:"Бесплатный план", sidebar_upgrade:"Управление подпиской",
-                search_placeholder:"Поиск инструментов...",
-                user_manage_billing:"Управление подпиской", user_delete_account:"Удалить аккаунт", user_logout:"Выйти",
-                welcome_pill:"Добро пожаловать в Artify PRO",
-                banner_title:'Превратите идеи в <span>потрясающие изображения</span>',
-                banner_desc:"Создавайте профессиональные изображения с помощью новейших ИИ-движков и полной согласованности персонажей.",
-                banner_btn_start:"Начать", banner_btn_gallery:"Галерея",
-                tools_title:"Ваши инструменты", tools_subtitle:"Выберите инструмент, чтобы начать",
-                insp_title:"Вдохновение", insp_subtitle:"Наведите, чтобы скопировать",
-                faq_title:"Часто задаваемые вопросы",
-                coupon_title:"Есть промокод?", coupon_apply:"Применить",
-                best_value:"ВЫГОДНОЕ ПРЕДЛОЖЕНИЕ",
-                modal_cancel:"Отмена", modal_confirm_delete:"Удалить",
-                sub_btn_renew:"Продлить или улучшить план",
-                sub_info_title:"Ваша подписка", sub_info_plan:"Текущий план", sub_info_start:"Дата начала", sub_info_expiry:"Дата окончания", sub_info_remaining:"Осталось дней",
-                toast_login_required:"Войдите через Google, чтобы продолжить"
-            },
-            zh: {
-                nav_home:"首页", nav_studio:"工作室", nav_gallery:"画廊", nav_docs:"文档", nav_plans:"订阅",
-                sidebar_free:"免费计划", sidebar_upgrade:"管理订阅",
-                search_placeholder:"搜索工具...",
-                user_manage_billing:"管理订阅", user_delete_account:"删除账户", user_logout:"退出登录",
-                welcome_pill:"欢迎使用 Artify PRO",
-                banner_title:'将你的想法变成<span>惊艳视觉效果</span>',
-                banner_desc:"使用最先进的人工智能引擎创建高质量专业图像，并保持人物特征完全一致。",
-                banner_btn_start:"立即开始", banner_btn_gallery:"作品展示",
-                tools_title:"你的工具", tools_subtitle:"选择一个工具开始使用",
-                insp_title:"灵感", insp_subtitle:"悬停以复制提示词",
-                faq_title:"常见问题",
-                coupon_title:"有优惠码吗？", coupon_apply:"应用",
-                best_value:"最超值",
-                modal_cancel:"取消", modal_confirm_delete:"永久删除",
-                sub_btn_renew:"续订或升级套餐",
-                sub_info_title:"你的订阅", sub_info_plan:"当前套餐", sub_info_start:"开始日期", sub_info_expiry:"到期日期", sub_info_remaining:"剩余天数",
-                toast_login_required:"请使用 Google 登录以继续"
-            },
-            ja: {
-                nav_home:"ホーム", nav_studio:"スタジオ", nav_gallery:"ギャラリー", nav_docs:"ドキュメント", nav_plans:"プラン",
-                sidebar_free:"無料プラン", sidebar_upgrade:"サブスクリプション管理",
-                search_placeholder:"ツールを検索...",
-                user_manage_billing:"サブスクリプション管理", user_delete_account:"アカウント削除", user_logout:"ログアウト",
-                welcome_pill:"Artify PRO へようこそ",
-                banner_title:'アイデアを<span>魅力的なビジュアル</span>に',
-                banner_desc:"最先端のAIエンジンとキャラクターの完全な一貫性で、プロ品質のビジュアルを作成しましょう。",
-                banner_btn_start:"今すぐ作成", banner_btn_gallery:"ギャラリーを見る",
-                tools_title:"あなたのツール", tools_subtitle:"開始するツールを選択してください",
-                insp_title:"インスピレーション", insp_subtitle:"ホバーしてコピー",
-                faq_title:"よくある質問",
-                coupon_title:"プロモーションコードをお持ちですか？", coupon_apply:"適用",
-                best_value:"お得な価格",
-                modal_cancel:"キャンセル", modal_confirm_delete:"完全に削除",
-                sub_btn_renew:"プランを更新・アップグレード",
-                sub_info_title:"あなたのサブスクリプション", sub_info_plan:"現在のプラン", sub_info_start:"開始日", sub_info_expiry:"有効期限", sub_info_remaining:"残り日数",
-                toast_login_required:"続行するには Google でログインしてください"
-            },
-            hi: {
-                nav_home:"होम", nav_studio:"स्टूडियो", nav_gallery:"गैलरी", nav_docs:"दस्तावेज़", nav_plans:"सदस्यता",
-                sidebar_free:"मुफ़्त योजना", sidebar_upgrade:"सदस्यता प्रबंधित करें",
-                search_placeholder:"टूल्स खोजें...",
-                user_manage_billing:"सदस्यता प्रबंधित करें", user_delete_account:"खाता हटाएं", user_logout:"लॉगआउट",
-                welcome_pill:"Artify PRO में आपका स्वागत है",
-                banner_title:'अपने विचारों को <span>शानदार विज़ुअल</span> में बदलें',
-                banner_desc:"अत्याधुनिक AI इंजनों और पूर्ण चरित्र स्थिरता के साथ पेशेवर विज़ुअल बनाएं।",
-                banner_btn_start:"अभी शुरू करें", banner_btn_gallery:"गैलरी देखें",
-                tools_title:"आपके टूल्स", tools_subtitle:"शुरू करने के लिए एक टूल चुनें",
-                insp_title:"प्रेरणा", insp_subtitle:"कॉपी करने के लिए होवर करें",
-                faq_title:"अक्सर पूछे जाने वाले प्रश्न",
-                coupon_title:"क्या आपके पास प्रोमो कोड है?", coupon_apply:"लागू करें",
-                best_value:"सर्वश्रेष्ठ मूल्य",
-                modal_cancel:"रद्द करें", modal_confirm_delete:"स्थायी रूप से हटाएं",
-                sub_btn_renew:"योजना नवीनीकृत/अपग्रेड करें",
-                sub_info_title:"आपकी सदस्यता", sub_info_plan:"वर्तमान योजना", sub_info_start:"प्रारंभ तिथि", sub_info_expiry:"समाप्ति तिथि", sub_info_remaining:"शेष दिन",
-                toast_login_required:"जारी रखने के लिए Google से लॉगिन करें"
             }
         };
 
         const langNames = { ar:"العربية", en:"English", fr:"Français", es:"Español", de:"Deutsch", it:"Italiano", pt:"Português", tr:"Türkçe", ru:"Русский", zh:"中文", ja:"日本語", hi:"हिन्दी" };
-        const rtlLangs = ["ar"];
+        let currentLang = 'ar'; let currentUser = null; let activeDiscount = 0; let appliedCoupon = '';
 
-        let currentLang = 'ar';
-        let currentUser = null;
-        let activeDiscount = 0;
-        let appliedCoupon = '';
-
-        // نص افتراضي مساعد: يرجع للإنجليزية ثم العربية لأي مفتاح غير مترجم بعد في لغة معينة
-        function t(key) {
-            const dict = translations[currentLang] || {};
-            if (dict[key] !== undefined) return dict[key];
-            if (translations.en[key] !== undefined) return translations.en[key];
-            return translations.ar[key] || '';
-        }
+        function t(key) { return (translations[currentLang] || translations.en)[key] || translations.ar[key] || ''; }
 
         function buildLangDropdown() {
-            const dd = document.getElementById('langDropdown');
-            dd.innerHTML = Object.keys(langNames).map(code => `
+            document.getElementById('langDropdown').innerHTML = Object.keys(langNames).map(code => `
                 <div class="lang-option ${code === currentLang ? 'active' : ''}" onclick="setLanguage('${code}')">
-                    <span>${langNames[code]}</span>
-                    ${code === currentLang ? '<span>✓</span>' : ''}
+                    <span>${langNames[code]}</span> ${code === currentLang ? '<span>✓</span>' : ''}
                 </div>
             `).join('');
         }
 
-        function toggleLangDropdown() {
-            document.getElementById('langDropdown').classList.toggle('show');
-        }
+        function toggleLangDropdown() { document.getElementById('langDropdown').classList.toggle('show'); document.getElementById('userDropdown').classList.remove('show');}
+        function toggleUserDropdown() { document.getElementById('userDropdown').classList.toggle('show'); document.getElementById('langDropdown').classList.remove('show');}
 
         function setLanguage(lang) {
-            if (!translations[lang]) lang = 'en';
+            if (!translations[lang]) { showToast(currentLang==='ar'?'هذه اللغة قادمة قريباً':'Language coming soon', 'warning'); document.getElementById('langDropdown').classList.remove('show'); return; }
             currentLang = lang;
-            try { localStorage.setItem('artify_lang', lang); } catch(e) {}
-            applyLanguage();
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            document.getElementById('langCurrentLabel').innerText = langNames[lang];
             document.getElementById('langDropdown').classList.remove('show');
-        }
 
-        function applyLanguage() {
-            const isRtl = rtlLangs.includes(currentLang);
-            document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
-            document.documentElement.lang = currentLang;
-            document.getElementById('langCurrentLabel').innerText = langNames[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => el.innerText = t(el.getAttribute('data-i18n')));
+            document.querySelectorAll('[data-i18n-html]').forEach(el => el.innerHTML = t(el.getAttribute('data-i18n-html')));
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.getAttribute('data-i18n-ph')));
+            document.querySelectorAll('.dir-arrow').forEach(el => el.innerText = lang === 'ar' ? '←' : '→');
 
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                el.innerText = t(el.getAttribute('data-i18n'));
-            });
-            document.querySelectorAll('[data-i18n-html]').forEach(el => {
-                el.innerHTML = t(el.getAttribute('data-i18n-html'));
-            });
-            document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-                el.placeholder = t(el.getAttribute('data-i18n-ph'));
-            });
-
-            document.querySelectorAll('.dir-arrow').forEach(el => {
-                el.innerText = isRtl ? '←' : '→';
-            });
-
-            buildLangDropdown();
-            renderFaq();
-            initMarquee();
+            buildLangDropdown(); renderFaq(); initMarquee();
             if (currentUser) updateDashboardUI(currentUser); else updateDashboardUI(null);
         }
 
-        function detectInitialLanguage() {
-            let saved = null;
-            try { saved = localStorage.getItem('artify_lang'); } catch(e) {}
-            if (saved && translations[saved]) return saved;
-
-            const browserLangs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en']);
-            for (const bl of browserLangs) {
-                const code = (bl || '').slice(0, 2).toLowerCase();
-                if (translations[code]) return code;
-            }
-            return 'en';
-        }
-
-        // ============================================================
-        // إشعارات (Toasts) بتصميم أكثر احترافية
-        // ============================================================
         function showToast(msg, type='success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            const icon = type === 'danger' ? '⚠️' : '✅';
-            toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text"></span>`;
-            toast.querySelector('.toast-text').innerText = msg;
+            toast.innerHTML = `<span class="toast-icon">${type==='danger'?'⚠️':type==='warning'?'⏳':'✅'}</span><span class="toast-text">${msg}</span>`;
             container.appendChild(toast);
             setTimeout(() => toast.classList.add('show'), 10);
-            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 4000);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
+        function showSoonToast() { showToast(t('toast_soon'), 'warning'); }
 
-        function toggleUserDropdown() {
-            document.getElementById('userDropdown').classList.toggle('show');
-        }
+        function scrollToSection(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
+        function scrollToTop() { document.getElementById('topAnchor').scrollIntoView({ behavior: 'smooth' }); }
 
-        function scrollToSection(id) {
-            const el = document.getElementById(id);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        function scrollToTop() {
-            document.getElementById('topAnchor').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        // إغلاق القوائم المنسدلة عند الضغط خارجها
         document.addEventListener('click', (e) => {
-            const userArea = document.getElementById('userMenuArea');
-            const langArea = document.getElementById('langMenuArea');
-            if (userArea && !userArea.contains(e.target)) document.getElementById('userDropdown').classList.remove('show');
-            if (langArea && !langArea.contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
+            if (!document.getElementById('userMenuArea').contains(e.target)) document.getElementById('userDropdown').classList.remove('show');
+            if (!document.getElementById('langMenuArea').contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
         });
 
-        // ============================================================
-        // اختصار Ctrl+K للبحث + بحث فعلي في الأدوات والأسئلة الشائعة
-        // ============================================================
-        document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                const input = document.getElementById('globalSearchInput');
-                if (input) input.focus();
-            }
-            if (e.key === 'Escape') {
-                closeDeleteModal();
-            }
-        });
-
-        function runGlobalSearch(query) {
-            const q = query.trim().toLowerCase();
-            let anyVisible = false;
-
-            document.querySelectorAll('#toolsGrid .tool-card').forEach(card => {
-                const text = (card.innerText + ' ' + (card.getAttribute('data-search-tags') || '')).toLowerCase();
-                const match = !q || text.includes(q);
-                card.classList.toggle('is-hidden-by-search', !match);
-                if (match) anyVisible = true;
-            });
-
-            document.querySelectorAll('#faqList .faq-item').forEach(item => {
-                const text = item.innerText.toLowerCase();
-                const match = !q || text.includes(q);
-                item.classList.toggle('is-hidden-by-search', !match);
-                if (match) anyVisible = true;
-            });
-
-            if (q && !anyVisible) {
-                // لا نُظهر Toast متكرر أثناء الكتابة الحرفية، فقط عند التوقف
-            }
-        }
-
-        let searchDebounce = null;
-        document.getElementById('globalSearchInput').addEventListener('input', (e) => {
-            clearTimeout(searchDebounce);
-            const val = e.target.value;
-            searchDebounce = setTimeout(() => runGlobalSearch(val), 150);
-        });
-
-        // ============================================================
-        // بيانات المعرض + إصلاح الحلقة اللانهائية (نسختان فقط + -50%)
-        // ============================================================
         const showcaseItems = [
-            { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light, then crashes back into the sea." },
-            { url: "/photos/2.png", prompt: "Cinematic shot of the land tortoise walking slowly across the desert. Deliberate leg movements kick up fine dust in sunset." },
-            { url: "/photos/3.png", prompt: "Cinematic underwater animation. The central bioluminescent jellyfish pulses gently, flowing gracefully in the deep blue." },
+            { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light." },
+            { url: "/photos/2.png", prompt: "Cinematic shot of the land tortoise walking slowly across the desert in sunset." },
+            { url: "/photos/3.png", prompt: "Cinematic underwater animation. The central bioluminescent jellyfish pulses gently." },
             { url: "/photos/4.png", prompt: "Cinematic underwater close-up. The textured orange starfish rests on the sunlit seabed." },
-            { url: "/photos/5.png", prompt: "Cinematic video of the dolphin completing its mid-air arc at sunset, with golden light reflecting off its sleek body." }
+            { url: "/photos/5.png", prompt: "Cinematic video of the dolphin completing its mid-air arc at sunset." }
         ];
 
         function initMarquee() {
-            const track = document.getElementById('marqueeTrack');
-            if (!track) return;
-            // نسختان فقط من العناصر (وليس ثلاثة) لتتطابق تماماً مع حركة -50% وتضمن حلقة سلسة بلا انقطاع
+            const track = document.getElementById('marqueeTrack'); if (!track) return;
             const doubled = [...showcaseItems, ...showcaseItems];
-            const copyLabel = currentLang === 'ar' ? 'نسخ البرومبت' : (t('insp_title') ? '📋' : '📋');
             track.innerHTML = doubled.map(item => `
                 <div class="inspiration-card">
-                    <img src="${item.url}" alt="AI Scene" loading="lazy" onerror="this.style.opacity=0.2;" />
+                    <img src="${item.url}" alt="AI Scene" loading="lazy" />
                     <div class="insp-overlay">
                         <p class="insp-prompt">${item.prompt}</p>
-                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">
-                            📋 ${currentLang === 'ar' ? 'نسخ البرومبت' : 'Copy'}
-                        </button>
+                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">📋 ${currentLang === 'ar' ? 'نسخ' : 'Copy'}</button>
                     </div>
                 </div>
             `).join('');
         }
 
         function copyPrompt(text) {
-            if (!currentUser || !currentUser.subscriptionActive) {
-                showToast(t('toast_copy_locked'), 'danger');
-                scrollToSection('pricingSection');
-                return;
-            }
-            navigator.clipboard.writeText(text);
-            showToast(t('toast_copy_success'), 'success');
+            if (!currentUser || !currentUser.subscriptionActive) { showToast(t('toast_copy_locked'), 'danger'); openPricingModal(); return; }
+            navigator.clipboard.writeText(text); showToast(t('toast_copy_success'), 'success');
         }
 
-        // ============================================================
-        // الأسئلة الشائعة - تُبنى ديناميكياً من قائمة أكثر شمولاً
-        // ============================================================
         function renderFaq() {
             const wrap = document.getElementById('faqList');
-            const faqs = t('faqs') && Array.isArray(t('faqs')) ? t('faqs') : (translations.ar.faqs || []);
-            const list = (translations[currentLang] && translations[currentLang].faqs) ? translations[currentLang].faqs : translations.ar.faqs;
-            wrap.innerHTML = list.map((item, i) => `
+            const faqs = (translations[currentLang] || translations.en).faqs || translations.ar.faqs;
+            wrap.innerHTML = faqs.map(item => `
                 <div class="faq-item">
                     <button class="faq-question" onclick="this.closest('.faq-item').classList.toggle('active')">
                         <span>${item.q}</span> <span class="plus">+</span>
@@ -1215,317 +672,134 @@
         }
 
         // ============================================================
-        // Google Sign-in + جلسة المستخدم
+        // نظام النوافذ المنبثقة (Modals) للأسعار والأسئلة وغيرها
+        // ============================================================
+        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
+        
+        function openPricingModal() { closeModals(); document.getElementById('pricingModal').classList.add('show'); }
+        function openFaqModal() { closeModals(); document.getElementById('faqModal').classList.add('show'); }
+        function openDeleteModal() { document.getElementById('userDropdown').classList.remove('show'); closeModals(); document.getElementById('deleteModal').classList.add('show'); }
+
+        function manageSubscriptionFlow() {
+            document.getElementById('userDropdown').classList.remove('show');
+            if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
+            if (currentUser.subscriptionActive) {
+                closeModals();
+                document.getElementById('modalPlanName').innerText = "Artify PRO";
+                document.getElementById('modalStartDate').innerText = new Date(currentUser.startedAt).toLocaleDateString(currentLang==='ar'?'ar-EG':'en-US');
+                document.getElementById('modalExpiryDate').innerText = new Date(currentUser.expiresAt).toLocaleDateString(currentLang==='ar'?'ar-EG':'en-US');
+                document.getElementById('modalDaysLeft').innerText = Math.max(Math.ceil((new Date(currentUser.expiresAt) - Date.now()) / 86400000), 0);
+                document.getElementById('subStatusModal').classList.add('show');
+            } else {
+                openPricingModal();
+            }
+        }
+
+        // ============================================================
+        // Google Sign-in + Session
         // ============================================================
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
 
         window.onload = function () {
-            currentLang = detectInitialLanguage();
-            applyLanguage();
-
-            google.accounts.id.initialize({
-                client_id: GOOGLE_CLIENT_ID,
-                callback: handleGoogleCredential,
-            });
-            google.accounts.id.renderButton(
-                document.getElementById("g_id_signin_container"),
-                { theme: "outline", size: "medium", text: "signin_with", shape: "pill" }
-            );
+            setLanguage('ar');
+            google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
+            google.accounts.id.renderButton(document.getElementById("g_id_signin_container"), { theme: "outline", size: "medium", text: "signin_with", shape: "pill" });
             checkSession();
         };
 
         async function handleGoogleCredential(response) {
             try {
-                const res = await fetch('/api/auth/google', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ credential: response.credential }),
-                });
-                if (res.ok) {
-                    showToast(t('toast_login_success'), 'success');
-                    checkSession();
-                } else {
-                    showToast(t('toast_login_failed'), 'danger');
-                }
-            } catch(e) {
-                showToast(t('toast_network_error'), 'danger');
-            }
+                const res = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ credential: response.credential }) });
+                if (res.ok) { showToast(t('toast_login_success'), 'success'); checkSession(); } else { showToast(t('toast_login_failed'), 'danger'); }
+            } catch(e) { showToast(t('toast_network_error'), 'danger'); }
         }
 
         async function checkSession() {
             try {
                 const res = await fetch('/api/me', { credentials: 'include' });
-                if (!res.ok) {
-                    currentUser = null;
-                    updateDashboardUI(null);
-                    return;
-                }
-                currentUser = await res.json();
-                updateDashboardUI(currentUser);
-            } catch(e) {
-                console.log('Session check failed');
-                updateDashboardUI(null);
-            }
+                if (!res.ok) { currentUser = null; updateDashboardUI(null); return; }
+                currentUser = await res.json(); updateDashboardUI(currentUser);
+            } catch(e) { updateDashboardUI(null); }
         }
 
-        // ============================================================
-        // تحديث الواجهة بالكامل حسب حالة المستخدم/الاشتراك
-        // currentUser المتوقع: { name, email, subscriptionActive, plan, startedAt, expiresAt, autoRenew }
-        // ============================================================
         function updateDashboardUI(user) {
-            const gBtn = document.getElementById('g_id_signin_container');
-            const uMenu = document.getElementById('userMenuArea');
-            const lock = document.getElementById('canvasLock');
-            const sidebarSubStatus = document.getElementById('sidebarSubStatus');
-            const dropSubStatus = document.getElementById('dropSubStatus');
-            const quotaCount = document.getElementById('quotaCount');
-            const sidebarBtnLabel = document.getElementById('sidebarBtnLabel');
-            const subInfoCard = document.getElementById('subInfoCard');
-            const launchBanner = document.getElementById('launchBanner');
-            const plansLabel = document.getElementById('plansSectionLabel').querySelector('span');
+            const gBtn = document.getElementById('g_id_signin_container'); const uMenu = document.getElementById('userMenuArea');
+            const lock = document.getElementById('canvasLock'); const dropSubStatus = document.getElementById('dropSubStatus');
 
             if (!user) {
-                gBtn.style.display = 'block';
-                uMenu.style.display = 'none';
-                if (lock) lock.style.display = 'flex';
-                subInfoCard.classList.remove('show');
-                launchBanner.style.display = 'block';
-                plansLabel.innerText = t('plans_label_new');
-                sidebarSubStatus.innerText = t('sidebar_free');
-                sidebarBtnLabel.innerText = t('sidebar_upgrade');
-                quotaCount.innerText = '0 / 10';
-                markCurrentPlan(null);
+                gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex';
+                document.getElementById('sidebarSubStatus').innerText = t('sidebar_free'); document.getElementById('quotaCount').innerText = '0 / 10';
+                document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
                 return;
             }
 
-            gBtn.style.display = 'none';
-            uMenu.style.display = 'flex';
+            gBtn.style.display = 'none'; uMenu.style.display = 'flex';
             const name = user.name ? user.name.split(' ')[0] : 'User';
-            document.getElementById('navUserName').innerText = name;
-            document.getElementById('avatarLetter').innerText = name.charAt(0).toUpperCase();
+            document.getElementById('navUserName').innerText = name; document.getElementById('avatarLetter').innerText = name.charAt(0).toUpperCase();
 
             if (user.subscriptionActive) {
-                if (lock) lock.style.display = 'none';
-                launchBanner.style.display = 'none';
-                plansLabel.innerText = t('plans_label_current');
-                subInfoCard.classList.add('show');
-                renderSubInfo(user);
-                markCurrentPlan(user.plan);
-
-                const dateStr = formatDate(user.expiresAt);
-                sidebarSubStatus.innerText = `PRO — ${dateStr}`;
-                sidebarBtnLabel.innerText = t('user_manage_billing');
-                dropSubStatus.innerText = `PRO (${dateStr})`;
-                quotaCount.innerText = '∞';
+                lock.style.display = 'none';
+                const dateStr = new Date(user.expiresAt).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+                document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
+                dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
+                document.getElementById('pricingModalTitle').innerText = t('plans_label_current');
             } else {
-                if (lock) lock.style.display = 'flex';
-                launchBanner.style.display = 'block';
-                plansLabel.innerText = t('plans_label_new');
-                subInfoCard.classList.remove('show');
-                markCurrentPlan(null);
-                sidebarSubStatus.innerText = currentLang === 'ar' ? 'غير مفعل' : 'Inactive';
-                sidebarBtnLabel.innerText = t('sidebar_upgrade');
+                lock.style.display = 'flex';
+                document.getElementById('sidebarSubStatus').innerText = currentLang === 'ar' ? 'غير مفعل' : 'Inactive';
                 dropSubStatus.innerText = currentLang === 'ar' ? 'حساب غير مفعل' : 'Inactive';
+                document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
             }
         }
 
-        function formatDate(dateVal) {
-            if (!dateVal) return '—';
-            try {
-                const localeMap = { ar:'ar-EG', en:'en-US', fr:'fr-FR', es:'es-ES', de:'de-DE', it:'it-IT', pt:'pt-PT', tr:'tr-TR', ru:'ru-RU', zh:'zh-CN', ja:'ja-JP', hi:'hi-IN' };
-                return new Date(dateVal).toLocaleDateString(localeMap[currentLang] || 'en-US');
-            } catch(e) { return '—'; }
-        }
-
-        const planNameKeyMap = { month1:'plan1_name', month3:'plan2_name', month6:'plan3_name', year1:'plan4_name' };
-
-        function markCurrentPlan(plan) {
-            document.querySelectorAll('.pricing-card').forEach(card => {
-                card.classList.remove('current-plan');
-                const existingTag = card.querySelector('.current-plan-tag');
-                if (existingTag) existingTag.remove();
-                if (plan && card.getAttribute('data-plan') === plan) {
-                    card.classList.add('current-plan');
-                    const tag = document.createElement('div');
-                    tag.className = 'current-plan-tag';
-                    tag.innerText = t('current_plan_tag');
-                    card.appendChild(tag);
-                }
-            });
-        }
-
-        function renderSubInfo(user) {
-            document.getElementById('subPlanName').innerText = t(planNameKeyMap[user.plan] || 'plan1_name');
-            document.getElementById('subStartDate').innerText = formatDate(user.startedAt);
-            document.getElementById('subExpiryDate').innerText = formatDate(user.expiresAt);
-
-            const now = Date.now();
-            const expiry = user.expiresAt ? new Date(user.expiresAt).getTime() : now;
-            const start = user.startedAt ? new Date(user.startedAt).getTime() : now;
-            const totalDuration = Math.max(expiry - start, 1);
-            const elapsed = Math.min(Math.max(now - start, 0), totalDuration);
-            const percentUsed = Math.round((elapsed / totalDuration) * 100);
-            const daysLeft = Math.max(Math.ceil((expiry - now) / 86400000), 0);
-
-            document.getElementById('subDaysLeft').innerText = daysLeft;
-            document.getElementById('subProgressFill').style.width = percentUsed + '%';
-
-            const badge = document.getElementById('subStatusBadge');
-            if (daysLeft <= 5) {
-                badge.classList.remove('active');
-                badge.classList.add('ending-soon');
-                badge.innerText = t('sub_status_ending');
-            } else {
-                badge.classList.add('active');
-                badge.classList.remove('ending-soon');
-                badge.innerText = t('sub_status_active');
-            }
-
-            const autoBtn = document.getElementById('autoRenewBtn');
-            const autoIcon = document.getElementById('autoRenewIcon');
-            const autoLabel = document.getElementById('autoRenewLabel');
-            const isOn = user.autoRenew !== false;
-            autoBtn.classList.toggle('is-off', !isOn);
-            autoIcon.innerText = isOn ? '✅' : '⛔';
-            autoLabel.innerText = isOn ? t('sub_btn_autorenew_on') : t('sub_btn_autorenew_off');
-        }
-
-        async function toggleAutoRenew() {
-            if (!currentUser) return;
-            const newVal = !(currentUser.autoRenew !== false);
-            try {
-                const res = await fetch('/api/subscription/auto-renew', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ autoRenew: newVal }),
-                });
-                if (res.ok) {
-                    currentUser.autoRenew = newVal;
-                    renderSubInfo(currentUser);
-                    showToast(newVal ? t('toast_autorenew_on') : t('toast_autorenew_off'), 'success');
-                } else {
-                    showToast(t('toast_network_error'), 'danger');
-                }
-            } catch(e) {
-                showToast(t('toast_network_error'), 'danger');
-            }
-        }
-
-        // ============================================================
-        // فتح أداة Canvas Pro
-        // ============================================================
         function handleToolAction() {
-            if (!currentUser) {
-                showToast(t('toast_login_required'), 'danger');
-                return;
-            }
-            if (!currentUser.subscriptionActive) {
-                showToast(t('toast_sub_required'), 'danger');
-                scrollToSection('pricingSection');
-                return;
-            }
-            const screenW = window.screen.availWidth;
-            const screenH = window.screen.availHeight;
-            const features = `width=${screenW},height=${screenH},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
-            window.open('/api/launch-app', 'ArtifyWorkspace', features);
+            if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
+            if (!currentUser.subscriptionActive) { showToast(t('toast_sub_required'), 'danger'); openPricingModal(); return; }
+            window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight}`);
         }
 
-        // ============================================================
-        // الكوبون والأسعار
-        // ============================================================
         async function applyCoupon() {
-            if (!currentUser) {
-                showToast(t('toast_coupon_login'), 'danger');
-                return;
-            }
-            const code = document.getElementById('couponInput').value.trim();
-            const msgEl = document.getElementById('couponMsg');
-            if (!code) return;
-
+            if (!currentUser) { showToast(t('toast_coupon_login'), 'danger'); return; }
+            const code = document.getElementById('couponInput').value.trim(); const msgEl = document.getElementById('couponMsg'); if (!code) return;
             try {
-                const res = await fetch('/api/apply-coupon', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ couponCode: code })
-                });
+                const res = await fetch('/api/apply-coupon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ couponCode: code }) });
                 const data = await res.json();
                 if (res.ok) {
                     if (data.type === 'free') {
-                        msgEl.style.color = 'var(--success)';
-                        msgEl.innerText = t('toast_coupon_activated');
-                        showToast(t('toast_coupon_activated'), 'success');
-                        setTimeout(() => checkSession(), 1200);
+                        msgEl.style.color = 'var(--success)'; msgEl.innerText = t('toast_coupon_activated'); showToast(t('toast_coupon_activated'), 'success');
+                        setTimeout(() => { closeModals(); checkSession(); }, 1200);
                     } else if (data.type === 'percent') {
-                        activeDiscount = data.discount;
-                        appliedCoupon = code;
-                        msgEl.style.color = 'var(--success)';
-                        msgEl.innerText = t('toast_coupon_discount').replace('{p}', data.discount * 100);
-                        showToast(t('toast_coupon_discount').replace('{p}', data.discount * 100), 'success');
+                        activeDiscount = data.discount; msgEl.style.color = 'var(--success)';
+                        const msg = t('toast_coupon_discount').replace('{p}', data.discount * 100); msgEl.innerText = msg; showToast(msg, 'success');
                         recalcPrices();
                     }
-                } else {
-                    msgEl.style.color = 'var(--danger)';
-                    msgEl.innerText = data.error || t('toast_coupon_invalid');
-                }
+                } else { msgEl.style.color = 'var(--danger)'; msgEl.innerText = data.error || t('toast_coupon_invalid'); }
             } catch (e) { msgEl.innerText = t('toast_network_error'); }
         }
 
         function recalcPrices() {
             if (activeDiscount > 0) {
-                document.getElementById('p-val-month1').innerText = `$${(15 * (1 - activeDiscount)).toFixed(2)}`;
-                document.getElementById('p-val-month3').innerText = `$${(38 * (1 - activeDiscount)).toFixed(2)}`;
-                document.getElementById('p-val-month6').innerText = `$${(65 * (1 - activeDiscount)).toFixed(2)}`;
-                document.getElementById('p-val-year1').innerText = `$${(110 * (1 - activeDiscount)).toFixed(2)}`;
+                document.getElementById('p-val-month1').innerText = `$${(15 * (1 - activeDiscount)).toFixed(2)}`; document.getElementById('p-val-month3').innerText = `$${(38 * (1 - activeDiscount)).toFixed(2)}`;
+                document.getElementById('p-val-month6').innerText = `$${(65 * (1 - activeDiscount)).toFixed(2)}`; document.getElementById('p-val-year1').innerText = `$${(110 * (1 - activeDiscount)).toFixed(2)}`;
             }
         }
 
         async function promptPlan(plan) {
-            if (!currentUser) {
-                showToast(t('toast_login_required'), 'danger');
-                return;
-            }
+            if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
             try {
-                const res = await fetch('/api/create-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ plan, couponCode: appliedCoupon }),
-                });
+                const res = await fetch('/api/create-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ plan }) });
                 const data = await res.json();
-                if (data.url) window.location.href = data.url;
-                else showToast(data.error || t('toast_payment_error'), 'danger');
+                if (data.url) window.location.href = data.url; else showToast(data.error || t('toast_payment_error'), 'danger');
             } catch(e) { showToast(t('toast_network_error'), 'danger'); }
         }
 
-        // ============================================================
-        // حذف الحساب: عبر Modal احترافي بدل confirm() الافتراضي في المتصفح
-        // ============================================================
-        function confirmDeleteAccount() {
-            toggleUserDropdown();
-            document.getElementById('deleteModal').classList.add('show');
-        }
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('show');
-        }
-
-        async function deleteAccount() {
-            try {
-                await fetch('/api/delete-account', { method: 'POST', credentials: 'include' });
-                closeDeleteModal();
-                logout(true);
-                showToast(t('toast_delete_success'), 'success');
-            } catch(e) {
-                showToast(t('toast_delete_error'), 'danger');
-            }
+        async function executeDeleteAccount() {
+            try { await fetch('/api/delete-account', { method: 'POST', credentials: 'include' }); closeModals(); logout(true); showToast(t('toast_delete_success'), 'success'); } 
+            catch(e) { showToast(t('toast_delete_error'), 'danger'); }
         }
 
         async function logout(skipToast) {
-            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-            currentUser = null;
-            updateDashboardUI(null);
+            document.getElementById('userDropdown').classList.remove('show');
+            await fetch('/api/logout', { method: 'POST', credentials: 'include' }); currentUser = null; updateDashboardUI(null);
             if (!skipToast) showToast(t('toast_logout'), 'success');
         }
     </script>
