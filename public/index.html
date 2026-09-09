@@ -186,7 +186,7 @@
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.8); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
         .modal-overlay.show { display: flex; }
-        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 440px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
+        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 460px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
         .modal-box.large { max-width: 850px; }
         
         .modal-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
@@ -207,11 +207,6 @@
         .price-num { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 8px 0 4px; }
         .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 14px; }
 
-        .coupon-box { max-width: 400px; margin: 20px auto 0; background: rgba(255,255,255,0.03); border: 1px dashed var(--primary); border-radius: 14px; padding: 15px; text-align: center; }
-        .coupon-input-group { display: flex; gap: 8px; margin-top: 10px; }
-        .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
-        .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
-
         .faq-wrap { width: 100%; text-align: right; }
         html[dir="ltr"] .faq-wrap { text-align: left; }
         .faq-item { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
@@ -224,7 +219,7 @@
         .sub-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: center; margin-bottom: 20px;}
         .sub-info-item { background: rgba(7,10,19,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
         .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .sub-info-item .value { font-size: 15px; font-weight: 700; color: #fff;}
+        .sub-info-item .value { font-size: 14px; font-weight: 700; color: #fff;}
 
         #toast-container { position: fixed; bottom: 25px; left: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
         html[dir="rtl"] #toast-container { left: auto; right: 25px; }
@@ -256,29 +251,28 @@
                 </div>
 
                 <ul class="nav-links">
-                    <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span data-i18n="nav_home">الرئيسية</span></li>
-                    <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span data-i18n="nav_studio">مولد الصور</span></li>
-                    <li class="nav-item" onclick="showSoonToast()"><span class="icon">📁</span> <span data-i18n="nav_projects">المشاريع</span></li>
-                    <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span data-i18n="nav_gallery">المعرض</span></li>
-                    <li class="nav-item" onclick="openFaqModal()"><span class="icon">📖</span> <span data-i18n="nav_docs">الأسئلة الشائعة</span></li>
-                    <li class="nav-item" onclick="openPricingModal()"><span class="icon">⚙️</span> <span data-i18n="nav_plans">الاشتراك</span></li>
+                    <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span>الرئيسية</span></li>
+                    <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span>مولد الصور</span></li>
+                    <li class="nav-item" onclick="showSoonToast()"><span class="icon">📁</span> <span>المشاريع</span></li>
+                    <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span>المعرض</span></li>
+                    <li class="nav-item" onclick="openFaqModal()"><span class="icon">📖</span> <span>الأسئلة الشائعة</span></li>
+                    <li class="nav-item" onclick="openPricingModal()"><span class="icon">⚙️</span> <span>الاشتراك</span></li>
                 </ul>
             </div>
 
             <div class="sidebar-bottom-card">
                 <div class="sub-quota">
-                    <span id="sidebarSubStatus" data-i18n="sidebar_free">حساب مجاني</span>
+                    <span id="sidebarSubStatus">حساب مجاني</span>
                     <strong id="quotaCount">0 / 10</strong>
                 </div>
                 <button class="btn-upgrade-sidebar" onclick="manageSubscriptionFlow()">
-                    👑 <span id="sidebarBtnLabel" data-i18n="sidebar_upgrade">إدارة الاشتراك</span>
+                    👑 <span id="sidebarBtnLabel">إدارة الاشتراك</span>
                 </button>
             </div>
         </aside>
 
         <main class="main-wrapper">
             
-            <!-- الشريط العلوي المطور مع كود الخصم والعداد التنازلي لمدة أسبوع -->
             <div class="global-launch-banner" id="globalBanner">
                 <span>🔥 عرض أسبوع الإطلاق: خصم 30% لجميع الباقات! انسخ الكود:</span>
                 <span class="banner-code-badge" onclick="copyLaunchCoupon()" title="اضغط لنسخ الكود">
@@ -454,7 +448,7 @@
         </main>
     </div>
 
-    <!-- النافذة المنبثقة للتحقق من السن وتزويد العميل بالكود وزر المتابعة -->
+    <!-- نافذة تأكيد الشروط ونسخ الكوبون قبل الدفع -->
     <div class="modal-overlay" id="preCheckoutModal">
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
@@ -484,7 +478,7 @@
         </div>
     </div>
 
-    <!-- بقية النوافذ المنبثقة -->
+    <!-- نافذة تفاصيل الاشتراك المحسوبة بدقة -->
     <div class="modal-overlay" id="subStatusModal">
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
@@ -493,10 +487,10 @@
                 <div class="sub-info-item"><div class="label">الباقة الحالية</div><div class="value" id="modalPlanName">PRO</div></div>
                 <div class="sub-info-item"><div class="label">تاريخ البدء</div><div class="value" id="modalStartDate">—</div></div>
                 <div class="sub-info-item"><div class="label">تاريخ الانتهاء</div><div class="value" id="modalExpiryDate">—</div></div>
-                <div class="sub-info-item"><div class="label">الأيام المتبقية</div><div class="value" id="modalDaysLeft">—</div></div>
+                <div class="sub-info-item"><div class="label">الوقت المتبقي بدقة</div><div class="value" id="modalDaysLeft" style="color:#38bdf8;">—</div></div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()">إغلاق</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()">إلغاء</button>
                 <button class="modal-btn modal-btn-primary" onclick="openPricingModal()">تجديد أو ترقية الباقة</button>
             </div>
         </div>
@@ -527,11 +521,11 @@
                 </div>
             </div>
 
-            <div class="coupon-box">
+            <div class="coupon-box" style="max-width: 400px; margin: 20px auto 0; background: rgba(255,255,255,0.03); border: 1px dashed var(--primary); border-radius: 14px; padding: 15px; text-align: center;">
                 <h4>هل تمتلك كود تفعيل أو خصم؟</h4>
-                <div class="coupon-input-group">
-                    <input type="text" id="couponInput" placeholder="...">
-                    <button onclick="applyCoupon()">تطبيق</button>
+                <div class="coupon-input-group" style="display: flex; gap: 8px; margin-top: 10px;">
+                    <input type="text" id="couponInput" placeholder="..." style="flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none;">
+                    <button onclick="applyCoupon()" style="padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer;">تطبيق</button>
                 </div>
                 <div id="couponMsg" style="font-size:12px; margin-top:8px; font-weight:bold;"></div>
             </div>
@@ -577,7 +571,7 @@
 
     <script>
         const langNames = { ar:"العربية", en:"English" };
-        let currentLang = 'ar'; let currentUser = null; let activeDiscount = 0;
+        let currentLang = 'ar'; let currentUser = null;
         let pendingCheckoutUrl = '';
 
         function toggleLangDropdown() { document.getElementById('langDropdown').classList.toggle('show'); document.getElementById('userDropdown').classList.remove('show');}
@@ -604,11 +598,8 @@
             if (!document.getElementById('langMenuArea').contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
         });
 
-        // ============================================================
-        // العداد التنازلي لمدة 7 أيام بدءاً من إطلاق العرض
-        // ============================================================
+        // العداد التنازلي لمدة أسبوع كامل
         function startGlobalTimer() {
-            // تاريخ انتهاء الأسبوع: 16 سبتمبر 2026 الساعة 10:00 مساءً
             const countDownDate = new Date("Sep 16, 2026 22:00:00").getTime();
             
             const timerInterval = setInterval(function() {
@@ -723,22 +714,51 @@
         function openFaqModal() { closeModals(); document.getElementById('faqModal').classList.add('show'); }
         function openDeleteModal() { document.getElementById('userDropdown').classList.remove('show'); closeModals(); document.getElementById('deleteModal').classList.add('show'); }
 
+        // ============================================================
+        // دالة إدارة الاشتراك المحسوبة بدقة (الأيام والساعات وتصحيح 1970)
+        // ============================================================
         function manageSubscriptionFlow() {
             document.getElementById('userDropdown').classList.remove('show');
             if (!currentUser) { showToast('يرجى تسجيل الدخول بحساب Google أولاً', 'danger'); return; }
             if (currentUser.subscriptionActive) {
                 closeModals();
                 document.getElementById('modalPlanName').innerText = "Artify PRO";
-                document.getElementById('modalStartDate').innerText = new Date(currentUser.startedAt).toLocaleDateString('ar-EG');
-                document.getElementById('modalExpiryDate').innerText = new Date(currentUser.expiresAt).toLocaleDateString('ar-EG');
-                document.getElementById('modalDaysLeft').innerText = Math.max(Math.ceil((new Date(currentUser.expiresAt) - Date.now()) / 86400000), 0);
+                
+                // تصحيح تاريخ البدء (إذا كان 0 يُعرض تاريخ اليوم أو قبل شهر من الانتهاء)
+                let startDateObj;
+                if (currentUser.startedAt && Number(currentUser.startedAt) > 0) {
+                    startDateObj = new Date(Number(currentUser.startedAt));
+                } else {
+                    startDateObj = new Date(Number(currentUser.expiresAt) - (30 * 24 * 60 * 60 * 1000));
+                }
+                document.getElementById('modalStartDate').innerText = startDateObj.toLocaleDateString('ar-EG');
+                
+                // تاريخ الانتهاء
+                const expiryDateObj = new Date(Number(currentUser.expiresAt));
+                document.getElementById('modalExpiryDate').innerText = expiryDateObj.toLocaleDateString('ar-EG');
+                
+                // حساب الوقت المتبقي بالساعات والأيام بدقة بدلاً من التقريب الصامت
+                const diffMs = expiryDateObj.getTime() - Date.now();
+                if (diffMs <= 0) {
+                    document.getElementById('modalDaysLeft').innerText = "انتهى الاشتراك";
+                } else {
+                    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const days = Math.floor(totalHours / 24);
+                    const remainingHours = totalHours % 24;
+                    
+                    if (days > 0) {
+                        document.getElementById('modalDaysLeft').innerText = `${days} يوم و ${remainingHours} ساعة`;
+                    } else {
+                        document.getElementById('modalDaysLeft').innerText = `${remainingHours} ساعة متبقية`;
+                    }
+                }
+
                 document.getElementById('subStatusModal').classList.add('show');
             } else {
                 openPricingModal();
             }
         }
 
-        // توجيه المستخدم لصفحة تأكيد السن والكوبون قبل الانتقال لـ Whop
         function promptPlan(plan) {
             if (!currentUser) { 
                 showToast('يرجى تسجيل الدخول بحساب Google أولاً', 'danger'); 
@@ -842,7 +862,7 @@
 
             if (user.subscriptionActive) {
                 lock.style.display = 'none';
-                const dateStr = new Date(user.expiresAt).toLocaleDateString('ar-EG');
+                const dateStr = new Date(Number(user.expiresAt)).toLocaleDateString('ar-EG');
                 document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
                 dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
                 fetchPromoStats(); 
