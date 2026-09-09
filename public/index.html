@@ -27,24 +27,11 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.5; overflow-x: hidden; min-height: 100vh; }
 
-        /* هيكل لوحة التحكم الرئيسي */
+        /* هيكل لوحة التحكم */
         .app-layout { display: flex; min-height: 100vh; }
 
-        /* القائمة الجانبية (Sidebar) */
-        .sidebar {
-            width: 250px;
-            background: var(--bg-sidebar);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 24px 16px;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            flex-shrink: 0;
-            z-index: 50;
-        }
+        /* القائمة الجانبية */
+        .sidebar { width: 250px; background: var(--bg-sidebar); border-left: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px; position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 50; }
         html[dir="ltr"] .sidebar { border-left: none; border-right: 1px solid var(--border); }
 
         .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 10px 25px; border-bottom: 1px solid var(--border); }
@@ -58,40 +45,23 @@
         .nav-item.active { background: #1a233a; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
         .nav-item span.icon { font-size: 18px; }
 
-        /* كارت الترقية أسفل القائمة الجانبية */
         .sidebar-bottom-card { background: rgba(20, 29, 51, 0.6); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
         .sub-quota { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .btn-upgrade-sidebar { width: 100%; padding: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 13px; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .btn-upgrade-sidebar:hover { transform: scale(1.02); }
 
-        /* مساحة المحتوى الرئيسية */
+        /* المحتوى الرئيسي */
         .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-        /* الشريط العلوي (Top Navbar) */
-        .topbar {
-            height: 70px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 30px;
-            border-bottom: 1px solid var(--border);
-            background: rgba(7, 10, 19, 0.85);
-            backdrop-filter: blur(12px);
-            position: sticky;
-            top: 0;
-            z-index: 40;
-        }
-
+        /* الشريط العلوي */
+        .topbar { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; border-bottom: 1px solid var(--border); background: rgba(7, 10, 19, 0.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; }
         .search-container { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; width: 360px; }
         .search-container input { background: transparent; border: none; outline: none; color: var(--text-main); font-size: 13px; width: 100%; }
         .search-shortcut { font-size: 11px; background: rgba(255, 255, 255, 0.08); padding: 2px 6px; border-radius: 4px; color: var(--text-muted); }
 
         .topbar-actions { display: flex; align-items: center; gap: 18px; }
-        .action-icon-btn { background: var(--bg-card); border: 1px solid var(--border); width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-main); cursor: pointer; transition: 0.2s; font-size: 16px; }
-        .action-icon-btn:hover { border-color: var(--primary); }
         .lang-switch { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
 
-        /* قائمة المستخدم المنسدلة */
         .user-menu-rel { position: relative; }
         .user-badge { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 12px; border-radius: 25px; cursor: pointer; }
         .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; }
@@ -101,22 +71,20 @@
         .dropdown-link { padding: 10px 12px; font-size: 13px; color: var(--text-muted); border-radius: 6px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
         .dropdown-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .dropdown-link.danger { color: var(--danger); }
-        .dropdown-link.danger:hover { background: rgba(239, 68, 68, 0.1); }
 
-        /* منطقة المحتوى الداخلي */
-        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; }
+        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; scroll-behavior: smooth; }
 
-        /* 1. كارت البانر (Hero Banner) */
+        /* 1. البانر (Hero) - تم تعديل الشفافية لتوضيح الصورة */
         .hero-banner {
             border-radius: 22px;
             overflow: hidden;
             position: relative;
             background-color: #101626;
             background-image: url('/hero-bg.jpg');
-            background-position: center left;
+            background-position: center right;
             background-size: cover;
             background-repeat: no-repeat;
-            min-height: 270px;
+            min-height: 290px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -124,65 +92,41 @@
             border: 1px solid var(--border);
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
-        html[dir="rtl"] .hero-banner { background-position: center right; }
+        html[dir="ltr"] .hero-banner { background-position: center left; }
 
+        /* قناع التدرج المخفف جداً (يغطي فقط جهة النص) */
         .banner-mask {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to left, rgba(7, 10, 19, 0.95) 0%, rgba(7, 10, 19, 0.78) 50%, rgba(7, 10, 19, 0.1) 100%);
+            background: linear-gradient(to left, rgba(7, 10, 19, 0.95) 0%, rgba(7, 10, 19, 0.7) 45%, transparent 100%);
             z-index: 1;
         }
         html[dir="ltr"] .banner-mask {
-            background: linear-gradient(to right, rgba(7, 10, 19, 0.95) 0%, rgba(7, 10, 19, 0.78) 50%, rgba(7, 10, 19, 0.1) 100%);
+            background: linear-gradient(to right, rgba(7, 10, 19, 0.95) 0%, rgba(7, 10, 19, 0.7) 45%, transparent 100%);
         }
 
         .banner-text { position: relative; z-index: 2; max-width: 580px; }
-        .welcome-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 5px 14px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; font-weight: bold; }
-        .banner-title { font-size: 34px; font-weight: 900; line-height: 1.25; margin-bottom: 12px; }
+        .welcome-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); padding: 5px 14px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; font-weight: bold; backdrop-filter: blur(5px);}
+        .banner-title { font-size: 34px; font-weight: 900; line-height: 1.25; margin-bottom: 12px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         .banner-title span { color: #38bdf8; }
-        .banner-desc { font-size: 14px; color: #cbd5e1; margin-bottom: 25px; max-width: 480px; }
+        .banner-desc { font-size: 14px; color: #e2e8f0; margin-bottom: 25px; max-width: 480px; text-shadow: 0 1px 5px rgba(0,0,0,0.5); }
 
         .banner-buttons { display: flex; align-items: center; gap: 15px; }
         .btn-banner-primary { padding: 12px 28px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 10px; color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); display: flex; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-banner-primary:hover { transform: scale(1.03); }
-        .btn-banner-ghost { padding: 12px 24px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-banner-ghost:hover { background: rgba(255, 255, 255, 0.12); }
 
-        /* الكارت الشفاف العائم داخل البانر */
-        .banner-float-card {
-            position: relative;
-            z-index: 2;
-            background: rgba(14, 20, 36, 0.7);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 16px;
-            padding: 20px 24px;
-            width: 260px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
-        }
+        .banner-float-card { position: relative; z-index: 2; background: rgba(14, 20, 36, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 20px 24px; width: 260px; box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
         .float-header { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; margin-bottom: 12px; color: #fff; }
-        .float-list { list-style: none; font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; }
+        .float-list { list-style: none; font-size: 12px; color: #e2e8f0; display: flex; flex-direction: column; gap: 8px; }
         .float-list li { display: flex; align-items: center; gap: 6px; }
         .float-list li span.check { color: var(--success); font-weight: bold; }
 
-        /* 2. قسم شبكة الأدوات (Tools Grid) */
+        /* 2. الأدوات */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .section-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-        .section-subtitle { font-size: 12px; color: var(--text-muted); font-weight: normal; }
-
+        
         .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .tool-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 24px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 190px;
-            transition: all 0.3s ease;
-        }
+        .tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 24px; position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 190px; transition: all 0.3s ease; }
         .tool-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .tool-card.primary-tool { border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, #11182c 0%, #0e1424 100%); }
 
@@ -201,12 +145,11 @@
         .btn-active-tool:hover { background: #4f46e5; }
         .btn-secondary-tool { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border); }
 
-        /* حالة القفل لغير المشتركين */
         .lock-overlay { position: absolute; inset: 0; background: rgba(14, 20, 36, 0.65); backdrop-filter: blur(2px); border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; cursor: pointer; }
         .lock-icon { font-size: 24px; }
         .lock-text { font-size: 12px; font-weight: bold; color: #cbd5e1; }
 
-        /* 3. معرض الإلهام (Inspiration Marquee) */
+        /* 3. الإلهام */
         .inspiration-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px 20px; overflow: hidden; }
         .marquee-track { display: flex; gap: 16px; width: max-content; animation: scrollShowcase 45s linear infinite; }
         .marquee-track:hover { animation-play-state: paused; }
@@ -220,28 +163,30 @@
         .insp-prompt { font-size: 11px; color: #f1f5f9; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
         .insp-copy-btn { padding: 6px 12px; background: var(--primary); border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; }
 
-        /* 4. أقسام الشراء والأسئلة (تختفي فور التفعيل) */
+        /* 4. الشراء */
         #purchase-section { display: flex; flex-direction: column; gap: 30px; margin-top: 10px; }
-
         .launch-banner { background: linear-gradient(90deg, var(--accent), var(--primary)); text-align: center; padding: 10px; font-weight: bold; font-size: 13px; color: #fff; border-radius: 12px; }
-
-        .coupon-box { max-width: 460px; margin: 0 auto; background: var(--bg-card); border: 1px dashed var(--primary); border-radius: 14px; padding: 20px; text-align: center; }
-        .coupon-input-group { display: flex; gap: 8px; margin-top: 12px; }
-        .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
-        .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
-
+        
         .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
         .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; }
         .pricing-card.featured { border-color: var(--primary); box-shadow: 0 0 25px rgba(99, 102, 241, 0.2); }
         .price-num { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 8px 0 4px; }
         .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 14px; }
 
-        /* الأسئلة الشائعة */
+        /* الأسئلة الشائعة (موسعة 5 أسئلة) */
         .faq-wrap { max-width: 800px; margin: 0 auto; width: 100%; }
         .faq-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
         .faq-question { padding: 14px 18px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; font-size: 14px; }
         .faq-answer { padding: 0 18px; max-height: 0; overflow: hidden; transition: 0.3s; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
         .faq-item.active .faq-answer { padding: 12px 18px; max-height: 200px; border-top: 1px solid var(--border); }
+
+        /* النوافذ المنبثقة (Modals) لإدارة الاشتراك */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 420px; width: 100%; padding: 30px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .modal-box h3 { font-size: 20px; margin-bottom: 15px; color: #fff; }
+        .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+        .btn-modal-proceed { flex: 1; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
+        .btn-modal-cancel { flex: 1; padding: 12px; background: #1e293b; border: 1px solid var(--border); border-radius: 8px; color: #fff; cursor: pointer; }
 
         /* Toasts */
         #toast-container { position: fixed; bottom: 25px; left: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -250,16 +195,6 @@
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.success { background: var(--success); }
         .toast.danger { background: var(--danger); }
-
-        /* زر تليجرام */
-        .telegram-btn { position: fixed; bottom: 20px; left: 20px; background: #0088cc; color: white; width: 46px; height: 46px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; text-decoration: none; box-shadow: 0 4px 15px rgba(0,136,204,0.4); z-index: 90; }
-        html[dir="rtl"] .telegram-btn { left: auto; right: 20px; }
-
-        @media (max-width: 900px) {
-            .sidebar { display: none; }
-            .banner-float-card { display: none; }
-            .search-container { width: 200px; }
-        }
     </style>
 </head>
 <body>
@@ -267,21 +202,17 @@
     <div id="toast-container"></div>
 
     <div class="app-layout">
-        <!-- القائمة الجانبية (Sidebar) -->
+        <!-- القائمة الجانبية -->
         <aside class="sidebar">
             <div>
                 <div class="sidebar-logo">
                     <div class="logo-icon">A</div>
-                    <div class="logo-text">
-                        <h2>Artify PRO</h2>
-                        <p>Create • Edit • Inspire</p>
-                    </div>
+                    <div class="logo-text"><h2>Artify PRO</h2><p>Create • Edit • Inspire</p></div>
                 </div>
 
                 <ul class="nav-links">
-                    <li class="nav-item active"><span class="icon">🏠</span> <span data-ar="الرئيسية" data-en="Home">الرئيسية</span></li>
+                    <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span data-ar="الرئيسية" data-en="Home">الرئيسية</span></li>
                     <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span data-ar="مولد الصور" data-en="Canvas Pro">مولد الصور</span></li>
-                    <li class="nav-item"><span class="icon">📁</span> <span data-ar="المشاريع" data-en="Projects">المشاريع</span></li>
                     <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span data-ar="المعرض" data-en="Gallery">المعرض</span></li>
                     <li class="nav-item" onclick="scrollToSection('faqSection')"><span class="icon">📖</span> <span data-ar="الوثائق" data-en="Docs">الوثائق</span></li>
                     <li class="nav-item" onclick="scrollToSection('pricingSection')"><span class="icon">⚙️</span> <span data-ar="الاشتراك" data-en="Plans">الاشتراك</span></li>
@@ -293,25 +224,22 @@
                     <span id="sidebarSubStatus" data-ar="حساب مجاني" data-en="Free Plan">حساب مجاني</span>
                     <span id="quotaCount" style="color:var(--primary); font-weight:bold;">0 / 10</span>
                 </div>
-                <button class="btn-upgrade-sidebar" onclick="scrollToSection('pricingSection')">
-                    👑 <span data-ar="إدارة الاشتراك" data-en="Upgrade PRO">إدارة الاشتراك</span>
+                <button class="btn-upgrade-sidebar" onclick="manageSubscriptionPopup()">
+                    👑 <span data-ar="إدارة الاشتراك" data-en="Manage Sub">إدارة الاشتراك</span>
                 </button>
             </div>
         </aside>
 
-        <!-- مساحة العمل الرئيسية -->
-        <main class="main-wrapper">
-            <!-- الشريط العلوي -->
+        <!-- المحتوى الرئيسي -->
+        <main class="main-wrapper" id="mainWrapper">
             <header class="topbar">
                 <div class="search-container">
                     <span style="color:var(--text-muted);">🔍</span>
-                    <input type="text" placeholder="ابحث عن أدوات، مشاريع، أو أي شيء..." data-ar-ph="ابحث عن أدوات، مشاريع، أو أي شيء..." data-en-ph="Search tools, projects, or prompts...">
-                    <span class="search-shortcut">Ctrl + K</span>
+                    <input type="text" placeholder="ابحث عن أدوات أو أي شيء..." data-ar-ph="ابحث عن أدوات أو أي شيء..." data-en-ph="Search tools or settings...">
                 </div>
 
                 <div class="topbar-actions">
                     <button class="lang-switch" onclick="toggleLanguage()" id="langBtn">English</button>
-                    
                     <div id="g_id_signin_container"></div>
 
                     <div class="user-menu-rel" id="userMenuArea" style="display:none;">
@@ -322,7 +250,7 @@
                         </div>
                         <div class="user-dropdown" id="userDropdown">
                             <div class="dropdown-link" style="border-bottom:1px solid var(--border); font-size:11px; color:var(--primary);" id="dropSubStatus">حساب PRO</div>
-                            <div class="dropdown-link" onclick="scrollToSection('pricingSection')">💳 <span data-ar="إدارة الاشتراك" data-en="Manage Billing">إدارة الاشتراك</span></div>
+                            <div class="dropdown-link" onclick="manageSubscriptionPopup()">💳 <span data-ar="إدارة الاشتراك" data-en="Manage Billing">إدارة الاشتراك</span></div>
                             <div class="dropdown-link danger" onclick="deleteAccount()">🗑️ <span data-ar="حذف الحساب" data-en="Delete Account">حذف الحساب</span></div>
                             <div class="dropdown-link" onclick="logout()">🚪 <span data-ar="تسجيل الخروج" data-en="Logout">تسجيل الخروج</span></div>
                         </div>
@@ -330,56 +258,38 @@
                 </div>
             </header>
 
-            <!-- المحتوى التفاعلي -->
             <div class="content-scroll">
                 
-                <!-- 1. البانر الرئيسي بصورتك الجديدة -->
-                <section class="hero-banner">
+                <!-- البانر -->
+                <section class="hero-banner" id="topSection">
                     <div class="banner-mask"></div>
                     <div class="banner-text">
-                        <div class="welcome-pill">
-                            <span>👑</span>
-                            <span data-ar="مرحباً بك في Artify PRO" data-en="Welcome to Artify PRO">مرحباً بك في Artify PRO</span>
-                        </div>
+                        <div class="welcome-pill"><span>👑</span><span data-ar="مرحباً بك في Artify PRO" data-en="Welcome to Artify PRO">مرحباً بك في Artify PRO</span></div>
                         <h1 class="banner-title" data-ar="حوّل أفكارك إلى <span>صور مذهلة</span>" data-en="Turn your ideas into <span>stunning visuals</span>">حوّل أفكارك إلى <span>صور مذهلة</span></h1>
-                        <p class="banner-desc" data-ar="أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات." data-en="Create high-end cinematic visuals with state-of-the-art Google AI models and consistent characters.">أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.</p>
+                        <p class="banner-desc" data-ar="أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات." data-en="Create high-end cinematic visuals with state-of-the-art AI models and consistent characters.">أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.</p>
                         
                         <div class="banner-buttons">
-                            <button class="btn-banner-primary" onclick="handleToolAction()">
-                                <span data-ar="ابدأ الآن" data-en="Start Creating">ابدأ الآن</span> <span>←</span>
-                            </button>
-                            <button class="btn-banner-ghost" onclick="scrollToSection('inspirationSection')">
-                                <span>▶</span> <span data-ar="معرض الإلهام" data-en="Showcase">معرض الإلهام</span>
-                            </button>
+                            <button class="btn-banner-primary" onclick="handleToolAction()"><span data-ar="ابدأ الآن" data-en="Start Creating">ابدأ الآن</span> <span>←</span></button>
                         </div>
                     </div>
 
-                    <!-- الكارت العائم -->
                     <div class="banner-float-card">
-                        <div class="float-header">
-                            <span style="color:#818cf8;">✨</span>
-                            <span data-ar="الذكاء الاصطناعي المتقدم" data-en="Advanced AI Engine">الذكاء الاصطناعي المتقدم</span>
-                        </div>
+                        <div class="float-header"><span style="color:#818cf8;">✨</span><span data-ar="الذكاء الاصطناعي المتقدم" data-en="Advanced AI Engine">الذكاء الاصطناعي المتقدم</span></div>
                         <ul class="float-list">
                             <li><span class="check">✓</span> <span data-ar="ثبات ملامح الوجه 100%" data-en="100% Face Consistency">ثبات ملامح الوجه 100%</span></li>
-                            <li><span class="check">✓</span> <span data-ar="توليد المشاهد المتسلسلة" data-en="Sequential Scene Generation">توليد المشاهد المتسلسلة</span></li>
-                            <li><span class="check">✓</span> <span data-ar="دقة سينمائية فائقة الوضوح" data-en="Ultra HD Cinematic Renders">دقة سينمائية فائقة الوضوح</span></li>
+                            <li><span class="check">✓</span> <span data-ar="توليد المشاهد المتسلسلة" data-en="Sequential Generation">توليد المشاهد المتسلسلة</span></li>
+                            <li><span class="check">✓</span> <span data-ar="دقة سينمائية فائقة" data-en="Ultra HD Renders">دقة سينمائية فائقة</span></li>
                         </ul>
                     </div>
                 </section>
 
-                <!-- 2. شبكة أدواتك -->
+                <!-- الأدوات -->
                 <section>
                     <div class="section-header">
-                        <div class="section-title">
-                            <span style="color:var(--primary);">🎛️</span>
-                            <span data-ar="أدواتك" data-en="Your Workspace Tools">أدواتك</span>
-                            <span class="section-subtitle" data-ar="اختر الأداة التي تريد استخدامها للبدء" data-en="Select a tool to launch your studio">اختر الأداة التي تريد استخدامها للبدء</span>
-                        </div>
+                        <div class="section-title"><span style="color:var(--primary);">🎛️</span><span data-ar="أدواتك" data-en="Your Workspace Tools">أدواتك</span></div>
                     </div>
 
                     <div class="tools-grid">
-                        <!-- أداة Canvas Pro -->
                         <div class="tool-card primary-tool">
                             <div class="lock-overlay" id="canvasLock" onclick="handleToolAction()">
                                 <span class="lock-icon">🔒</span>
@@ -387,123 +297,81 @@
                             </div>
                             <div class="tool-top">
                                 <div class="tool-icon">🎨</div>
-                                <span class="tool-tag tag-popular" data-ar="الأكثر استخداماً" data-en="Most Popular">الأكثر استخداماً</span>
+                                <span class="tool-tag tag-popular" data-ar="الأكثر استخداماً" data-en="Popular">الأكثر استخداماً</span>
                             </div>
                             <div class="tool-content">
                                 <h3 data-ar="Canvas Pro (مولد الصور)" data-en="Canvas Pro (Studio)">Canvas Pro (مولد الصور)</h3>
-                                <p data-ar="استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات." data-en="The all-in-one generation, consistency, and prompt studio.">استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.</p>
+                                <p data-ar="استوديو التوليد المتكامل وتثبيت ملامح الشخصيات." data-en="The all-in-one generation and consistency studio.">استوديو التوليد المتكامل وتثبيت ملامح الشخصيات.</p>
                             </div>
-                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()">
-                                <span data-ar="فتح الأداة" data-en="Launch Studio">فتح الأداة</span> <span>↗</span>
-                            </button>
+                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-ar="فتح الأداة" data-en="Launch Studio">فتح الأداة</span> <span>↗</span></button>
                         </div>
 
-                        <!-- دليل الاستخدام -->
                         <div class="tool-card">
                             <div class="tool-top">
                                 <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
-                                <span class="tool-tag tag-soon" data-ar="دليل تفاعلي" data-en="Handbook">دليل تفاعلي</span>
                             </div>
                             <div class="tool-content">
                                 <h3 data-ar="الوثائق والدليل" data-en="Docs & Guide">الوثائق والدليل</h3>
-                                <p data-ar="دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية." data-en="Comprehensive guide to mastering prompts and scenes.">دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.</p>
+                                <p data-ar="دليل شامل للحصول على أفضل نتائج وتوليد برومبتات." data-en="Comprehensive guide to mastering prompts.">دليل شامل للحصول على أفضل نتائج وتوليد برومبتات.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="scrollToSection('faqSection')">
-                                <span data-ar="عرض الدليل" data-en="View Guide">عرض الدليل</span> <span>←</span>
-                            </button>
-                        </div>
-
-                        <!-- Google Drive Sync -->
-                        <div class="tool-card" style="opacity:0.7;">
-                            <div class="tool-top">
-                                <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
-                                <span class="tool-tag tag-soon" data-ar="قريباً" data-en="Coming Soon">قريباً</span>
-                            </div>
-                            <div class="tool-content">
-                                <h3>Google Drive Sync</h3>
-                                <p data-ar="مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي." data-en="Automatic cloud backup for your scenes and projects.">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.</p>
-                            </div>
-                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;">
-                                <span data-ar="قريباً" data-en="Coming Soon">قريباً</span>
-                            </button>
+                            <button class="tool-btn btn-secondary-tool" onclick="scrollToSection('faqSection')"><span data-ar="عرض الدليل والأسئلة" data-en="View Guide & FAQ">عرض الدليل والأسئلة</span></button>
                         </div>
                     </div>
                 </section>
 
-                <!-- 3. شريط الإلهام المتحرك -->
+                <!-- الإلهام -->
                 <section class="inspiration-wrap" id="inspirationSection">
                     <div class="section-header" style="margin-bottom:15px;">
-                        <div class="section-title">
-                            <span style="color:#eab308;">💡</span>
-                            <span data-ar="إلهام" data-en="Inspiration Gallery">إلهام</span>
-                            <span class="section-subtitle" data-ar="مرر الماوس لنسخ البرومبت" data-en="Hover to view & copy prompts">مرر الماوس لنسخ البرومبت</span>
-                        </div>
+                        <div class="section-title"><span style="color:#eab308;">💡</span><span data-ar="إلهام" data-en="Inspiration Gallery">إلهام</span></div>
                     </div>
                     <div class="marquee-track" id="marqueeTrack"></div>
                 </section>
 
-                <!-- 4. منطقة الأسعار والاشتراك (تختفي فور الاشتراك) -->
+                <!-- الشراء والأسئلة -->
                 <div id="purchase-section">
-                    <div class="launch-banner" data-ar="🔥 عرض أسبوع الإطلاق: متبقي مقاعد محدودة للمشتركين الأوائل بخصم 30%!" data-en="🔥 Launch Week Offer: Limited seats available at 30% OFF!">
-                        🔥 عرض أسبوع الإطلاق: متبقي مقاعد محدودة للمشتركين الأوائل بخصم 30%!
-                    </div>
-
-                    <!-- كرت الكوبون -->
-                    <div class="coupon-box">
-                        <h4 data-ar="هل تمتلك كود تفعيل أو خصم؟" data-en="Have a Promo / VIP Code?">هل تمتلك كود تفعيل أو خصم؟</h4>
-                        <div class="coupon-input-group">
-                            <input type="text" id="couponInput" placeholder="VIP2026">
-                            <button onclick="applyCoupon()" data-ar="تطبيق" data-en="Apply">تطبيق</button>
-                        </div>
-                        <div id="couponMsg" style="font-size:12px; margin-top:8px; font-weight:bold;"></div>
-                    </div>
-
-                    <!-- خطط الأسعار -->
+                    <div class="launch-banner" data-ar="🔥 عرض محدود: اشترك الآن بخصم 30%!" data-en="🔥 Limited Offer: Subscribe now for 30% OFF!">🔥 عرض محدود: اشترك الآن بخصم 30%!</div>
+                    
                     <div class="pricing-grid" id="pricingSection">
                         <div class="pricing-card">
                             <h4 data-ar="شهر واحد" data-en="1 Month">شهر واحد</h4>
-                            <div class="old-price">$15</div>
-                            <div class="price-num" id="p-val-month1">$10.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-ar="تجديد شهري مرن للأفراد" data-en="Flexible monthly plan">تجديد شهري مرن للأفراد</p>
+                            <div class="old-price">$15</div><div class="price-num" id="p-val-month1">$10.50</div>
                             <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-ar="اشتراك شهري" data-en="Select Plan">اشتراك شهري</button>
                         </div>
-
-                        <div class="pricing-card">
-                            <h4 data-ar="3 شهور" data-en="3 Months">3 شهور</h4>
-                            <div class="old-price">$38</div>
-                            <div class="price-num" id="p-val-month3">$26.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-ar="الخيار الأكثر طلباً" data-en="Creator's choice">الخيار الأكثر طلباً</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-ar="اشتراك 3 شهور" data-en="Select Plan">اشتراك 3 شهور</button>
-                        </div>
-
                         <div class="pricing-card featured">
                             <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-ar="الأكثر توفيراً" data-en="BEST VALUE">الأكثر توفيراً</div>
                             <h4 data-ar="6 شهور" data-en="6 Months">6 شهور</h4>
-                            <div class="old-price">$65</div>
-                            <div class="price-num" id="p-val-month6">$45.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-ar="قيمة استثنائية لصناع المحتوى" data-en="Great long term value">قيمة استثنائية لصناع المحتوى</p>
+                            <div class="old-price">$65</div><div class="price-num" id="p-val-month6">$45.50</div>
                             <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent));" onclick="promptPlan('month6')" data-ar="اشتراك 6 شهور" data-en="Select Plan">اشتراك 6 شهور</button>
                         </div>
-
                         <div class="pricing-card">
                             <h4 data-ar="سنة كاملة" data-en="1 Year">سنة كاملة</h4>
-                            <div class="old-price">$110</div>
-                            <div class="price-num" id="p-val-year1">$77.00</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-ar="أقصى توفير مع دعم دائم" data-en="Full yearly access">أقصى توفير مع دعم دائم</p>
+                            <div class="old-price">$110</div><div class="price-num" id="p-val-year1">$77.00</div>
                             <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-ar="اشتراك سنوي" data-en="Select Plan">اشتراك سنوي</button>
                         </div>
                     </div>
 
-                    <!-- الأسئلة الشائعة -->
+                    <!-- الأسئلة الشائعة 5 أسئلة -->
                     <div class="faq-wrap" id="faqSection">
                         <h3 style="text-align:center; margin-bottom:15px;" data-ar="الأسئلة الشائعة" data-en="Frequently Asked Questions">الأسئلة الشائعة</h3>
                         <div class="faq-item" onclick="this.classList.toggle('active')">
                             <div class="faq-question"><span data-ar="هل أي حساب جوجل يعمل مع الأداة؟" data-en="Does any Google account work?">هل أي حساب جوجل يعمل مع الأداة؟</span> <span>+</span></div>
-                            <div class="faq-answer" data-ar="لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." data-en="For image generation, accounts must be 18+ years old. Supervised accounts will not work.">لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور.</div>
+                            <div class="faq-answer" data-ar="لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. حسابات الأطفال الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." data-en="Accounts must be 18+ years old. Child supervised accounts will not work.">لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. حسابات الأطفال الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور.</div>
                         </div>
                         <div class="faq-item" onclick="this.classList.toggle('active')">
                             <div class="faq-question"><span data-ar="هل أحتاج لدفع أي رسوم إضافية لجوجل؟" data-en="Any extra fees for Google?">هل أحتاج لدفع أي رسوم إضافية لجوجل؟</span> <span>+</span></div>
-                            <div class="faq-answer" data-ar="لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO." data-en="No, the tool utilizes your account's free tier. Your Artify subscription covers the features and workflow engine.">لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO.</div>
+                            <div class="faq-answer" data-ar="لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك، والاشتراك يغطي كافة المزايا البرمجية لـ Artify PRO." data-en="No, the tool utilizes your free quota. Your subscription covers Artify PRO features.">لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك، والاشتراك يغطي كافة المزايا البرمجية لـ Artify PRO.</div>
+                        </div>
+                        <div class="faq-item" onclick="this.classList.toggle('active')">
+                            <div class="faq-question"><span data-ar="كيف يتم الدفع وما هي سياسة الاسترجاع؟" data-en="How are payments & refunds handled?">كيف يتم الدفع وما هي سياسة الاسترجاع؟</span> <span>+</span></div>
+                            <div class="faq-answer" data-ar="يتم الدفع بأمان تام عبر منصة Gumroad العالمية التي تدعم البطاقات و Apple Pay و PayPal، ونوفر ضمان استرجاع خلال 7 أيام للمشاكل التقنية." data-en="Payments are securely processed via Gumroad with a 7-day technical refund policy.">يتم الدفع بأمان تام عبر منصة Gumroad العالمية التي تدعم البطاقات و Apple Pay و PayPal، ونوفر ضمان استرجاع خلال 7 أيام للمشاكل التقنية.</div>
+                        </div>
+                        <div class="faq-item" onclick="this.classList.toggle('active')">
+                            <div class="faq-question"><span data-ar="هل صوري يتم حفظها على سيرفراتكم؟" data-en="Are my images stored on your servers?">هل صوري يتم حفظها على سيرفراتكم؟</span> <span>+</span></div>
+                            <div class="faq-answer" data-ar="إطلاقاً. نحن نعمل كمحرك ربط ذكي؛ الصور تولد عبر حسابك وتحفظ في جهازك أنت فقط (Local Storage) لضمان الخصوصية 100%." data-en="No. We act as a smart engine; images are generated via Google and stored only on your local device.">إطلاقاً. نحن نعمل كمحرك ربط ذكي؛ الصور تولد عبر حسابك وتحفظ في جهازك أنت فقط (Local Storage) لضمان الخصوصية 100%.</div>
+                        </div>
+                        <div class="faq-item" onclick="this.classList.toggle('active')">
+                            <div class="faq-question"><span data-ar="هل يمكنني استخدام الصور تجارياً؟" data-en="Can I use the images commercially?">هل يمكنني استخدام الصور تجارياً؟</span> <span>+</span></div>
+                            <div class="faq-answer" data-ar="نعم، جميع الصور والمشاهد التي تقوم بتوليدها من خلال حسابك تعتبر ملكاً لك بالكامل ويمكنك استخدامها في قنواتك أو مشاريعك التجارية." data-en="Yes, all generated scenes are yours to use commercially for your channels or projects.">نعم، جميع الصور والمشاهد التي تقوم بتوليدها من خلال حسابك تعتبر ملكاً لك بالكامل ويمكنك استخدامها في قنواتك أو مشاريعك التجارية.</div>
                         </div>
                     </div>
                 </div>
@@ -512,23 +380,37 @@
         </main>
     </div>
 
-    <!-- زر تليجرام العائم للدعم -->
-    <a href="https://t.me/YOUR_CHANNEL_HERE" target="_blank" class="telegram-btn" title="Support">✈️</a>
+    <!-- نافذة إدارة الاشتراك (Subscription Modal) -->
+    <div id="subModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 data-ar="تفاصيل اشتراكك" data-en="Subscription Details">تفاصيل اشتراكك</h3>
+            <div style="background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:15px; border-radius:10px; margin-bottom:20px;">
+                <p id="subModalStatus" style="font-weight:bold; color:var(--primary); font-size:16px; margin-bottom:5px;">نشط (PRO)</p>
+                <p style="font-size:13px; color:var(--text-muted);" id="subModalDateText">ينتهي في: <span style="color:#fff;" id="subModalDateVal"></span></p>
+            </div>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;" data-ar="يمكنك تمديد أو تجديد الباقة لضمان عدم توقف الخدمة." data-en="You can renew or extend your plan to avoid service interruption.">يمكنك تمديد أو تجديد الباقة لضمان عدم توقف الخدمة.</p>
+            
+            <div class="modal-actions">
+                <button class="btn-modal-proceed" onclick="renewSubscription()" data-ar="تجديد / ترقية" data-en="Renew / Upgrade">تجديد / ترقية</button>
+                <button class="btn-modal-cancel" onclick="closeSubModal()" data-ar="إغلاق" data-en="Close">إغلاق</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- Script Section -->
     <script>
         let currentLang = 'ar';
         let currentUser = null;
         let activeDiscount = 0;
-        let appliedCoupon = '';
 
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
 
         const showcaseItems = [
-            { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light, then crashes back into the sea." },
-            { url: "/photos/2.png", prompt: "Cinematic shot of the land tortoise walking slowly across the desert. Deliberate leg movements kick up fine dust in sunset." },
-            { url: "/photos/3.png", prompt: "Cinematic underwater animation. The central bioluminescent jellyfish pulses gently, flowing gracefully in the deep blue." },
+            { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light." },
+            { url: "/photos/2.png", prompt: "Cinematic shot of the land tortoise walking slowly across the desert in sunset." },
+            { url: "/photos/3.png", prompt: "Cinematic underwater animation. The central bioluminescent jellyfish pulses gently." },
             { url: "/photos/4.png", prompt: "Cinematic underwater close-up. The textured orange starfish rests on the sunlit seabed." },
-            { url: "/photos/5.png", prompt: "Cinematic video of the dolphin completing its mid-air arc at sunset, with golden light reflecting off its sleek body." }
+            { url: "/photos/5.png", prompt: "Cinematic video of the dolphin completing its mid-air arc at sunset." }
         ];
 
         function showToast(msg, type='success') {
@@ -541,13 +423,15 @@
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
 
-        function toggleUserDropdown() {
-            document.getElementById('userDropdown').classList.toggle('show');
-        }
-
+        function toggleUserDropdown() { document.getElementById('userDropdown').classList.toggle('show'); }
+        
         function scrollToSection(id) {
             const el = document.getElementById(id);
             if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+        function scrollToTop() {
+            document.getElementById('mainWrapper').scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function toggleLanguage() {
@@ -556,27 +440,15 @@
             document.documentElement.lang = currentLang;
             document.getElementById('langBtn').innerText = currentLang === 'ar' ? 'English' : 'عربي';
 
-            document.querySelectorAll('[data-ar]').forEach(el => {
-                el.innerText = el.getAttribute(`data-${currentLang}`);
-            });
-            document.querySelectorAll('[data-ar-ph]').forEach(el => {
-                el.placeholder = el.getAttribute(`data-${currentLang}-ph`);
-            });
-
+            document.querySelectorAll('[data-ar]').forEach(el => el.innerText = el.getAttribute(`data-${currentLang}`));
+            document.querySelectorAll('[data-ar-ph]').forEach(el => el.placeholder = el.getAttribute(`data-${currentLang}-ph`));
             if (currentUser) updateDashboardUI(currentUser);
         }
 
         window.onload = function () {
-            google.accounts.id.initialize({
-                client_id: GOOGLE_CLIENT_ID,
-                callback: handleGoogleCredential,
-            });
-            google.accounts.id.renderButton(
-                document.getElementById("g_id_signin_container"),
-                { theme: "outline", size: "medium", text: "signin_with", shape: "pill" }
-            );
-            checkSession();
-            initMarquee();
+            google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
+            google.accounts.id.renderButton(document.getElementById("g_id_signin_container"), { theme: "outline", size: "medium", text: "signin_with", shape: "pill" });
+            checkSession(); initMarquee();
         };
 
         function initMarquee() {
@@ -588,9 +460,7 @@
                     <img src="${item.url}" alt="AI Scene" loading="lazy" />
                     <div class="insp-overlay">
                         <p class="insp-prompt">${item.prompt}</p>
-                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">
-                            📋 ${currentLang === 'ar' ? 'نسخ البرومبت' : 'Copy'}
-                        </button>
+                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">📋 ${currentLang === 'ar' ? 'نسخ' : 'Copy'}</button>
                     </div>
                 </div>
             `).join('');
@@ -603,38 +473,22 @@
                 return;
             }
             navigator.clipboard.writeText(text);
-            showToast(currentLang === 'ar' ? 'تم نسخ البرومبت بنجاح!' : 'Prompt copied!', 'success');
+            showToast(currentLang === 'ar' ? 'تم النسخ بنجاح!' : 'Copied!', 'success');
         }
 
         async function handleGoogleCredential(response) {
             try {
-                const res = await fetch('/api/auth/google', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ credential: response.credential }),
-                });
-                if (res.ok) {
-                    showToast(currentLang === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
-                    checkSession();
-                } else {
-                    showToast(currentLang === 'ar' ? 'فشل تسجيل الدخول' : 'Login failed', 'danger');
-                }
-            } catch(e) {
-                showToast('Network error', 'danger');
-            }
+                const res = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ credential: response.credential }) });
+                if (res.ok) { showToast(currentLang === 'ar' ? 'تم تسجيل الدخول!' : 'Logged in!'); checkSession(); } 
+                else { showToast('Login failed', 'danger'); }
+            } catch(e) { showToast('Network error', 'danger'); }
         }
 
         async function checkSession() {
             try {
                 const res = await fetch('/api/me', { credentials: 'include' });
-                if (!res.ok) {
-                    currentUser = null;
-                    updateDashboardUI(null);
-                    return;
-                }
-                currentUser = await res.json();
-                updateDashboardUI(currentUser);
+                if (!res.ok) { currentUser = null; updateDashboardUI(null); return; }
+                currentUser = await res.json(); updateDashboardUI(currentUser);
             } catch(e) { console.log('Session check failed'); }
         }
 
@@ -648,131 +502,76 @@
             const quotaCount = document.getElementById('quotaCount');
 
             if (!user) {
-                gBtn.style.display = 'block';
-                uMenu.style.display = 'none';
-                lock.style.display = 'flex';
-                purchaseSec.style.display = 'flex';
-                sidebarSubStatus.innerText = currentLang === 'ar' ? 'حساب مجاني' : 'Free Plan';
-                quotaCount.innerText = '0 / 10';
-                return;
+                gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex'; purchaseSec.style.display = 'flex';
+                sidebarSubStatus.innerText = currentLang === 'ar' ? 'حساب مجاني' : 'Free Plan'; quotaCount.innerText = '0 / 10'; return;
             }
 
-            gBtn.style.display = 'none';
-            uMenu.style.display = 'flex';
+            gBtn.style.display = 'none'; uMenu.style.display = 'flex';
             const name = user.name ? user.name.split(' ')[0] : 'User';
-            document.getElementById('navUserName').innerText = name;
-            document.getElementById('avatarLetter').innerText = name.charAt(0).toUpperCase();
+            document.getElementById('navUserName').innerText = name; document.getElementById('avatarLetter').innerText = name.charAt(0).toUpperCase();
 
             if (user.subscriptionActive) {
-                lock.style.display = 'none';
-                purchaseSec.style.display = 'none';
+                lock.style.display = 'none'; purchaseSec.style.display = 'none';
                 const dateStr = new Date(user.expiresAt).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
                 sidebarSubStatus.innerText = currentLang === 'ar' ? `PRO حتى ${dateStr}` : `PRO till ${dateStr}`;
-                dropSubStatus.innerText = `PRO (${dateStr})`;
-                quotaCount.innerText = '∞';
+                dropSubStatus.innerText = `PRO (${dateStr})`; quotaCount.innerText = '∞';
             } else {
-                lock.style.display = 'flex';
-                purchaseSec.style.display = 'flex';
+                lock.style.display = 'flex'; purchaseSec.style.display = 'flex';
                 sidebarSubStatus.innerText = currentLang === 'ar' ? 'غير مفعل' : 'Inactive';
                 dropSubStatus.innerText = currentLang === 'ar' ? 'حساب غير مفعل' : 'Inactive Account';
             }
         }
 
         function handleToolAction() {
-            if (!currentUser) {
-                showToast(currentLang === 'ar' ? 'يرجى تسجيل الدخول بحساب جوجل أولاً' : 'Please sign in first', 'danger');
-                return;
-            }
+            if (!currentUser) { showToast(currentLang === 'ar' ? 'يرجى تسجيل الدخول أولاً' : 'Please sign in first', 'danger'); return; }
+            if (!currentUser.subscriptionActive) { scrollToSection('pricingSection'); return; }
+            window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight}`);
+        }
+
+        /* دوال إدارة الاشتراك المنبثقة */
+        function manageSubscriptionPopup() {
+            if (!currentUser) { showToast(currentLang === 'ar' ? 'سجل دخولك أولاً' : 'Sign in first', 'danger'); return; }
             if (!currentUser.subscriptionActive) {
-                showToast(currentLang === 'ar' ? 'يرجى الاشتراك لتفعيل أداة Canvas Pro' : 'Please subscribe to unlock Canvas Pro', 'danger');
+                // إذا لم يكن مشتركاً، انقله فوراً للأسعار
                 scrollToSection('pricingSection');
                 return;
             }
-            const screenW = window.screen.availWidth;
-            const screenH = window.screen.availHeight;
-            const features = `width=${screenW},height=${screenH},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
-            window.open('/api/launch-app', 'ArtifyWorkspace', features);
+            // إذا كان مشتركاً، افتح له نافذة تفاصيل تاريخ الانتهاء
+            document.getElementById('subModalStatus').innerText = currentLang === 'ar' ? 'نشط (Artify PRO)' : 'Active (Artify PRO)';
+            document.getElementById('subModalDateText').innerText = currentLang === 'ar' ? 'تاريخ الانتهاء: ' : 'Expires on: ';
+            document.getElementById('subModalDateVal').innerText = new Date(currentUser.expiresAt).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+            document.getElementById('subModal').style.display = 'flex';
         }
 
-        async function applyCoupon() {
-            if (!currentUser) {
-                showToast(currentLang === 'ar' ? 'سجل دخولك أولاً لتطبيق الكوبون' : 'Sign in first to apply coupon', 'danger');
-                return;
-            }
-            const code = document.getElementById('couponInput').value.trim();
-            const msgEl = document.getElementById('couponMsg');
-            if (!code) return;
-
-            try {
-                const res = await fetch('/api/apply-coupon', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ couponCode: code })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    if (data.type === 'free') {
-                        msgEl.style.color = 'var(--success)';
-                        msgEl.innerText = currentLang === 'ar' ? 'تم تفعيل الحساب مجاناً!' : 'PRO Activated!';
-                        showToast(currentLang === 'ar' ? 'تمت الترقية بنجاح!' : 'Upgraded to PRO!');
-                        setTimeout(() => checkSession(), 1200);
-                    } else if (data.type === 'percent') {
-                        activeDiscount = data.discount;
-                        appliedCoupon = code;
-                        msgEl.style.color = 'var(--success)';
-                        msgEl.innerText = currentLang === 'ar' ? `تم تطبيق خصم ${data.discount * 100}%!` : `${data.discount * 100}% Discount applied!`;
-                        recalcPrices();
-                    }
-                } else {
-                    msgEl.style.color = 'var(--danger)';
-                    msgEl.innerText = data.error || (currentLang === 'ar' ? 'كود غير صحيح' : 'Invalid code');
-                }
-            } catch (e) { msgEl.innerText = 'Network error'; }
-        }
-
-        function recalcPrices() {
-            if (activeDiscount > 0) {
-                document.getElementById('p-val-month1').innerText = `$${(15 * (1 - activeDiscount)).toFixed(2)}`;
-                document.getElementById('p-val-month3').innerText = `$${(38 * (1 - activeDiscount)).toFixed(2)}`;
-                document.getElementById('p-val-month6').innerText = `$${(65 * (1 - activeDiscount)).toFixed(2)}`;
-                document.getElementById('p-val-year1').innerText = `$${(110 * (1 - activeDiscount)).toFixed(2)}`;
-            }
+        function closeSubModal() { document.getElementById('subModal').style.display = 'none'; }
+        
+        function renewSubscription() {
+            closeSubModal();
+            // بما أنه مشترك، يمكننا فتح الأسعار أمامه ليختار باقة التجديد، وسيرفرك سيقوم بجمع الأيام الجديدة على القديمة
+            document.getElementById('purchase-section').style.display = 'flex';
+            scrollToSection('pricingSection');
+            showToast(currentLang === 'ar' ? 'اختر الباقة التي تريد تجديدها' : 'Select a plan to renew', 'success');
         }
 
         async function promptPlan(plan) {
-            if (!currentUser) {
-                showToast(currentLang === 'ar' ? 'يرجى تسجيل الدخول أولاً' : 'Please sign in first', 'danger');
-                return;
-            }
+            if (!currentUser) { showToast(currentLang === 'ar' ? 'سجل دخولك أولاً' : 'Sign in first', 'danger'); return; }
             try {
-                const res = await fetch('/api/create-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ plan, couponCode: appliedCoupon }),
-                });
+                const res = await fetch('/api/create-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ plan }) });
                 const data = await res.json();
-                if (data.url) window.location.href = data.url;
-                else showToast(data.error || 'Payment error', 'danger');
+                if (data.url) window.location.href = data.url; else showToast(data.error || 'Payment error', 'danger');
             } catch(e) { showToast('Connection error', 'danger'); }
         }
 
         async function deleteAccount() {
-            if(confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف الحساب نهائياً؟ سيتم إلغاء اشتراكك وبياناتك فوراً.' : 'Are you sure? This will delete your account and subscription permanently.')) {
-                try {
-                    await fetch('/api/delete-account', { method: 'POST', credentials: 'include' });
-                    logout();
-                    showToast(currentLang === 'ar' ? 'تم حذف الحساب بنجاح' : 'Account deleted successfully');
-                } catch(e) { showToast('Error deleting account', 'danger'); }
+            if(confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف الحساب نهائياً؟' : 'Are you sure? This is permanent.')) {
+                await fetch('/api/delete-account', { method: 'POST', credentials: 'include' });
+                logout();
             }
         }
 
         async function logout() {
             await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-            currentUser = null;
-            updateDashboardUI(null);
-            showToast(currentLang === 'ar' ? 'تم تسجيل الخروج' : 'Logged out');
+            currentUser = null; updateDashboardUI(null); showToast(currentLang === 'ar' ? 'تم تسجيل الخروج' : 'Logged out');
         }
     </script>
 </body>
