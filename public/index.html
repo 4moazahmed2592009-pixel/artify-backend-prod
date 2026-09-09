@@ -27,6 +27,7 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
+
         [dir="rtl"] body { letter-spacing: 0; }
         [dir="ltr"] body { font-family: 'Cairo', 'Segoe UI', sans-serif; }
 
@@ -193,6 +194,7 @@
         .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
         .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border);}
         .modal-btn-danger { background: var(--danger); color: #fff; }
+        .modal-btn-primary { background: var(--primary); color: #fff; }
         
         .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 15px; }
         .pricing-card { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
@@ -227,6 +229,7 @@
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.danger { border-inline-start-color: var(--danger); }
         .toast.warning { border-inline-start-color: var(--warning); }
+        .toast.success { border-inline-start-color: var(--success); }
         .toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
         .toast-text { font-weight: 600; }
 
@@ -407,7 +410,6 @@
                         <span data-i18n="plans_label_new">اختر باقتك</span>
                     </div>
 
-                    <!-- كارت المحظوظين الـ 15 الأوائل -->
                     <div id="earlyBirdBox" style="display:none; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid var(--accent); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: center;">
                         <div style="font-size: 20px; margin-bottom: 6px;">🎉 <strong>أنت محظوظ جداً!</strong></div>
                         <p style="font-size: 14px; color: #f8fafc; margin-bottom: 12px;">
@@ -524,13 +526,31 @@
         </div>
     </div>
 
+    <!-- النافذة الجديدة: تنبيه قبل فتح الأداة -->
+    <div class="modal-overlay" id="launchWarningModal">
+        <div class="modal-box">
+            <button class="modal-close-btn" onclick="closeModals()">✕</button>
+            <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">🛡️</div>
+            <div class="modal-title" data-i18n="launch_warning_title" style="text-align: center;">تنبيه هام قبل البدء</div>
+            <div class="modal-text" data-i18n-html="launch_warning_text" style="text-align: right; line-height: 1.8;">
+                بمجرد انتقالك للأداة، قد تظهر لك رسالة من Google تفيد بأن <em>"مطوراً مستقلاً أنشأ هذا التطبيق"</em>.<br><br>
+                هذا إجراء أمني روتيني طبيعي من جوجل. يرجى المتابعة بالضغط على <strong>"Advanced" (متقدم)</strong> ثم <strong>"Go to App" (الانتقال للتطبيق)</strong>، ثم الموافقة.<br><br>
+                💡 <span style="color:var(--primary); font-weight:bold;">نصيحة احترافية:</span> بعد فتح الأداة، قم بتكبير الشاشة (Full Screen) لتحظى بأفضل تجربة وابدأ الإبداع!
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="modal_cancel">إلغاء</button>
+                <button class="modal-btn modal-btn-primary" onclick="executeLaunchTool()" data-i18n="launch_warning_btn">فهمت ذلك، افتح الأداة</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const translations = {
             ar: {
                 global_banner_text:"🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!",
                 global_banner_btn:"احجز مقعدك الآن",
                 nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_projects:"المشاريع", nav_gallery:"المعرض", nav_docs:"الأسئلة الشائعة", nav_plans:"الاشتراك",
-                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات أو مشاريع...",
+                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات...",
                 dropdown_status_label:"حالة الاشتراك", user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
                 welcome_pill:"مرحباً بك في Artify PRO", banner_title:'حوّل أفكارك إلى <span style="color:#38bdf8;">صور مذهلة</span>',
                 banner_desc:"أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
@@ -551,6 +571,9 @@
                 best_value:"الأكثر توفيراً", current_plan_tag:"باقتك الحالية", faq_title:"الأسئلة الشائعة",
                 delete_modal_title:"حذف الحساب نهائياً", delete_modal_text:"سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.",
                 modal_cancel:"إلغاء", modal_confirm_delete:"حذف نهائي",
+                launch_warning_title:"تنبيه هام قبل البدء",
+                launch_warning_text:`بمجرد انتقالك للأداة، قد تظهر لك رسالة من Google تفيد بأن <em>"مطوراً مستقلاً أنشأ هذا التطبيق"</em>.<br><br>هذا إجراء أمني روتيني طبيعي من جوجل. يرجى المتابعة بالضغط على <strong>"Advanced" (متقدم)</strong> ثم <strong>"Go to App" (الانتقال للتطبيق)</strong>، ثم الموافقة.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">نصيحة احترافية:</span> بعد فتح الأداة، قم بتكبير الشاشة (Full Screen) لتحظى بأفضل تجربة وابدأ الإبداع!`,
+                launch_warning_btn:"فهمت ذلك، افتح الأداة",
                 toast_login_required:"يرجى تسجيل الدخول بحساب Google أولاً", toast_login_success:"تم تسجيل الدخول بنجاح!", toast_login_failed:"تعذّر تسجيل الدخول",
                 toast_network_error:"حدث خطأ في الاتصال، حاول مجدداً", toast_sub_required:"يلزم تفعيل اشتراك PRO لفتح الأداة",
                 toast_copy_locked:"ميزة نسخ البرومبت لمشتركي PRO فقط", toast_copy_success:"تم نسخ البرومبت بنجاح",
@@ -591,6 +614,9 @@
                 best_value:"BEST VALUE", current_plan_tag:"Current Plan", faq_title:"Frequently Asked Questions",
                 delete_modal_title:"Delete Account", delete_modal_text:"Your account, subscription and data will be permanently deleted.",
                 modal_cancel:"Cancel", modal_confirm_delete:"Delete",
+                launch_warning_title:"Important Notice",
+                launch_warning_text:`When launching the tool, Google might show a warning that <em>"A developer created this app"</em>.<br><br>This is a standard security routine. Please proceed by clicking <strong>"Advanced"</strong> then <strong>"Go to App"</strong>, and allow access.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> For the best experience, switch to Full Screen once the tool opens and start creating!`,
+                launch_warning_btn:"Understood, Launch Tool",
                 toast_login_required:"Please sign in with Google first", toast_login_success:"Signed in successfully!", toast_login_failed:"Sign-in failed",
                 toast_network_error:"Connection error", toast_sub_required:"PRO subscription required", toast_copy_locked:"PRO feature only", toast_copy_success:"Copied!",
                 toast_coupon_login:"Sign in first", toast_coupon_activated:"Upgraded to PRO for free!", toast_coupon_discount:"{p}% discount applied", toast_coupon_invalid:"Promo ended or invalid code",
@@ -664,7 +690,7 @@
         // العداد التنازلي الثابت وإحصائيات الكوبونات
         // ============================================================
         function startGlobalTimer() {
-            const countDownDate = 1789637428000; // 17 سبتمبر 2026
+            const countDownDate = 1789637428000; 
             
             const timerInterval = setInterval(function() {
                 const now = new Date().getTime();
@@ -723,9 +749,9 @@
         function autoFillPromoCode() {
             const input = document.getElementById("couponInput");
             if (input) {
-                input.value = "MoazA2free";
-                openPricingModal(); // افتح النافذة في حال لم تكن مفتوحة
-                applyCoupon(); // فعل الكود
+                input.value = "MOAZA2FREE";
+                openPricingModal(); 
+                applyCoupon(); 
             }
         }
 
@@ -793,6 +819,26 @@
         }
 
         // ============================================================
+        // إجراء فتح الأداة والتحذير الأمني
+        // ==========================================
+        function handleToolAction() {
+            if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
+            if (!currentUser.subscriptionActive) { showToast(t('toast_sub_required'), 'danger'); openPricingModal(); return; }
+            
+            // إظهار نافذة التحذير بدلاً من فتح الأداة مباشرة
+            closeModals(); 
+            document.getElementById('launchWarningModal').classList.add('show');
+        }
+
+        function executeLaunchTool() {
+            closeModals();
+            const screenW = window.screen.availWidth;
+            const screenH = window.screen.availHeight;
+            const features = `width=${screenW},height=${screenH},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+            window.open('/api/launch-app', 'ArtifyWorkspace', features);
+        }
+
+        // ============================================================
         // Google Sign-in + Session
         // ============================================================
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
@@ -814,7 +860,6 @@
                     showToast(t('toast_login_success'), 'success'); 
                     checkSession(); 
                 } else { 
-                    // إظهار سبب الفشل الدقيق
                     showToast(data.error || t('toast_login_failed'), 'danger'); 
                 }
             } catch(e) { showToast(t('toast_network_error'), 'danger'); }
@@ -836,7 +881,7 @@
                 gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex';
                 document.getElementById('sidebarSubStatus').innerText = t('sidebar_free'); document.getElementById('quotaCount').innerText = '0 / 10';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
-                fetchPromoStats(); // إعادة فحص العرض للزوار
+                fetchPromoStats(); 
                 return;
             }
 
@@ -850,26 +895,22 @@
                 document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
                 dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_current');
-                fetchPromoStats(); // سيخفي العرض لأن المستخدم فعال
+                fetchPromoStats(); 
             } else {
                 lock.style.display = 'flex';
                 document.getElementById('sidebarSubStatus').innerText = currentLang === 'ar' ? 'غير مفعل' : 'Inactive';
                 dropSubStatus.innerText = currentLang === 'ar' ? 'حساب غير مفعل' : 'Inactive';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
-                fetchPromoStats(); // سيظهر العرض إذا تبقى مقاعد
+                fetchPromoStats(); 
             }
-        }
-
-        function handleToolAction() {
-            if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
-            if (!currentUser.subscriptionActive) { showToast(t('toast_sub_required'), 'danger'); openPricingModal(); return; }
-            window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight}`);
         }
 
         async function applyCoupon() {
             if (!currentUser) { showToast(t('toast_coupon_login'), 'danger'); return; }
             
             let code = document.getElementById('couponInput').value.trim();
+            if(!code) code = "MOAZA2FREE";
+
             const msgEl = document.getElementById('couponMsg'); 
             
             try {
