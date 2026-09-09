@@ -6,7 +6,6 @@ const { OAuth2Client } = require('google-auth-library');
 const mongoose = require('mongoose');
 const axios = require('axios');
 const path = require('path');
-const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
@@ -30,14 +29,13 @@ const connectDB = async () => {
   try {
     const db = await mongoose.connect(process.env.MONGODB_URI, { bufferCommands: false });
     isConnected = db.connections[0].readyState === 1;
-    console.log('✅ MongoDB Connected');
+    console.log('✅ MongoDB Atlas Connected Successfully');
   } catch (err) {
     console.error('❌ MongoDB error:', err.message);
   }
 };
 connectDB();
 
-// Middleware للتحقق من قاعدة البيانات
 const checkDbConnection = async (req, res, next) => {
   if (!isConnected) {
     await connectDB();
@@ -48,7 +46,6 @@ const checkDbConnection = async (req, res, next) => {
 // ==========================================
 // 2. تصميم الجداول (Models)
 // ==========================================
-
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true, required: true },
   name: { type: String, default: '' },
@@ -59,7 +56,6 @@ const userSchema = new mongoose.Schema({
   couponUsed: { type: String, default: '' },
   processed_transactions: [String]
 }, { timestamps: true });
-
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 const couponSchema = new mongoose.Schema({
@@ -73,12 +69,11 @@ const couponSchema = new mongoose.Schema({
 const Coupon = mongoose.models.Coupon || mongoose.model('Coupon', couponSchema);
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const JWT_SECRET = process.env.JWT_SECRET || 'artify_fallback_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'artify_fallback_secret_key_2026_safe';
 
 // ==========================================
 // 3. Middlewares المصادقة
 // ==========================================
-
 const requireAuth = (req, res, next) => {
   const token = req.cookies?.session_token || req.cookies?.token;
   if (!token) return res.status(401).json({ error: 'Authentication required' });
@@ -94,9 +89,8 @@ const requireAuth = (req, res, next) => {
 };
 
 // ==========================================
-// 4. مسارات المصادقة (Google OAuth)
+// 4. مسارات المصادقة وتسجيل الدخول
 // ==========================================
-
 app.post('/api/auth/google', checkDbConnection, async (req, res) => {
   try {
     const { credential } = req.body;
@@ -121,12 +115,8 @@ app.post('/api/auth/google', checkDbConnection, async (req, res) => {
 
     const token = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: '30d' });
 
-    res.cookie('token', token, {
-      httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000
-    });
-    res.cookie('session_token', token, { // للتوافق الرجعي
-      httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000
-    });
+    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie('session_token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000 });
 
     const now = Date.now();
     const isSubActive = user.subscription_active && user.expires_at > now;
@@ -143,7 +133,6 @@ app.post('/api/auth/google', checkDbConnection, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Auth Error:', err);
     return res.status(500).json({ error: 'Authentication failed' });
   }
 });
@@ -158,8 +147,7 @@ app.get('/api/me', checkDbConnection, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      res.clearCookie('token');
-      res.clearCookie('session_token');
+      res.clearCookie('token'); res.clearCookie('session_token');
       return res.status(401).json({ error: 'User not found' });
     }
 
@@ -175,16 +163,14 @@ app.get('/api/me', checkDbConnection, async (req, res) => {
     }
 
     return res.json({
-      email: user.email,
-      name: user.name,
+      email: user.email, name: user.name,
       subscriptionActive: isSubActive,
       startedAt: isSubActive ? user.started_at : null,
       expiresAt: isSubActive ? user.expires_at : null,
       plan: user.plan
     });
   } catch (err) {
-    res.clearCookie('token');
-    res.clearCookie('session_token');
+    res.clearCookie('token'); res.clearCookie('session_token');
     return res.status(401).json({ error: 'Invalid session' });
   }
 });
@@ -196,9 +182,8 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ==========================================
-// 5. مسارات الحساب والمقاعد
+// 5. الحذف وإحصائيات الكوبونات
 // ==========================================
-
 app.post('/api/delete-account', requireAuth, checkDbConnection, async (req, res) => {
     try {
         await User.findOneAndDelete({ email: req.userEmail });
@@ -210,20 +195,31 @@ app.post('/api/delete-account', requireAuth, checkDbConnection, async (req, res)
     }
 });
 
+// دالة جلب إحصائيات المقاعد وترتيب المستخدم
 app.get('/api/promo-stats', checkDbConnection, async (req, res) => {
     try {
-        const promoCoupon = await Coupon.findOne({ code: 'ARTIFYFREE' });
-        const usedSeats = promoCoupon ? promoCoupon.usedCount : 0;
-        res.json({ usedSeats });
+        let promo = await Coupon.findOne({ code: 'MOAZA2FREE' });
+        if (!promo) {
+            promo = await Coupon.create({ code: 'MOAZA2FREE', type: 'free', maxUses: 15, usedCount: 0, active: true });
+        }
+
+        const usedSeats = promo.usedCount;
+        const maxSeats = promo.maxUses;
+        const remaining = Math.max(0, maxSeats - usedSeats);
+        const currentRank = usedSeats + 1; // رقم المستخدم الحالي
+
+        res.json({
+            active: remaining > 0,
+            usedSeats, maxSeats, remaining, currentRank
+        });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
 });
 
 // ==========================================
-// 6. تفعيل الكوبونات (تحديث ذري آمن)
+// 6. تفعيل الكوبونات
 // ==========================================
-
 app.post('/api/apply-coupon', requireAuth, checkDbConnection, async (req, res) => {
   const { couponCode } = req.body;
   if (!couponCode) return res.status(400).json({ error: 'No code provided' });
@@ -231,19 +227,18 @@ app.post('/api/apply-coupon', requireAuth, checkDbConnection, async (req, res) =
   const code = couponCode.trim().toUpperCase();
 
   try {
+    let existing = await Coupon.findOne({ code });
+    if (!existing && code === 'MOAZA2FREE') {
+      existing = await Coupon.create({ code: 'MOAZA2FREE', type: 'free', maxUses: 15, usedCount: 0, active: true });
+    }
+
     const coupon = await Coupon.findOneAndUpdate(
-      { 
-        code: code, 
-        active: true, 
-        $expr: { $lt: ["$usedCount", "$maxUses"] } 
-      },
+      { code: code, active: true, $expr: { $lt: ["$usedCount", "$maxUses"] } },
       { $inc: { usedCount: 1 } },
       { new: true }
     );
 
-    if (!coupon) {
-      return res.status(400).json({ error: 'الكود غير صحيح، أو اكتمل العدد المسموح.' });
-    }
+    if (!coupon) return res.status(400).json({ error: 'الكود غير صحيح، أو اكتمل العدد المسموح.' });
 
     if (coupon.type === 'free') {
       const now = Date.now();
@@ -251,17 +246,15 @@ app.post('/api/apply-coupon', requireAuth, checkDbConnection, async (req, res) =
       
       await User.findOneAndUpdate(
         { email: req.userEmail },
-        { subscription_active: true, plan: 'VIP_PRO', started_at: now, expires_at: oneMonthAhead, couponUsed: code }
+        { subscription_active: true, plan: 'VIP_PRO', started_at: now, expires_at: oneMonthAhead, couponUsed: code },
+        { upsert: true, new: true }
       );
       return res.json({ success: true, type: 'free', message: 'VIP Activated' });
     }
 
-    if (coupon.type === 'percent') {
-      return res.json({ type: 'percent', discount: coupon.discount });
-    }
+    if (coupon.type === 'percent') return res.json({ type: 'percent', discount: coupon.discount });
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'حدث خطأ في النظام' });
   }
 });
@@ -269,13 +262,7 @@ app.post('/api/apply-coupon', requireAuth, checkDbConnection, async (req, res) =
 // ==========================================
 // 7. بوابة الدفع Paymob
 // ==========================================
-
-const planDurations = {
-  month1: 30 * 24 * 60 * 60 * 1000,
-  month3: 90 * 24 * 60 * 60 * 1000,
-  month6: 180 * 24 * 60 * 60 * 1000,
-  year1: 365 * 24 * 60 * 60 * 1000,
-};
+const planDurations = { month1: 30*24*60*60*1000, month3: 90*24*60*60*1000, month6: 180*24*60*60*1000, year1: 365*24*60*60*1000 };
 
 app.post('/api/create-payment', requireAuth, checkDbConnection, async (req, res) => {
   try {
@@ -305,17 +292,11 @@ app.post('/api/create-payment', requireAuth, checkDbConnection, async (req, res)
 
     const paymentKeyRes = await axios.post('https://accept.paymob.com/api/acceptance/payment_keys', {
       auth_token: paymobToken, amount_cents: amount, expiration: 3600, order_id: orderRes.data.id,
-      billing_data: {
-        apartment: 'NA', email: req.userEmail, floor: 'NA', first_name: req.userName || 'Subscriber',
-        street: 'NA', building: 'NA', phone_number: '+201000000000', shipping_method: 'PKG',
-        postal_code: 'NA', city: 'Cairo', country: 'EG', last_name: 'User', state: 'Cairo'
-      },
+      billing_data: { apartment: 'NA', email: req.userEmail, floor: 'NA', first_name: req.userName || 'Subscriber', street: 'NA', building: 'NA', phone_number: '+201000000000', shipping_method: 'PKG', postal_code: 'NA', city: 'Cairo', country: 'EG', last_name: 'User', state: 'Cairo' },
       currency: 'EGP', integration_id: process.env.PAYMOB_INTEGRATION_ID
     });
 
-    res.json({
-      url: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentKeyRes.data.token}`
-    });
+    res.json({ url: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentKeyRes.data.token}` });
   } catch (err) {
     res.status(500).json({ error: 'Failed to initiate payment' });
   }
@@ -333,19 +314,15 @@ app.post('/api/paymob-webhook', async (req, res) => {
       const user = await User.findOne({ email });
       if (!user) return res.sendStatus(200); 
 
-      let duration = planDurations.month1; 
-      let paidPlan = 'PRO_PAID';
-
       const now = Date.now();
-      const expiresAt = now + duration;
+      const expiresAt = now + planDurations.month1;
 
       user.subscription_active = true;
-      user.plan = paidPlan;
+      user.plan = 'PRO_PAID';
       user.started_at = now;
       user.expires_at = expiresAt;
       
       await user.save();
-      console.log(`Payment Webhook: Activated subscription for ${email}`);
     }
     res.sendStatus(200);
   } catch (err) {
@@ -356,14 +333,12 @@ app.post('/api/paymob-webhook', async (req, res) => {
 // ==========================================
 // 8. حماية فتح التطبيق
 // ==========================================
-
 app.get('/api/launch-app', requireAuth, checkDbConnection, async (req, res) => {
   try {
     const user = await User.findOne({ email: req.userEmail });
     if (!user || !user.subscription_active || user.expires_at < Date.now()) {
       return res.status(403).send('<h1 style="text-align:center; margin-top:50px; font-family:sans-serif;">عفواً، انتهى اشتراكك أو لم يتم تفعيله. يرجى الترقية لـ PRO.</h1>');
     }
-    
     res.redirect(process.env.TOOL_URL || 'https://example.com');
   } catch (err) {
     res.status(500).send('خطأ في التحقق من الحساب.');
