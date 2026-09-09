@@ -28,16 +28,27 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
 
+        /* تحسين شكل النصوص عند التبديل بين اللغات */
         [dir="rtl"] body { letter-spacing: 0; }
         [dir="ltr"] body { font-family: 'Cairo', 'Segoe UI', sans-serif; }
 
+        /* هيكل لوحة التحكم الرئيسي */
         .app-layout { display: flex; min-height: 100vh; }
 
-        /* القائمة الجانبية */
+        /* القائمة الجانبية (Sidebar) */
         .sidebar {
-            width: 250px; background: var(--bg-sidebar); border-left: 1px solid var(--border);
-            display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px;
-            position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 50;
+            width: 250px;
+            background: var(--bg-sidebar);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            flex-shrink: 0;
+            z-index: 50;
         }
         html[dir="ltr"] .sidebar { border-left: none; border-right: 1px solid var(--border); }
 
@@ -52,16 +63,18 @@
         .nav-item.active { background: #1a233a; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
         .nav-item span.icon { font-size: 18px; width: 20px; text-align: center; }
 
+        /* كارت الترقية / حالة الاشتراك أسفل القائمة الجانبية */
         .sidebar-bottom-card { background: rgba(20, 29, 51, 0.6); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
         .sub-quota { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .sub-quota strong { color: var(--text-main); font-weight: 700; }
         .btn-upgrade-sidebar { width: 100%; padding: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 13px; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .btn-upgrade-sidebar:hover { transform: scale(1.02); }
+        .btn-upgrade-sidebar:focus-visible, .nav-item:focus-visible, .action-icon-btn:focus-visible, button:focus-visible, .tool-btn:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
 
-        /* المحتوى الرئيسي */
+        /* مساحة المحتوى الرئيسية */
         .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-        /* شريط الإطلاق العالمي (تم تجهيزه للعداد الحقيقي والمقاعد) */
+        /* شريط الإطلاق العالمي */
         .global-launch-banner {
             background: linear-gradient(90deg, #ec4899, #6366f1);
             color: #fff; text-align: center; padding: 10px 20px; font-weight: bold; font-size: 13px;
@@ -72,19 +85,28 @@
             background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 6px; font-family: monospace; font-size: 14px; letter-spacing: 1px; backdrop-filter: blur(4px);
         }
         .seats-badge {
-            background: rgba(255,255,255,0.2); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-inline-start: 5px; border: 1px solid rgba(255,255,255,0.4);
+            background: #fff; color: #ec4899; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-inline-start: 5px;
         }
         .btn-launch-free {
-            background: #fff; color: #6366f1; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 12px; cursor: pointer; margin-inline-start: 10px; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background: #fff; color: #6366f1; border: none; padding: 4px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; margin-inline-start: 10px; transition: 0.2s;
         }
-        .btn-launch-free:hover { transform: scale(1.05); background: #f8fafc; }
+        .btn-launch-free:hover { transform: scale(1.05); }
         .btn-launch-free:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-        /* الشريط العلوي */
+        /* الشريط العلوي (Top Navbar) */
         .topbar {
-            height: 70px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 30px; border-bottom: 1px solid var(--border); background: rgba(7, 10, 19, 0.85);
-            backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; gap: 16px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(7, 10, 19, 0.85);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            gap: 16px;
         }
 
         .search-container { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; width: 360px; transition: 0.2s; }
@@ -93,8 +115,10 @@
         .search-shortcut { font-size: 11px; background: rgba(255, 255, 255, 0.08); padding: 2px 6px; border-radius: 4px; color: var(--text-muted); flex-shrink: 0; }
 
         .topbar-actions { display: flex; align-items: center; gap: 12px; }
-        
-        /* اللغات */
+        .action-icon-btn { background: var(--bg-card); border: 1px solid var(--border); width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-main); cursor: pointer; transition: 0.2s; font-size: 16px; }
+        .action-icon-btn:hover { border-color: var(--primary); }
+
+        /* قائمة اللغة المنسدلة */
         .lang-menu-rel { position: relative; }
         .lang-switch { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .lang-switch:hover { border-color: var(--primary); }
@@ -105,7 +129,7 @@
         .lang-option:hover { color: #fff; background: rgba(255,255,255,0.06); }
         .lang-option.active { color: #38bdf8; background: rgba(56,189,248,0.08); font-weight: 700; }
 
-        /* المستخدم */
+        /* قائمة المستخدم المنسدلة */
         .user-menu-rel { position: relative; }
         .user-badge { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 12px; border-radius: 25px; cursor: pointer; }
         .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0; }
@@ -120,18 +144,40 @@
         .dropdown-status .label { font-size: 10px; color: var(--text-muted); text-transform: none; }
         .dropdown-status .value { font-size: 13px; color: var(--primary); font-weight: 700; margin-top: 2px; }
 
-        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; scroll-behavior: smooth; }
+        /* منطقة المحتوى الداخلي */
+        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; }
 
-        /* البانر (Hero) */
+        /* 1. كارت البانر (Hero Banner) */
         .hero-banner {
-            border-radius: 22px; overflow: hidden; position: relative; background-color: var(--bg-card); 
-            background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
-            min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-radius: 22px;
+            overflow: hidden;
+            position: relative;
+            background-color: var(--bg-card); /* يطابق لون الموقع للدمج السلس */
+            background-image: url('/hero-bg.jpg');
+            background-position: center left;
+            background-size: cover;
+            background-repeat: no-repeat;
+            min-height: 270px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 35px 45px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
         html[dir="rtl"] .hero-banner { background-position: center right; }
 
-        .banner-mask { position: absolute; inset: 0; background: linear-gradient(to right, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); z-index: 1; pointer-events: none; }
-        html[dir="rtl"] .banner-mask { background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); }
+        /* قناع ذكي: كثيف خلف النص ويختفي تدريجياً ليظهر الصورة بوضوح تام */
+        .banner-mask {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to right, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%);
+            z-index: 1;
+            pointer-events: none;
+        }
+        html[dir="rtl"] .banner-mask {
+            background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%);
+        }
 
         .banner-text { position: relative; z-index: 2; max-width: 580px; }
         .welcome-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 5px 14px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; font-weight: bold; }
@@ -145,23 +191,46 @@
         .btn-banner-ghost { padding: 12px 24px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-banner-ghost:hover { background: rgba(255, 255, 255, 0.12); }
 
-        .banner-float-card { position: relative; z-index: 2; background: rgba(14, 20, 36, 0.7); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 20px 24px; width: 260px; box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
+        /* الكارت الشفاف العائم داخل البانر */
+        .banner-float-card {
+            position: relative;
+            z-index: 2;
+            background: rgba(14, 20, 36, 0.7);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 20px 24px;
+            width: 260px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+        }
         .float-header { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; margin-bottom: 12px; color: #fff; }
         .float-list { list-style: none; font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; }
         .float-list li { display: flex; align-items: center; gap: 6px; }
         .float-list li span.check { color: var(--success); font-weight: bold; }
 
-        /* شبكة الأدوات */
+        /* 2. قسم شبكة الأدوات (Tools Grid) */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .section-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .section-subtitle { font-size: 12px; color: var(--text-muted); font-weight: normal; }
 
         .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 24px; position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 190px; transition: all 0.3s ease; }
+        .tool-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 24px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 190px;
+            transition: all 0.3s ease;
+        }
         .tool-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .tool-card.primary-tool { border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, #11182c 0%, #0e1424 100%); }
+        .tool-card.is-hidden-by-search { display: none; }
 
-        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: row-reverse; }
+        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: row-reverse;}
         html[dir="ltr"] .tool-top { flex-direction: row; }
         
         .tool-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
@@ -179,16 +248,18 @@
         .btn-secondary-tool { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border); }
         .tool-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+        /* حالة القفل لغير المشتركين */
         .lock-overlay { position: absolute; inset: 0; background: rgba(14, 20, 36, 0.65); backdrop-filter: blur(2px); border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; cursor: pointer; text-align: center; padding: 10px; }
         .lock-icon { font-size: 24px; }
         .lock-text { font-size: 12px; font-weight: bold; color: #cbd5e1; }
 
-        /* الإلهام */
+        /* 3. معرض الإلهام (Inspiration Marquee) - تم إصلاح الحلقة اللانهائية */
         .inspiration-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px 20px; overflow: hidden; }
         .marquee-viewport { overflow: hidden; }
         .marquee-track { display: flex; gap: 16px; width: max-content; animation: scrollShowcase 40s linear infinite; will-change: transform; }
         .marquee-track:hover { animation-play-state: paused; }
         @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
 
         .inspiration-card { width: 260px; height: 160px; border-radius: 14px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; }
         .inspiration-card img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; display: block; background: #0e1424; }
@@ -198,75 +269,121 @@
         .insp-prompt { font-size: 11px; color: #f1f5f9; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
         .insp-copy-btn { padding: 6px 12px; background: var(--primary); border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; }
 
-        /* النوافذ المنبثقة (Modals) */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.75); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
-        .modal-overlay.show { display: flex; }
-        
-        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 420px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
-        .modal-box.large { max-width: 850px; }
-        
-        .modal-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
-        html[dir="rtl"] .modal-close-btn { right: auto; left: 15px; }
-        .modal-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+        /* 4. قسم الاشتراك */
+        #purchase-section { display: flex; flex-direction: column; gap: 25px; margin-top: 10px; }
 
-        .modal-title { font-size: 22px; font-weight: 800; margin-bottom: 20px; text-align: center; }
-        .modal-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; text-align: center;}
-        
-        .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px;}
-        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
-        .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border);}
-        .modal-btn-danger { background: var(--danger); color: #fff; }
-        
-        /* تصميم خطط الأسعار */
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 15px; }
-        .pricing-card { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
+        .launch-banner { background: linear-gradient(90deg, var(--accent), var(--primary)); text-align: center; padding: 10px; font-weight: bold; font-size: 13px; color: #fff; border-radius: 12px; }
+
+        /* بطاقة تفاصيل الاشتراك الحالي - تظهر فقط للمشتركين */
+        .sub-info-card {
+            display: none;
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(236,72,153,0.08));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 18px;
+            padding: 24px;
+            gap: 20px;
+        }
+        .sub-info-card.show { display: flex; flex-direction: column; }
+        .sub-info-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .sub-info-title { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .sub-status-badge { font-size: 11px; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
+        .sub-status-badge.active { background: rgba(16,185,129,0.15); color: var(--success); }
+        .sub-status-badge.ending-soon { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .sub-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+        .sub-info-item { background: rgba(7,10,19,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+        .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .sub-info-item .value { font-size: 15px; font-weight: 700; }
+        .sub-progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+        .sub-progress-bar { height: 8px; border-radius: 20px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .sub-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 20px; transition: width 0.4s; }
+        .sub-progress-label { font-size: 11px; color: var(--text-muted); }
+        .sub-info-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn-sub-action { padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; display: flex; align-items: center; gap: 6px; }
+        .btn-sub-renew { background: var(--primary); color: #fff; }
+        .btn-sub-renew:hover { background: #4f46e5; }
+        .btn-sub-autorenew { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border); }
+        .btn-sub-autorenew.is-off { color: var(--danger); border-color: rgba(239,68,68,0.3); }
+
+        .coupon-box { max-width: 460px; margin: 0 auto; background: var(--bg-card); border: 1px dashed var(--primary); border-radius: 14px; padding: 20px; text-align: center; }
+        .coupon-input-group { display: flex; gap: 8px; margin-top: 12px; }
+        .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
+        .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
+
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
         .pricing-card.featured { border-color: var(--primary); box-shadow: 0 0 25px rgba(99, 102, 241, 0.2); }
         .pricing-card.current-plan { border-color: var(--success); }
         .current-plan-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--success); color: #fff; font-size: 10px; font-weight: bold; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
         .price-num { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 8px 0 4px; }
         .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 14px; }
 
-        .coupon-box { max-width: 400px; margin: 20px auto 0; background: rgba(255,255,255,0.03); border: 1px dashed var(--primary); border-radius: 14px; padding: 15px; text-align: center; }
-        .coupon-input-group { display: flex; gap: 8px; margin-top: 10px; }
-        .coupon-input-group input { flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none; }
-        .coupon-input-group button { padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
-
         /* الأسئلة الشائعة */
-        .faq-wrap { width: 100%; text-align: right; }
-        html[dir="ltr"] .faq-wrap { text-align: left; }
-        .faq-item { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+        .faq-wrap { max-width: 800px; margin: 0 auto; width: 100%; }
+        .faq-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+        .faq-item.is-hidden-by-search { display: none; }
         .faq-question { padding: 14px 18px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; background: none; border: none; width: 100%; text-align: inherit; color: inherit; font-family: inherit; }
         .faq-question .plus { transition: transform 0.2s; color: var(--text-muted); flex-shrink: 0; }
         .faq-item.active .faq-question .plus { transform: rotate(45deg); }
         .faq-answer { padding: 0 18px; max-height: 0; overflow: hidden; transition: 0.3s; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
         .faq-item.active .faq-answer { padding: 12px 18px 16px; max-height: 300px; border-top: 1px solid var(--border); }
 
-        /* تفاصيل اشتراك PRO */
-        .sub-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: center; margin-bottom: 20px;}
-        .sub-info-item { background: rgba(7,10,19,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-        .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .sub-info-item .value { font-size: 15px; font-weight: 700; color: #fff;}
+        /* نافذة منبثقة عامة (Modal) */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 420px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
+        .modal-box.large { max-width: 850px; }
 
-        /* Toasts */
+        .modal-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        html[dir="rtl"] .modal-close-btn { right: auto; left: 15px; }
+        .modal-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 10px; }
+        .modal-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
+        .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); }
+        .modal-btn-danger { background: var(--danger); color: #fff; }
+        .modal-btn-primary { background: var(--primary); color: #fff; }
+
+        /* Toasts - تصميم أكثر احترافية */
         #toast-container { position: fixed; bottom: 25px; left: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
         html[dir="rtl"] #toast-container { left: auto; right: 25px; }
-        .toast { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); border-inline-start: 4px solid var(--success); color: var(--text-main); font-size: 13px; opacity: 0; transform: translateY(15px); transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-inline-start: 4px solid var(--success);
+            color: var(--text-main);
+            font-size: 13px;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: 0.3s;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.danger { border-inline-start-color: var(--danger); }
+        .toast.success { border-inline-start-color: var(--success); }
         .toast.warning { border-inline-start-color: var(--warning); }
         .toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
         .toast-text { font-weight: 600; }
 
-        /* زر تليجرام */
+        /* زر تليجرام العائم للتواصل والدعم (سيتم ربطه بقناة الدعم الرسمية) */
         .telegram-btn { position: fixed; bottom: 20px; left: 20px; background: #0088cc; color: white; width: 46px; height: 46px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; text-decoration: none; box-shadow: 0 4px 15px rgba(0,136,204,0.4); z-index: 90; transition: transform 0.2s; }
         .telegram-btn:hover { transform: scale(1.08); }
         html[dir="rtl"] .telegram-btn { left: auto; right: 20px; }
-        .telegram-btn svg { width: 24px; height: 24px; fill: currentColor; }
 
         @media (max-width: 900px) {
             .sidebar { display: none; }
             .banner-float-card { display: none; }
             .search-container { width: 180px; }
+        }
+        @media (max-width: 560px) {
+            .search-container { display: none; }
+            .content-scroll { padding: 18px; }
         }
     </style>
 </head>
@@ -275,12 +392,15 @@
     <div id="toast-container"></div>
 
     <div class="app-layout">
-        <!-- القائمة الجانبية -->
+        <!-- القائمة الجانبية (Sidebar) -->
         <aside class="sidebar">
             <div>
                 <div class="sidebar-logo">
                     <div class="logo-icon">A</div>
-                    <div class="logo-text"><h2>Artify PRO</h2><p>Create • Edit • Inspire</p></div>
+                    <div class="logo-text">
+                        <h2>Artify PRO</h2>
+                        <p>Create • Edit • Inspire</p>
+                    </div>
                 </div>
 
                 <ul class="nav-links">
@@ -304,9 +424,9 @@
             </div>
         </aside>
 
-        <!-- المحتوى الرئيسي -->
+        <!-- مساحة العمل الرئيسية -->
         <main class="main-wrapper">
-            
+
             <!-- شريط الإطلاق العالمي -->
             <div class="global-launch-banner" id="globalBanner">
                 <span data-i18n="global_banner_text">🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!</span>
@@ -325,6 +445,8 @@
                 </div>
 
                 <div class="topbar-actions">
+
+                    <!-- قائمة اللغات: أكثر من 10 لغات + تحويل تلقائي حسب لغة المتصفح -->
                     <div class="lang-menu-rel" id="langMenuArea">
                         <button class="lang-switch" onclick="toggleLangDropdown()" type="button">
                             🌐 <span id="langCurrentLabel">العربية</span> <span style="font-size:10px;">▼</span>
@@ -353,24 +475,36 @@
                 </div>
             </header>
 
+            <!-- المحتوى التفاعلي -->
             <div class="content-scroll" id="topAnchor">
-                
-                <!-- البانر الرئيسي -->
+
+                <!-- 1. البانر الرئيسي -->
                 <section class="hero-banner">
                     <div class="banner-mask"></div>
                     <div class="banner-text">
-                        <div class="welcome-pill"><span>👑</span><span data-i18n="welcome_pill">مرحباً بك في Artify PRO</span></div>
+                        <div class="welcome-pill">
+                            <span>👑</span>
+                            <span data-i18n="welcome_pill">مرحباً بك في Artify PRO</span>
+                        </div>
                         <h1 class="banner-title" id="bannerTitle" data-i18n-html="banner_title">حوّل أفكارك إلى <span>صور مذهلة</span></h1>
                         <p class="banner-desc" data-i18n="banner_desc">أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.</p>
 
                         <div class="banner-buttons">
-                            <button class="btn-banner-primary" onclick="handleToolAction()"><span data-i18n="banner_btn_start">ابدأ الآن</span> <span class="dir-arrow">←</span></button>
-                            <button class="btn-banner-ghost" onclick="playPromoVideo()"><span>▶</span> <span data-i18n="banner_btn_video">شاهد فيديو توضيحي</span></button>
+                            <button class="btn-banner-primary" onclick="handleToolAction()">
+                                <span data-i18n="banner_btn_start">ابدأ الآن</span> <span class="dir-arrow">←</span>
+                            </button>
+                            <button class="btn-banner-ghost" onclick="playPromoVideo()">
+                                <span>▶</span> <span data-i18n="banner_btn_video">شاهد فيديو توضيحي</span>
+                            </button>
                         </div>
                     </div>
 
+                    <!-- الكارت العائم -->
                     <div class="banner-float-card">
-                        <div class="float-header"><span style="color:#818cf8;">✨</span><span data-i18n="float_title">الذكاء الاصطناعي المتقدم</span></div>
+                        <div class="float-header">
+                            <span style="color:#818cf8;">✨</span>
+                            <span data-i18n="float_title">الذكاء الاصطناعي المتقدم</span>
+                        </div>
                         <ul class="float-list">
                             <li><span class="check">✓</span> <span data-i18n="float_1">ثبات ملامح الوجه 100%</span></li>
                             <li><span class="check">✓</span> <span data-i18n="float_2">توليد المشاهد المتسلسلة</span></li>
@@ -379,74 +513,135 @@
                     </div>
                 </section>
 
-                <!-- شبكة أدواتك -->
+                <!-- 2. شبكة أدواتك -->
                 <section>
                     <div class="section-header">
-                        <div class="section-title"><span style="color:var(--primary);">🎛️</span><span data-i18n="tools_title">أدواتك</span> <span class="section-subtitle" data-i18n="tools_subtitle">اختر الأداة للبدء</span></div>
+                        <div class="section-title">
+                            <span style="color:var(--primary);">🎛️</span>
+                            <span data-i18n="tools_title">أدواتك</span>
+                            <span class="section-subtitle" data-i18n="tools_subtitle">اختر الأداة التي تريد استخدامها للبدء</span>
+                        </div>
                     </div>
 
                     <div class="tools-grid" id="toolsGrid">
-                        <!-- Canvas Pro -->
-                        <div class="tool-card primary-tool">
+                        <!-- أداة Canvas Pro -->
+                        <div class="tool-card primary-tool" data-search-tags="canvas pro studio صور مولد">
                             <div class="lock-overlay" id="canvasLock" onclick="handleToolAction()">
                                 <span class="lock-icon">🔒</span>
                                 <span class="lock-text" data-i18n="lock_text">اضغط للاشتراك وفتح الأداة</span>
                             </div>
                             <div class="tool-top">
-                                <span class="tool-tag tag-popular" data-i18n="tag_popular">الأكثر استخداماً</span>
                                 <div class="tool-icon">🎨</div>
+                                <span class="tool-tag tag-popular" data-i18n="tag_popular">الأكثر استخداماً</span>
                             </div>
                             <div class="tool-content">
                                 <h3 data-i18n="tool1_title">Canvas Pro (مولد الصور)</h3>
                                 <p data-i18n="tool1_desc">استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.</p>
                             </div>
-                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span></button>
+                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()">
+                                <span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span>
+                            </button>
                         </div>
 
                         <!-- الوثائق والدليل -->
-                        <div class="tool-card">
+                        <div class="tool-card" data-search-tags="دليل وثائق guide docs help مساعدة">
                             <div class="tool-top">
-                                <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
                                 <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
+                                <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
                             </div>
                             <div class="tool-content">
                                 <h3 data-i18n="tool2_title">الوثائق والدليل</h3>
                                 <p data-i18n="tool2_desc">دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="tool2_btn">عرض الدليل والأسئلة</span> <span class="dir-arrow">←</span></button>
+                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()">
+                                <span data-i18n="tool2_btn">عرض الدليل والأسئلة</span> <span class="dir-arrow">←</span>
+                            </button>
                         </div>
 
-                        <!-- Google Drive -->
-                        <div class="tool-card" style="opacity:0.7;">
+                        <!-- Google Drive Sync (سيتم تفعيلها لاحقاً - تُركت كإعلان قادم كما طلبت) -->
+                        <div class="tool-card" style="opacity:0.7;" data-search-tags="drive سحابة مزامنة google">
                             <div class="tool-top">
-                                <span class="tool-tag tag-soon" data-i18n="tag_soon">قريباً</span>
                                 <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
+                                <span class="tool-tag tag-soon" data-i18n="tag_soon">قريباً</span>
                             </div>
                             <div class="tool-content">
                                 <h3>Google Drive Sync</h3>
-                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.</p>
+                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span data-i18n="tag_soon">قريباً</span></button>
+                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;">
+                                <span data-i18n="tag_soon">قريباً</span>
+                            </button>
                         </div>
                     </div>
                 </section>
 
-                <!-- شريط الإلهام المتحرك -->
+                <!-- 3. شريط الإلهام المتحرك -->
                 <section class="inspiration-wrap" id="inspirationSection">
                     <div class="section-header" style="margin-bottom:15px;">
-                        <div class="section-title"><span style="color:#eab308;">💡</span><span data-i18n="insp_title">إلهام</span><span class="section-subtitle" data-i18n="insp_subtitle">مرر الماوس لنسخ البرومبت</span></div>
+                        <div class="section-title">
+                            <span style="color:#eab308;">💡</span>
+                            <span data-i18n="insp_title">إلهام</span>
+                            <span class="section-subtitle" data-i18n="insp_subtitle">مرر الماوس لنسخ البرومبت</span>
+                        </div>
                     </div>
                     <div class="marquee-viewport">
                         <div class="marquee-track" id="marqueeTrack"></div>
                     </div>
                 </section>
 
+                <!-- 4. منطقة الاشتراك: تعرض الخطط قبل الاشتراك، وتفاصيل التجديد بعده -->
+                <div id="purchase-section">
+
+                    <div id="renewPlansAnchor"></div>
+                    <div class="section-title" style="justify-content:center;" id="plansSectionLabel">
+                        <span data-i18n="plans_label_new">اختر باقتك</span>
+                    </div>
+
+                    <!-- خطط الأسعار (الأربع خطط الكاملة كما كانت) -->
+                    <div class="pricing-grid" id="pricingSection">
+                        <div class="pricing-card" data-plan="month1">
+                            <h4 data-i18n="plan1_name">شهر واحد</h4>
+                            <div class="old-price">$15</div>
+                            <div class="price-num" id="p-val-month1">$10.50</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan1_desc">تجديد شهري مرن للأفراد</p>
+                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="plan1_btn">اشتراك شهري</button>
+                        </div>
+
+                        <div class="pricing-card" data-plan="month3">
+                            <h4 data-i18n="plan2_name">3 شهور</h4>
+                            <div class="old-price">$38</div>
+                            <div class="price-num" id="p-val-month3">$26.50</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan2_desc">الخيار الأكثر طلباً</p>
+                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="plan2_btn">اشتراك 3 شهور</button>
+                        </div>
+
+                        <div class="pricing-card featured" data-plan="month6">
+                            <div class="current-plan-tag" style="display:none;" data-i18n="current_plan_tag">باقتك الحالية</div>
+                            <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="best_value">الأكثر توفيراً</div>
+                            <h4 data-i18n="plan3_name">6 شهور</h4>
+                            <div class="old-price">$65</div>
+                            <div class="price-num" id="p-val-month6">$45.50</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan3_desc">قيمة استثنائية لصناع المحتوى</p>
+                            <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')" data-i18n="plan3_btn">اشتراك 6 شهور</button>
+                        </div>
+
+                        <div class="pricing-card" data-plan="year1">
+                            <h4 data-i18n="plan4_name">سنة كاملة</h4>
+                            <div class="old-price">$110</div>
+                            <div class="price-num" id="p-val-year1">$77.00</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan4_desc">أقصى توفير مع دعم دائم</p>
+                            <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="plan4_btn">اشتراك سنوي</button>
+                        </div>
+                    </div>
+
+                </div>
+
             </div>
         </main>
     </div>
 
-    <!-- زر تليجرام -->
-    <a href="https://t.me/YOUR_CHANNEL_HERE" target="_blank" class="telegram-btn" title="Telegram Support">
+    <!-- زر تليجرام العائم للدعم -->
+    <a href="https://t.me/YOUR_CHANNEL_HERE" target="_blank" class="telegram-btn" title="Support">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.892-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
     </a>
 
@@ -499,7 +694,6 @@
                 </div>
             </div>
 
-            <!-- الكود أصبح نظيفاً بدون كتابة بداخله -->
             <div class="coupon-box">
                 <h4 data-i18n="coupon_title">هل تمتلك كود تفعيل أو خصم؟</h4>
                 <div class="coupon-input-group">
@@ -527,7 +721,7 @@
             <div class="modal-title" data-i18n="delete_modal_title">حذف الحساب نهائياً</div>
             <div class="modal-text" data-i18n="delete_modal_text">سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.</div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="modal_cancel">إلغاء</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()" data-i18n="modal_cancel">إلغاء</button>
                 <button class="modal-btn modal-btn-danger" onclick="executeDeleteAccount()" data-i18n="modal_confirm_delete">حذف نهائي</button>
             </div>
         </div>
@@ -535,14 +729,14 @@
 
     <script>
         // ============================================================
-        // الترجمة والقواميس
+        // نظام الترجمة
         // ============================================================
         const translations = {
             ar: {
                 global_banner_text:"🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!",
                 global_banner_seats:"مقعد مجاني متبقي", global_banner_btn:"احجز مقعدك الآن",
                 nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_projects:"المشاريع", nav_gallery:"المعرض", nav_docs:"الأسئلة الشائعة", nav_plans:"الاشتراك",
-                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات...",
+                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات أو مشاريع...",
                 dropdown_status_label:"حالة الاشتراك", user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
                 welcome_pill:"مرحباً بك في Artify PRO", banner_title:'حوّل أفكارك إلى <span style="color:#38bdf8;">صور مذهلة</span>',
                 banner_desc:"أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
@@ -566,7 +760,7 @@
                 toast_login_required:"يرجى تسجيل الدخول بحساب Google أولاً", toast_login_success:"تم تسجيل الدخول بنجاح!", toast_login_failed:"تعذّر تسجيل الدخول",
                 toast_network_error:"حدث خطأ في الاتصال، حاول مجدداً", toast_sub_required:"يلزم تفعيل اشتراك PRO لفتح الأداة",
                 toast_copy_locked:"ميزة نسخ البرومبت لمشتركي PRO فقط", toast_copy_success:"تم نسخ البرومبت بنجاح",
-                toast_coupon_login:"سجّل الدخول أولاً", toast_coupon_activated:"تمت ترقية حسابك إلى PRO مجاناً!",
+                toast_coupon_login:"سجّل الدخول أولاً لتطبيق الكوبون", toast_coupon_activated:"تمت ترقية حسابك إلى PRO مجاناً!",
                 toast_coupon_discount:"تم تطبيق خصم {p}% بنجاح", toast_coupon_invalid:"عفواً انتهت المقاعد المجانية أو الكود غير صحيح",
                 toast_payment_error:"تعذّر بدء الدفع", toast_delete_success:"تم حذف الحساب نهائياً", toast_logout:"تم تسجيل الخروج", toast_soon:"هذه الميزة ستتوفر قريباً",
                 toast_video_soon:"سيتم إضافة الفيديو التوضيحي قريباً!",
@@ -672,11 +866,10 @@
         });
 
         // ============================================================
-        // العداد التنازلي الثابت (Target Date) 7 أيام و 15 ساعة
-        // ينتهي في: 1789656451000 (17 سبتمبر 2026، بتوقيتك)
+        // العداد التنازلي والمقاعد
         // ============================================================
         function startGlobalTimer() {
-            const countDownDate = 1789656451000; // وقت ثابت لا يتغير بالـ Refresh
+            const countDownDate = 1789637428000; // 17 سبتمبر 2026
             
             const timerInterval = setInterval(function() {
                 const now = new Date().getTime();
@@ -703,7 +896,6 @@
             }, 1000);
         }
 
-        // جلب عدد المقاعد المتبقية من السيرفر بشكل حقيقي
         async function fetchPromoStats() {
             try {
                 const res = await fetch('/api/promo-stats');
@@ -718,7 +910,6 @@
                 const seatsEl = document.getElementById("seatsLeft");
                 if (seatsEl) seatsEl.innerText = seatsLeft;
 
-                // إذا انتهت المقاعد، عطل الزر
                 if (seatsLeft === 0) {
                     const btn = document.querySelector('.btn-launch-free');
                     if (btn) {
@@ -833,7 +1024,7 @@
                 gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex';
                 document.getElementById('sidebarSubStatus').innerText = t('sidebar_free'); document.getElementById('quotaCount').innerText = '0 / 10';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
-                if (globalBanner) globalBanner.style.display = 'flex'; // إظهار العرض للزوار
+                if (globalBanner) globalBanner.style.display = 'flex';
                 return;
             }
 
@@ -843,14 +1034,14 @@
 
             if (user.subscriptionActive) {
                 lock.style.display = 'none';
-                if (globalBanner) globalBanner.style.display = 'none'; // إخفاء العرض للمشتركين نهائياً
+                if (globalBanner) globalBanner.style.display = 'none'; 
                 const dateStr = new Date(user.expiresAt).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
                 document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
                 dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_current');
             } else {
                 lock.style.display = 'flex';
-                if (globalBanner) globalBanner.style.display = 'flex'; // إظهار العرض للحسابات المجانية
+                if (globalBanner) globalBanner.style.display = 'flex';
                 document.getElementById('sidebarSubStatus').innerText = currentLang === 'ar' ? 'غير مفعل' : 'Inactive';
                 dropSubStatus.innerText = currentLang === 'ar' ? 'حساب غير مفعل' : 'Inactive';
                 document.getElementById('pricingModalTitle').innerText = t('plans_label_new');
@@ -863,7 +1054,6 @@
             window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight}`);
         }
 
-        // تفعيل الشهر المجاني مباشرة (الكود المخفي)
         async function activateFreePromo() {
             if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
             try {
@@ -874,7 +1064,7 @@
                 const data = await res.json();
                 if (res.ok && data.type === 'free') {
                     showToast(t('toast_coupon_activated'), 'success');
-                    fetchPromoStats(); // تحديث العداد من السيرفر
+                    fetchPromoStats(); 
                     setTimeout(() => { closeModals(); checkSession(); }, 1200);
                 } else { 
                     showToast(data.error || t('toast_coupon_invalid'), 'danger'); 
