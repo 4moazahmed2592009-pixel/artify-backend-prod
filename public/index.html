@@ -27,7 +27,6 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
-
         [dir="rtl"] body { letter-spacing: 0; }
         [dir="ltr"] body { font-family: 'Cairo', 'Segoe UI', sans-serif; }
 
@@ -526,20 +525,20 @@
         </div>
     </div>
 
-    <!-- النافذة الجديدة: تنبيه قبل فتح الأداة -->
+    <!-- النافذة الجديدة: تنبيه قبل فتح الأداة (تظهر مرة واحدة فقط) -->
     <div class="modal-overlay" id="launchWarningModal">
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
             <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">🛡️</div>
-            <div class="modal-title" data-i18n="launch_warning_title" style="text-align: center;">تنبيه هام قبل البدء</div>
-            <div class="modal-text" data-i18n-html="launch_warning_text" style="text-align: right; line-height: 1.8;">
+            <div class="modal-title" style="text-align: center;">تنبيه هام قبل البدء</div>
+            <div class="modal-text" style="text-align: right; line-height: 1.8;">
                 بمجرد انتقالك للأداة، قد تظهر لك رسالة من Google تفيد بأن <em>"مطوراً مستقلاً أنشأ هذا التطبيق"</em>.<br><br>
                 هذا إجراء أمني روتيني طبيعي من جوجل. يرجى المتابعة بالضغط على <strong>"Advanced" (متقدم)</strong> ثم <strong>"Go to App" (الانتقال للتطبيق)</strong>، ثم الموافقة.<br><br>
-                💡 <span style="color:var(--primary); font-weight:bold;">نصيحة احترافية:</span> بعد فتح الأداة، قم بتكبير الشاشة (Full Screen) لتحظى بأفضل تجربة وابدأ الإبداع!
+                💡 <span style="color:var(--primary); font-weight:bold;">نصيحة احترافية:</span> لتكبير الشاشة وملء الشاشة بالكامل للحصول على أفضل تجربة، اضغط على زر <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> (أو <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">Fn + F11</kbd>) وابدأ الإبداع!
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="modal_cancel">إلغاء</button>
-                <button class="modal-btn modal-btn-primary" onclick="executeLaunchTool()" data-i18n="launch_warning_btn">فهمت ذلك، افتح الأداة</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()">إلغاء</button>
+                <button class="modal-btn modal-btn-primary" onclick="executeLaunchTool()">فهمت ذلك، افتح الأداة</button>
             </div>
         </div>
     </div>
@@ -571,15 +570,12 @@
                 best_value:"الأكثر توفيراً", current_plan_tag:"باقتك الحالية", faq_title:"الأسئلة الشائعة",
                 delete_modal_title:"حذف الحساب نهائياً", delete_modal_text:"سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.",
                 modal_cancel:"إلغاء", modal_confirm_delete:"حذف نهائي",
-                launch_warning_title:"تنبيه هام قبل البدء",
-                launch_warning_text:`بمجرد انتقالك للأداة، قد تظهر لك رسالة من Google تفيد بأن <em>"مطوراً مستقلاً أنشأ هذا التطبيق"</em>.<br><br>هذا إجراء أمني روتيني طبيعي من جوجل. يرجى المتابعة بالضغط على <strong>"Advanced" (متقدم)</strong> ثم <strong>"Go to App" (الانتقال للتطبيق)</strong>، ثم الموافقة.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">نصيحة احترافية:</span> بعد فتح الأداة، قم بتكبير الشاشة (Full Screen) لتحظى بأفضل تجربة وابدأ الإبداع!`,
-                launch_warning_btn:"فهمت ذلك، افتح الأداة",
                 toast_login_required:"يرجى تسجيل الدخول بحساب Google أولاً", toast_login_success:"تم تسجيل الدخول بنجاح!", toast_login_failed:"تعذّر تسجيل الدخول",
                 toast_network_error:"حدث خطأ في الاتصال، حاول مجدداً", toast_sub_required:"يلزم تفعيل اشتراك PRO لفتح الأداة",
                 toast_copy_locked:"ميزة نسخ البرومبت لمشتركي PRO فقط", toast_copy_success:"تم نسخ البرومبت بنجاح",
                 toast_coupon_login:"سجّل الدخول أولاً لتطبيق الكوبون", toast_coupon_activated:"تمت ترقية حسابك إلى PRO مجاناً!",
                 toast_coupon_discount:"تم تطبيق خصم {p}% بنجاح", toast_coupon_invalid:"الكود غير صحيح أو منتهي",
-                toast_payment_error:"تعذّر بدء الدفع", toast_delete_success:"تم حذف الحساب نهائياً", toast_logout:"تم تسجيل الخروج", toast_soon:"هذه الميزة ستتوفر قريباً",
+                toast_payment_error:"تعذّر بدء الدفع", toast_delete_success:"تم حذف الحساب نهائياً", toast_logout:"تسجيل الخروج", toast_soon:"هذه الميزة ستتوفر قريباً",
                 toast_video_soon:"سيتم إضافة الفيديو التوضيحي قريباً!",
                 faqs: [
                     { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." },
@@ -614,9 +610,6 @@
                 best_value:"BEST VALUE", current_plan_tag:"Current Plan", faq_title:"Frequently Asked Questions",
                 delete_modal_title:"Delete Account", delete_modal_text:"Your account, subscription and data will be permanently deleted.",
                 modal_cancel:"Cancel", modal_confirm_delete:"Delete",
-                launch_warning_title:"Important Notice",
-                launch_warning_text:`When launching the tool, Google might show a warning that <em>"A developer created this app"</em>.<br><br>This is a standard security routine. Please proceed by clicking <strong>"Advanced"</strong> then <strong>"Go to App"</strong>, and allow access.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> For the best experience, switch to Full Screen once the tool opens and start creating!`,
-                launch_warning_btn:"Understood, Launch Tool",
                 toast_login_required:"Please sign in with Google first", toast_login_success:"Signed in successfully!", toast_login_failed:"Sign-in failed",
                 toast_network_error:"Connection error", toast_sub_required:"PRO subscription required", toast_copy_locked:"PRO feature only", toast_copy_success:"Copied!",
                 toast_coupon_login:"Sign in first", toast_coupon_activated:"Upgraded to PRO for free!", toast_coupon_discount:"{p}% discount applied", toast_coupon_invalid:"Promo ended or invalid code",
@@ -729,14 +722,12 @@
                 const globalBanner = document.getElementById("globalBanner");
                 const rankEl = document.getElementById("userRankNumber");
 
-                // إخفاء العروض لو انتهت أو لو المستخدم مشترك بالفعل
                 if ((currentUser && currentUser.subscriptionActive) || !data.active || data.remaining <= 0) {
                     if (earlyBox) earlyBox.style.display = 'none';
                     if (globalBanner) globalBanner.style.display = 'none';
                     return;
                 }
 
-                // إظهار العرض والرقم الحالي
                 if (earlyBox) earlyBox.style.display = 'block';
                 if (globalBanner) globalBanner.style.display = 'flex';
                 if (rankEl) rankEl.innerText = `#${data.currentRank}`;
@@ -819,19 +810,28 @@
         }
 
         // ============================================================
-        // إجراء فتح الأداة والتحذير الأمني
-        // ==========================================
+        // إجراء فتح الأداة والتحذير الأمني (يظهر مرة واحدة فقط)
+        // ============================================================
         function handleToolAction() {
             if (!currentUser) { showToast(t('toast_login_required'), 'danger'); return; }
             if (!currentUser.subscriptionActive) { showToast(t('toast_sub_required'), 'danger'); openPricingModal(); return; }
             
-            // إظهار نافذة التحذير بدلاً من فتح الأداة مباشرة
-            closeModals(); 
-            document.getElementById('launchWarningModal').classList.add('show');
+            const hasSeenWarning = localStorage.getItem('artify_warning_shown');
+            if (!hasSeenWarning) {
+                closeModals(); 
+                document.getElementById('launchWarningModal').classList.add('show');
+            } else {
+                launchToolDirectly();
+            }
         }
 
         function executeLaunchTool() {
+            localStorage.setItem('artify_warning_shown', 'true');
             closeModals();
+            launchToolDirectly();
+        }
+
+        function launchToolDirectly() {
             const screenW = window.screen.availWidth;
             const screenH = window.screen.availHeight;
             const features = `width=${screenW},height=${screenH},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
