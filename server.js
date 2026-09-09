@@ -34,13 +34,15 @@ const connectDB = async () => {
 };
 connectDB();
 
-// تصميم جدول المستخدمين وتحديد الحقول
+// تصميم جدول المستخدمين وتحديد الحقول (تم إضافة couponUsed و started_at)
 const userSchema = new mongoose.Schema({
   email: { type: String, unique: true, required: true },
   name: { type: String, default: '' },
   subscription_active: { type: Boolean, default: false },
   plan: { type: String, default: 'free' },
-  expires_at: { type: Number, default: 0 }
+  started_at: { type: Number, default: 0 },
+  expires_at: { type: Number, default: 0 },
+  couponUsed: { type: String, default: '' }
 }, { timestamps: true });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
@@ -73,7 +75,6 @@ app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'Missing credential' });
 
-    // التحقق من توكن جوجل
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -86,6 +87,7 @@ app.post('/api/auth/google', async (req, res) => {
 
     let isSubActive = false;
     let expiresAt = null;
+    let startedAt = null;
     let plan = 'free';
 
     if (isConnected) {
@@ -93,27 +95,26 @@ app.post('/api/auth/google', async (req, res) => {
         let user = await User.findOne({ email });
 
         if (!user) {
-          // مستخدم جديد تماماً
           user = await User.create({
             email,
             name,
             subscription_active: false,
             plan: 'free',
+            started_at: 0,
             expires_at: 0
           });
           console.log('New user created in MongoDB:', email);
         } else {
-          // تحديث الاسم إن تغيّر
           if (name && user.name !== name) {
             user.name = name;
             await user.save();
           }
 
-          // التحقق الحاسم من الاشتراك وتاريخ الصلاحية
           const now = Date.now();
           if (user.subscription_active && user.expires_at && Number(user.expires_at) > now) {
             isSubActive = true;
             expiresAt = Number(user.expires_at);
+            startedAt = Number(user.started_at);
             plan = user.plan || 'PRO';
           }
         }
@@ -122,9 +123,8 @@ app.post('/api/auth/google', async (req, res) => {
       }
     }
 
-    // إنشاء التوكن وتضمين حالة الاشتراك الحقيقية داخله
     const token = jwt.sign(
-      { email, name, isSubActive, expiresAt, plan },
+      { email, name, isSubActive, expiresAt, startedAt, plan },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -142,6 +142,7 @@ app.post('/api/auth/google', async (req, res) => {
         email,
         name,
         subscriptionActive: isSubActive,
+        startedAt: isSubActive ? startedAt : null,
         expiresAt: isSubActive ? expiresAt : null,
         plan
       }
@@ -153,7 +154,6 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// استرجاع حالة الجلسة والتأكد المستمر من MongoDB
 app.get('/api/me', async (req, res) => {
   try {
     const token = req.cookies?.session_token || req.cookies?.token;
@@ -164,6 +164,7 @@ app.get('/api/me', async (req, res) => {
 
     let isSubActive = false;
     let expiresAt = null;
+    let startedAt = null;
     let plan = 'free';
 
     await connectDB();
@@ -176,6 +177,7 @@ app.get('/api/me', async (req, res) => {
           if (user.subscription_active && user.expires_at && Number(user.expires_at) > now) {
             isSubActive = true;
             expiresAt = Number(user.expires_at);
+            startedAt = Number(user.started_at);
             plan = user.plan || 'PRO';
           }
         }
@@ -183,9 +185,9 @@ app.get('/api/me', async (req, res) => {
         console.warn('MongoDB fetch warning:', e.message);
       }
     } else {
-      // احتياطي من التوكن في حال انقطاع مؤقت
       isSubActive = decoded.isSubActive || false;
       expiresAt = decoded.expiresAt || null;
+      startedAt = decoded.startedAt || null;
       plan = decoded.plan || 'free';
     }
 
@@ -193,6 +195,7 @@ app.get('/api/me', async (req, res) => {
       email,
       name: decoded.name,
       subscriptionActive: isSubActive,
+      startedAt: isSubActive ? startedAt : null,
       expiresAt: isSubActive ? expiresAt : null,
       plan
     });
@@ -208,7 +211,44 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ==========================================
-// 3. تفعيل الكوبونات وتثبيت الاشتراك
+// 3. مسارات النظام والحساب (System & Account)
+// ==========================================
+
+// مسار لحذف الحساب
+app.post('/api/delete-account', requireAuth, async (req, res) => {
+    try {
+        const email = req.userEmail;
+        await connectDB();
+        
+        if (isConnected) {
+            await User.findOneAndDelete({ email });
+        }
+        
+        res.clearCookie('session_token', { sameSite: 'none', secure: true });
+        res.clearCookie('token', { sameSite: 'none', secure: true });
+        res.json({ success: true, message: 'Account permanently deleted' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete account' });
+    }
+});
+
+// مسار لجلب إحصائيات المقاعد المجانية
+app.get('/api/promo-stats', async (req, res) => {
+    try {
+        await connectDB();
+        if (isConnected) {
+            const usedSeats = await User.countDocuments({ couponUsed: 'ARTIFYFREE' });
+            res.json({ usedSeats });
+        } else {
+             res.json({ usedSeats: 0 }); // Default if DB not ready
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ==========================================
+// 4. تفعيل الكوبونات وتثبيت الاشتراك
 // ==========================================
 
 app.post('/api/apply-coupon', requireAuth, async (req, res) => {
@@ -218,10 +258,18 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   const code = couponCode.trim().toUpperCase();
 
   if (code === 'VIP2026' || code === 'ARTIFYFREE') {
-    const oneMonthAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    
+    await connectDB();
+    if (isConnected && code === 'ARTIFYFREE') {
+         // التحقق من المقاعد
+         const usedSeats = await User.countDocuments({ couponUsed: 'ARTIFYFREE' });
+         if (usedSeats >= 15) return res.status(400).json({ error: 'اكتمل عدد المقاعد المجانية!' });
+    }
+
+    const now = Date.now();
+    const oneMonthAhead = now + 30 * 24 * 60 * 60 * 1000;
     const email = req.userEmail.toLowerCase().trim();
 
-    await connectDB();
     if (isConnected) {
       try {
         await User.findOneAndUpdate(
@@ -229,7 +277,9 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
           { 
             subscription_active: true, 
             plan: 'VIP_PRO', 
-            expires_at: oneMonthAhead 
+            started_at: now,
+            expires_at: oneMonthAhead,
+            couponUsed: code 
           },
           { upsert: true, new: true }
         );
@@ -239,12 +289,12 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
       }
     }
 
-    // تجديد التوكن ليحمل حالة التفعيل وتاريخ الصلاحية
     const updatedToken = jwt.sign(
       { 
         email, 
         name: req.userName, 
         isSubActive: true, 
+        startedAt: now,
         expiresAt: oneMonthAhead, 
         plan: 'VIP_PRO' 
       },
@@ -274,7 +324,7 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// 4. بوابة الدفع Paymob
+// 5. بوابة الدفع Paymob
 // ==========================================
 
 app.post('/api/create-payment', requireAuth, async (req, res) => {
@@ -346,10 +396,11 @@ app.post('/api/paymob-webhook', async (req, res) => {
     if (success && rawEmail) {
       const email = rawEmail.toLowerCase().trim();
       await connectDB();
-      const oneMonthAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const oneMonthAhead = now + 30 * 24 * 60 * 60 * 1000;
       await User.findOneAndUpdate(
         { email },
-        { subscription_active: true, plan: 'PRO_PAID', expires_at: oneMonthAhead },
+        { subscription_active: true, plan: 'PRO_PAID', started_at: now, expires_at: oneMonthAhead },
         { upsert: true }
       );
       console.log(`Payment Webhook: Activated subscription for ${email}`);
@@ -362,7 +413,7 @@ app.post('/api/paymob-webhook', async (req, res) => {
 });
 
 // ==========================================
-// 5. حماية فتح التطبيق والواجهة
+// 6. حماية فتح التطبيق والواجهة
 // ==========================================
 
 app.get('/api/launch-app', requireAuth, (req, res) => {
