@@ -61,7 +61,7 @@
         /* المحتوى الرئيسي */
         .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-        /* شريط الإطلاق العالمي (مع العداد) */
+        /* شريط الإطلاق العالمي (مع العداد والمقاعد) */
         .global-launch-banner {
             background: linear-gradient(90deg, #ec4899, #6366f1);
             color: #fff; text-align: center; padding: 10px 20px; font-weight: bold; font-size: 13px;
@@ -71,6 +71,13 @@
         .timer-badge {
             background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 6px; font-family: monospace; font-size: 14px; letter-spacing: 1px; backdrop-filter: blur(4px);
         }
+        .seats-badge {
+            background: #fff; color: #ec4899; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-inline-start: 5px;
+        }
+        .btn-launch-free {
+            background: #fff; color: #6366f1; border: none; padding: 4px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; margin-inline-start: 10px; transition: 0.2s;
+        }
+        .btn-launch-free:hover { transform: scale(1.05); }
 
         /* الشريط العلوي */
         .topbar {
@@ -302,8 +309,10 @@
             
             <!-- شريط الإطلاق العالمي (جديد: يظهر للجميع بالأعلى مع العداد) -->
             <div class="global-launch-banner" id="globalBanner">
-                <span data-i18n="global_banner_text">🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني لأول 10 حسابات! ينتهي العرض في:</span>
+                <span data-i18n="global_banner_text">🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!</span>
+                <span class="seats-badge"><span id="seatsLeft">15</span> مقعد مجاني متبقي</span>
                 <span class="timer-badge" id="countdownTimer">[ 00 : 00 : 00 : 00 ]</span>
+                <button class="btn-launch-free" onclick="openPricingModal()">احجز مقعدك الآن</button>
             </div>
 
             <!-- الشريط العلوي -->
@@ -529,7 +538,7 @@
         // ============================================================
         const translations = {
             ar: {
-                global_banner_text:"🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني لأول 10 حسابات! ينتهي العرض في:",
+                global_banner_text:"🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!",
                 nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_projects:"المشاريع", nav_gallery:"المعرض", nav_docs:"الأسئلة الشائعة", nav_plans:"الاشتراك",
                 sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات...",
                 dropdown_status_label:"حالة الاشتراك", user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
@@ -568,7 +577,7 @@
                 ]
             },
             en: {
-                global_banner_text:"🔥 Launch Week: 30% OFF + 1 Free Month for first 10 users! Ends in:",
+                global_banner_text:"🔥 Launch Week: 30% OFF + 1 Free Month for early subscribers!",
                 nav_home:"Home", nav_studio:"Canvas Pro", nav_projects:"Projects", nav_gallery:"Gallery", nav_docs:"FAQs", nav_plans:"Plans",
                 sidebar_free:"Free Plan", sidebar_upgrade:"Manage Sub", search_placeholder:"Search tools...",
                 dropdown_status_label:"Subscription Status", user_manage_billing:"Manage Subscription", user_delete_account:"Delete Account", user_logout:"Logout",
@@ -649,7 +658,7 @@
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
         function showSoonToast() { showToast(t('toast_soon'), 'warning'); }
-        function playPromoVideo() { showToast(t('toast_video_soon'), 'success'); } // وظيفة الفيديو التوضيحي
+        function playPromoVideo() { showToast(t('toast_video_soon'), 'success'); } 
 
         function scrollToSection(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
         function scrollToTop() { document.getElementById('topAnchor').scrollIntoView({ behavior: 'smooth' }); }
@@ -660,11 +669,11 @@
         });
 
         // ============================================================
-        // العداد التنازلي العالمي
+        // العداد التنازلي الثابت (Target Date)
+        // ينتهي العرض في 17 سبتمبر 2026 (1789632451000)
         // ============================================================
         function startGlobalTimer() {
-            // تحديد وقت الانتهاء بعد 7 أيام من الآن (للتجربة) - يمكنك تغييره لاحقاً
-            const countDownDate = new Date().getTime() + (7 * 24 * 60 * 60 * 1000); 
+            const countDownDate = 1789632451000; // وقت ثابت وصارم (17 سبتمبر 2026)
             
             const timerInterval = setInterval(function() {
                 const now = new Date().getTime();
@@ -675,17 +684,27 @@
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-                // تنسيق الأرقام لتكون دائماً من خانتين (مثل: 07)
                 const d = days < 10 ? "0" + days : days;
                 const h = hours < 10 ? "0" + hours : hours;
                 const m = minutes < 10 ? "0" + minutes : minutes;
                 const s = seconds < 10 ? "0" + seconds : seconds;
 
-                document.getElementById("countdownTimer").innerText = `[ ${d} : ${h} : ${m} : ${s} ]`;
+                const timerEl = document.getElementById("countdownTimer");
+                if (timerEl) timerEl.innerText = `[ ${d} : ${h} : ${m} : ${s} ]`;
+
+                // حساب المقاعد المتبقية بشكل تناسبي مع الوقت (يبدأ من 15 ويصل لـ 0)
+                const totalDuration = 7 * 24 * 60 * 60 * 1000; // 7 أيام بالميللي ثانية
+                let seatsLeft = Math.ceil((distance / totalDuration) * 15);
+                if (seatsLeft > 15) seatsLeft = 15;
+                if (seatsLeft < 0) seatsLeft = 0;
+                
+                const seatsEl = document.getElementById("seatsLeft");
+                if (seatsEl) seatsEl.innerText = seatsLeft;
 
                 if (distance < 0) {
                     clearInterval(timerInterval);
-                    document.getElementById("countdownTimer").innerText = "[ 00 : 00 : 00 : 00 ]";
+                    const banner = document.getElementById("globalBanner");
+                    if (banner) banner.style.display = "none"; // إخفاء العرض تماماً عند الانتهاء
                 }
             }, 1000);
         }
@@ -731,7 +750,7 @@
         }
 
         // ============================================================
-        // نظام النوافذ المنبثقة (Modals)
+        // النوافذ المنبثقة
         // ============================================================
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
         
@@ -761,7 +780,7 @@
 
         window.onload = function () {
             setLanguage('ar');
-            startGlobalTimer(); // تشغيل العداد التنازلي
+            startGlobalTimer(); // تشغيل العداد الصارم
             google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
             google.accounts.id.renderButton(document.getElementById("g_id_signin_container"), { theme: "outline", size: "medium", text: "signin_with", shape: "pill" });
             checkSession();
