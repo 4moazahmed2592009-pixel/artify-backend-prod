@@ -4,7 +4,6 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const mongoose = require('mongoose');
-const axios = require('axios');
 const path = require('path');
 
 const app = express();
@@ -18,7 +17,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ==========================================
 // 1. الأمان والاتصال بقاعدة البيانات
 // ==========================================
-// وضعنا المفاتيح الافتراضية حتى لا ينهار السيرفر إذا نسيتها في Vercel
 const JWT_SECRET = process.env.JWT_SECRET || 'artify_fallback_secret_key_2026';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -31,7 +29,6 @@ const connectDB = async () => {
       return;
   }
   try {
-    // وضعنا مهلة 5 ثواني لكي لا ينهار Vercel إذا تأخرت الداتابيز
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
     isConnected = true;
     console.log('✅ MongoDB Connected');
@@ -66,14 +63,13 @@ const couponSchema = new mongoose.Schema({
 const Coupon = mongoose.models.Coupon || mongoose.model('Coupon', couponSchema);
 
 // ==========================================
-// 3. مسار تسجيل الدخول (Google Auth) - تم حمايته من الأعطال
+// 3. مسار تسجيل الدخول (Google Auth)
 // ==========================================
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'بيانات جوجل مفقودة' });
 
-    // التحقق من التوكن
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID
@@ -83,7 +79,6 @@ app.post('/api/auth/google', async (req, res) => {
     const email = payload.email.toLowerCase().trim();
     const name = payload.name || 'User';
 
-    // محاولة الاتصال بالداتابيز
     await connectDB();
 
     let isSubActive = false;
@@ -91,7 +86,6 @@ app.post('/api/auth/google', async (req, res) => {
     let startedAt = null;
     let plan = 'free';
 
-    // إذا كانت قاعدة البيانات متصلة، سجل المستخدم
     if (isConnected) {
         let user = await User.findOne({ email });
         if (!user) {
@@ -113,12 +107,10 @@ app.post('/api/auth/google', async (req, res) => {
             await user.save();
         }
     } else {
-        // لو لم تتصل الداتابيز، ارسل رسالة للواجهة ليعرف معاذ السبب
         return res.status(500).json({ error: 'قاعدة البيانات MongoDB غير متصلة، يرجى فحص رابط MONGODB_URI في Vercel.' });
     }
 
     const token = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: '30d' });
-
     res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000 });
     res.cookie('session_token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000 });
 
@@ -126,10 +118,8 @@ app.post('/api/auth/google', async (req, res) => {
       success: true,
       user: { email, name, subscriptionActive: isSubActive, startedAt, expiresAt, plan }
     });
-
   } catch (err) {
     console.error('Auth Error:', err);
-    // سيطبع الخطأ في الواجهة لتعرف المشكلة
     return res.status(500).json({ error: 'حدث خطأ أثناء المصادقة مع جوجل: ' + err.message });
   }
 });
@@ -173,7 +163,6 @@ app.get('/api/me', async (req, res) => {
             startedAt: isSubActive ? user.started_at : null, expiresAt: isSubActive ? user.expires_at : null, plan: user.plan
         });
     } else {
-        // إذا كان السيرفر مفصول، يعتمد على التوكن مؤقتاً لكي لا ينهار
         return res.json({ email: decoded.email, name: decoded.name, subscriptionActive: false, plan: 'free' });
     }
   } catch (err) {
@@ -222,15 +211,11 @@ app.get('/api/promo-stats', async (req, res) => {
     }
 });
 
-// ==========================================
-// 6. تفعيل الكوبونات 
-// ==========================================
 app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   const { couponCode } = req.body;
   if (!couponCode) return res.status(400).json({ error: 'No code provided' });
 
   const code = couponCode.trim().toUpperCase();
-
   try {
     await connectDB();
     if (!isConnected) return res.status(500).json({ error: 'لا يمكن تفعيل الكوبون، قاعدة البيانات غير متصلة.' });
@@ -267,68 +252,54 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// 7. Paymob 
+// 6. Whop Webhook (استقبال إشعار الدفع وتفعيل الحساب)
 // ==========================================
-const planDurations = { month1: 30*24*60*60*1000, month3: 90*24*60*60*1000, month6: 180*24*60*60*1000, year1: 365*24*60*60*1000 };
-
-app.post('/api/create-payment', requireAuth, async (req, res) => {
+app.post('/api/whop-webhook', async (req, res) => {
   try {
-    const { plan, couponCode } = req.body;
-    if (!planDurations[plan]) return res.status(400).json({ error: 'Invalid plan' });
+    const eventData = req.body;
+    console.log('Received Whop Webhook:', JSON.stringify(eventData));
 
-    const basePrices = {
-      month1: Number(process.env.PAYMOB_PRICE_MONTH_EGP || 500) * 100,
-      month3: Number(process.env.PAYMOB_PRICE_3MONTH_EGP || 1250) * 100,
-      month6: Number(process.env.PAYMOB_PRICE_6MONTH_EGP || 2000) * 100,
-      year1: Number(process.env.PAYMOB_PRICE_YEAR_EGP || 3500) * 100,
-    };
-    let amount = basePrices[plan];
-
-    await connectDB();
-    if (couponCode && isConnected) {
-      const coupon = await Coupon.findOne({ code: couponCode.trim().toUpperCase(), type: 'percent', active: true });
-      if (coupon) amount = Math.round(amount * (1 - coupon.discount));
+    // استخراج الإيميل من بيانات الدفع الواردة من Whop
+    let email = '';
+    if (eventData.data && eventData.data.user && eventData.data.user.email) {
+        email = eventData.data.user.email;
+    } else if (eventData.data && eventData.data.email) {
+        email = eventData.data.email;
+    } else if (eventData.user && eventData.user.email) {
+        email = eventData.user.email;
     }
 
-    const authRes = await axios.post('https://accept.paymob.com/api/auth/tokens', { api_key: process.env.PAYMOB_API_KEY });
-    const paymobToken = authRes.data.token;
-    const orderRes = await axios.post('https://accept.paymob.com/api/ecommerce/orders', { auth_token: paymobToken, delivery_needed: 'false', amount_cents: amount, currency: 'EGP', items: [] });
-    const paymentKeyRes = await axios.post('https://accept.paymob.com/api/acceptance/payment_keys', {
-      auth_token: paymobToken, amount_cents: amount, expiration: 3600, order_id: orderRes.data.id,
-      billing_data: { apartment: 'NA', email: req.userEmail, floor: 'NA', first_name: req.userName || 'Sub', street: 'NA', building: 'NA', phone_number: '+201000000000', shipping_method: 'PKG', postal_code: 'NA', city: 'Cairo', country: 'EG', last_name: 'User', state: 'Cairo' },
-      currency: 'EGP', integration_id: process.env.PAYMOB_INTEGRATION_ID
-    });
-
-    res.json({ url: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentKeyRes.data.token}` });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to initiate payment' });
-  }
-});
-
-app.post('/api/paymob-webhook', async (req, res) => {
-  try {
-    const data = req.body.obj;
-    const success = data?.success;
-    const rawEmail = data?.order?.shipping_data?.email || data?.customer?.email;
-
-    if (success && rawEmail) {
-      const email = rawEmail.toLowerCase().trim();
+    if (email) {
+      email = email.toLowerCase().trim();
       await connectDB();
       if (isConnected) {
         const user = await User.findOne({ email });
         if (user) {
           const now = Date.now();
-          user.subscription_active = true; user.plan = 'PRO_PAID'; user.started_at = now; user.expires_at = now + planDurations.month1;
+          // تفعيل الحساب وتحديد مدة الاشتراك بـ 30 يوم (قابلة للتعديل)
+          user.subscription_active = true; 
+          user.plan = 'PRO_WHOP'; 
+          user.started_at = now; 
+          user.expires_at = now + (30 * 24 * 60 * 60 * 1000); 
           await user.save();
+          console.log(`✅ User ${email} activated via Whop webhook.`);
+        } else {
+          console.log(`⚠️ User ${email} paid via Whop but is not registered in our database yet.`);
         }
       }
     }
+    
+    // يجب دائماً الرد بـ 200 على Whop ليعرفوا أننا استلمنا الإشعار بنجاح
     res.sendStatus(200);
   } catch (err) {
+    console.error('❌ Whop Webhook Error:', err);
     res.sendStatus(500);
   }
 });
 
+// ==========================================
+// 7. تشغيل الأداة
+// ==========================================
 app.get('/api/launch-app', requireAuth, async (req, res) => {
   try {
     await connectDB();
