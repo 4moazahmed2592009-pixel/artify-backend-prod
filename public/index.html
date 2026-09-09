@@ -27,7 +27,6 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
-
         [dir="rtl"] body { letter-spacing: 0; }
         [dir="ltr"] body { font-family: 'Cairo', 'Segoe UI', sans-serif; }
 
@@ -78,7 +77,6 @@
         .search-container { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; width: 360px; transition: 0.2s; }
         .search-container:focus-within { border-color: var(--primary); }
         .search-container input { background: transparent; border: none; outline: none; color: var(--text-main); font-size: 13px; width: 100%; }
-        .search-shortcut { font-size: 11px; background: rgba(255, 255, 255, 0.08); padding: 2px 6px; border-radius: 4px; color: var(--text-muted); flex-shrink: 0; }
 
         .topbar-actions { display: flex; align-items: center; gap: 12px; }
         
@@ -109,8 +107,7 @@
         .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; scroll-behavior: smooth; }
 
         .hero-banner {
-            border-radius: 22px; overflow: hidden; position: relative;
-            background-color: var(--bg-card); 
+            border-radius: 22px; overflow: hidden; position: relative; background-color: var(--bg-card); 
             background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
             min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
@@ -280,7 +277,6 @@
 
         <main class="main-wrapper">
             
-            <!-- شريط الإطلاق العالمي -->
             <div class="global-launch-banner" id="globalBanner" style="display: none;">
                 <span data-i18n="global_banner_text">🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!</span>
                 <span class="timer-badge" id="countdownTimer">[ 00 : 00 : 00 : 00 ]</span>
@@ -354,14 +350,14 @@
                     </div>
 
                     <div class="tools-grid" id="toolsGrid">
-                        <div class="tool-card primary-tool">
+                        <div class="tool-card primary-tool" data-search-tags="canvas pro studio صور مولد">
                             <div class="lock-overlay" id="canvasLock" onclick="handleToolAction()">
                                 <span class="lock-icon">🔒</span>
                                 <span class="lock-text" data-i18n="lock_text">اضغط للاشتراك وفتح الأداة</span>
                             </div>
                             <div class="tool-top">
-                                <span class="tool-tag tag-popular" data-i18n="tag_popular">الأكثر استخداماً</span>
                                 <div class="tool-icon">🎨</div>
+                                <span class="tool-tag tag-popular" data-i18n="tag_popular">الأكثر استخداماً</span>
                             </div>
                             <div class="tool-content">
                                 <h3 data-i18n="tool1_title">Canvas Pro (مولد الصور)</h3>
@@ -370,10 +366,10 @@
                             <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="tool1_btn">فتح الأداة</span> <span>↗</span></button>
                         </div>
 
-                        <div class="tool-card">
+                        <div class="tool-card" data-search-tags="دليل وثائق guide docs help مساعدة">
                             <div class="tool-top">
-                                <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
                                 <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
+                                <span class="tool-tag tag-soon" data-i18n="tag_handbook">دليل تفاعلي</span>
                             </div>
                             <div class="tool-content">
                                 <h3 data-i18n="tool2_title">الوثائق والدليل</h3>
@@ -382,14 +378,14 @@
                             <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="tool2_btn">عرض الدليل والأسئلة</span> <span class="dir-arrow">←</span></button>
                         </div>
 
-                        <div class="tool-card" style="opacity:0.7;">
+                        <div class="tool-card" style="opacity:0.7;" data-search-tags="drive سحابة مزامنة google">
                             <div class="tool-top">
-                                <span class="tool-tag tag-soon" data-i18n="tag_soon">قريباً</span>
                                 <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
+                                <span class="tool-tag tag-soon" data-i18n="tag_soon">قريباً</span>
                             </div>
                             <div class="tool-content">
                                 <h3>Google Drive Sync</h3>
-                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات.</p>
+                                <p data-i18n="tool3_desc">مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.</p>
                             </div>
                             <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span data-i18n="tag_soon">قريباً</span></button>
                         </div>
@@ -405,7 +401,6 @@
                     </div>
                 </section>
 
-                <!-- قسم الاشتراكات في الصفحة الرئيسية -->
                 <div id="purchase-section">
                     <div id="renewPlansAnchor"></div>
                     <div class="section-title" style="justify-content:center;" id="plansSectionLabel">
@@ -454,11 +449,6 @@
         </main>
     </div>
 
-    <!-- زر تليجرام -->
-    <a href="https://t.me/YOUR_CHANNEL_HERE" target="_blank" class="telegram-btn" title="Telegram Support">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.892-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-    </a>
-
     <!-- النوافذ المنبثقة (Modals) -->
     
     <div class="modal-overlay" id="subStatusModal">
@@ -478,7 +468,6 @@
         </div>
     </div>
 
-    <!-- نافذة الأسعار داخلها الكوبون -->
     <div class="modal-overlay" id="pricingModal">
         <div class="modal-box large">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
@@ -515,7 +504,6 @@
         </div>
     </div>
 
-    <!-- نافذة الأسئلة الشائعة -->
     <div class="modal-overlay" id="faqModal">
         <div class="modal-box large">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
@@ -524,14 +512,13 @@
         </div>
     </div>
 
-    <!-- نافذة تأكيد الحذف -->
     <div class="modal-overlay" id="deleteModal">
         <div class="modal-box">
             <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">⚠️</div>
             <div class="modal-title" data-i18n="delete_modal_title">حذف الحساب نهائياً</div>
             <div class="modal-text" data-i18n="delete_modal_text">سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.</div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="modal_cancel">إلغاء</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()" data-i18n="modal_cancel">إلغاء</button>
                 <button class="modal-btn modal-btn-danger" onclick="executeDeleteAccount()" data-i18n="modal_confirm_delete">حذف نهائي</button>
             </div>
         </div>
@@ -543,7 +530,7 @@
                 global_banner_text:"🔥 عرض أسبوع الإطلاق: خصم 30% على كل الباقات + شهر مجاني للمشتركين الأوائل!",
                 global_banner_btn:"احجز مقعدك الآن",
                 nav_home:"الرئيسية", nav_studio:"مولد الصور", nav_projects:"المشاريع", nav_gallery:"المعرض", nav_docs:"الأسئلة الشائعة", nav_plans:"الاشتراك",
-                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات...",
+                sidebar_free:"حساب مجاني", sidebar_upgrade:"إدارة الاشتراك", search_placeholder:"ابحث عن أدوات أو مشاريع...",
                 dropdown_status_label:"حالة الاشتراك", user_manage_billing:"إدارة الاشتراك", user_delete_account:"حذف الحساب", user_logout:"تسجيل الخروج",
                 welcome_pill:"مرحباً بك في Artify PRO", banner_title:'حوّل أفكارك إلى <span style="color:#38bdf8;">صور مذهلة</span>',
                 banner_desc:"أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
@@ -552,7 +539,7 @@
                 tools_title:"أدواتك", tools_subtitle:"اختر الأداة للبدء", tag_popular:"الأكثر استخداماً", tag_handbook:"دليل وتوثيق", tag_soon:"قريباً",
                 tool1_title:"Canvas Pro (مولد الصور)", tool1_desc:"استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.", tool1_btn:"فتح الأداة",
                 tool2_title:"الوثائق والدليل", tool2_desc:"دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.", tool2_btn:"عرض الدليل والأسئلة",
-                tool3_desc:"مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي، وتنزيل التطبيقات والمشاريع.",
+                tool3_desc:"مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.",
                 lock_text:"اضغط للاشتراك وفتح الأداة", insp_title:"إلهام", insp_subtitle:"مرر الماوس لنسخ البرومبت",
                 sub_info_title:"تفاصيل اشتراكك", sub_info_plan:"الباقة الحالية", sub_info_start:"تاريخ البدء", sub_info_expiry:"تاريخ الانتهاء", sub_info_remaining:"الأيام المتبقية",
                 sub_btn_renew:"تجديد أو ترقية الباقة", coupon_title:"هل تمتلك كود تفعيل أو خصم؟", coupon_apply:"تطبيق",
@@ -822,7 +809,14 @@
         async function handleGoogleCredential(response) {
             try {
                 const res = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ credential: response.credential }) });
-                if (res.ok) { showToast(t('toast_login_success'), 'success'); checkSession(); } else { showToast(t('toast_login_failed'), 'danger'); }
+                const data = await res.json();
+                if (res.ok) { 
+                    showToast(t('toast_login_success'), 'success'); 
+                    checkSession(); 
+                } else { 
+                    // إظهار سبب الفشل الدقيق
+                    showToast(data.error || t('toast_login_failed'), 'danger'); 
+                }
             } catch(e) { showToast(t('toast_network_error'), 'danger'); }
         }
 
@@ -876,8 +870,6 @@
             if (!currentUser) { showToast(t('toast_coupon_login'), 'danger'); return; }
             
             let code = document.getElementById('couponInput').value.trim();
-            if(!code) code = "MOAZA2FREE"; // المحاولة الاحتياطية
-
             const msgEl = document.getElementById('couponMsg'); 
             
             try {
