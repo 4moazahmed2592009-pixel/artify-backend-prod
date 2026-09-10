@@ -174,9 +174,13 @@
         .inspiration-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px 20px; overflow: hidden; }
         .marquee-viewport { overflow: hidden; }
         .marquee-track { display: flex; gap: 16px; width: max-content; animation: scrollShowcase 40s linear infinite; will-change: transform; }
+        
+        /* --- CSS Animation Fix (RTL aware) --- */
+        @keyframes scrollShowcaseLtr { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes scrollShowcaseRtl { from { transform: translateX(0); } to { transform: translateX(50%); } }
+        .marquee-track { animation: scrollShowcaseLtr 40s linear infinite; }
+        [dir="rtl"] .marquee-track { animation: scrollShowcaseRtl 40s linear infinite; }
         .marquee-track:hover { animation-play-state: paused; }
-        @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        [dir="rtl"] @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(50%); } }
 
         .inspiration-card { width: 260px; height: 160px; border-radius: 14px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; }
         .inspiration-card img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; display: block; background: #0e1424; }
@@ -431,7 +435,7 @@
                     <div id="earlyBirdBox" style="display:block; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid var(--accent); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: center;">
                         <div style="font-size: 20px; margin-bottom: 6px;">🎉 <strong data-i18n="luckyTitle">You are very lucky!</strong></div>
                         <p style="font-size: 14px; color: #f8fafc; margin-bottom: 12px;">
-                            <span data-i18n="luckyDesc1">You are one of the early testers. Your current rank is </span> <span id="userRankNumber" style="color: #38bdf8; font-size: 18px; font-weight: 900;">#VIP</span> <span data-i18n="luckyDesc2">out of 15 FREE accounts!</span>
+                            <span data-i18n="luckyDesc1">You are one of the early testers. Your current rank is </span> <span id="userRankNumber" style="color: #38bdf8; font-size: 18px; font-weight: 900;">#?</span> <span data-i18n="luckyDesc2">out of 15 FREE accounts!</span>
                         </p>
                         <div style="display: inline-flex; align-items: center; flex-wrap:wrap; justify-content:center; gap: 8px; background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 8px; border: 1px dashed #38bdf8;">
                             <span data-i18n="secretCodeLbl">Secret Code:</span>
@@ -493,6 +497,7 @@
 
             <div class="modal-actions" style="flex-direction: column; gap: 8px;">
                 <button class="modal-btn modal-btn-primary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="proceedToWhopCheckout()" data-i18n="btnConfirm18">I confirm I am 18+, Proceed to Checkout ↗</button>
+                <div style="font-size: 11px; color: var(--warning); margin-top: 4px; text-align: center;">Make sure to use your current Google email during checkout.</div>
                 <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
             </div>
         </div>
@@ -633,7 +638,7 @@
                 modFaqTitle: "FAQ & Documentation", modDelTitle: "Delete Account", modDelText: "Your account, subscription, and all data will be permanently deleted. This action cannot be undone.", btnPermDelete: "Delete Permanently",
                 modWarnTitle: "Important Notice Before Starting", modWarnText: 'When you launch the tool, Google might show a message saying <em>"Google hasn\'t verified this app"</em>.<br><br>This is a standard procedure. Click <strong>"Advanced"</strong> then <strong>"Go to App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> Press <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> for full screen!', btnUnderstand: "I understand, open tool",
                 toastCopy: "Prompt copied successfully", toastCopyCode: "LAUNCH30 code copied successfully!", toastLoginReq: "Please login with Google first", toastSubReq: "PRO subscription required to open the tool", toastLogout: "Logged out successfully", toastDeleted: "Account deleted permanently", toastDemo: "Demo video coming soon!",
-                btnCopy: "Copy" /* Added for the gallery copy button */
+                btnCopy: "Copy"
             },
             ar: {
                 logoSub: "أنشئ • عدّل • ألهم", navHome: "الرئيسية", navGen: "مولد الصور", navGallery: "المعرض", navFaq: "الأسئلة الشائعة", navSub: "الاشتراك",
@@ -656,10 +661,10 @@
                 modFaqTitle: "الأسئلة الشائعة والدليل", modDelTitle: "حذف الحساب نهائياً", modDelText: "سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع.", btnPermDelete: "حذف نهائي",
                 modWarnTitle: "تنبيه هام قبل البدء", modWarnText: 'بمجرد انتقالك للأداة، قد تظهر رسالة <em>"Google hasn\'t verified this app"</em>.<br><br>هذا إجراء أمني روتيني. اضغط <strong>"Advanced"</strong> ثم <strong>"Go to App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">نصيحة:</span> لتكبير الشاشة اضغط <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd>!', btnUnderstand: "فهمت ذلك، افتح الأداة",
                 toastCopy: "تم نسخ البرومبت بنجاح", toastCopyCode: "تم نسخ كود LAUNCH30 بنجاح!", toastLoginReq: "يرجى تسجيل الدخول بحساب Google أولاً", toastSubReq: "يلزم تفعيل اشتراك PRO لفتح الأداة", toastLogout: "تم تسجيل الخروج", toastDeleted: "تم حذف الحساب نهائياً", toastDemo: "سيتم إضافة الفيديو التوضيحي قريباً!",
-                btnCopy: "نسخ" /* Added for the gallery copy button */
+                btnCopy: "نسخ"
             },
             es: {
-                logoSub: "Crear • Editar • Inspirar", navHome: "Inicio", navGen: "Generador de Imágenes", navGallery: "Galería", navFaq: "FAQ y Guía", navSub: "Suscripción", statusFree: "Cuenta Gratis", btnManageSub: "Gestionar Suscripción", bannerOffer: "🔥 ¡Oferta de Lanzamiento: 30% de descuento! Código:", bannerTimerText: "Termina en:", btnClaimOffer: "Reclamar Oferta", searchPlaceholder: "Buscar herramientas o FAQs...", dropStatusLabel: "Estado de Suscripción", dropManage: "Gestionar Suscripción", dropDelete: "Eliminar Cuenta", dropLogout: "Cerrar Sesión", heroPill: "Bienvenido a Artify PRO", heroTitle: "Convierte tus ideas en <span>Imágenes Increíbles</span>", heroDesc: "Crea imágenes profesionales de alta calidad usando motores de IA avanzados con 100% de consistencia facial.", btnStartNow: "Empezar Ahora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistencia Facial", float2: "Generación Secuencial", float3: "Calidad UHD Cinemática", toolsTitle: "Tus Herramientas", toolsSub: "Selecciona una herramienta para empezar", lockText: "Haz clic para suscribirte y desbloquear", tagPopular: "Más Popular", tagGuide: "Guía Completa", tool1Title: "Canvas Pro (Generador)", tool1Desc: "Estudio integrado para generación, edición y bloqueo facial.", btnOpenTool: "Abrir Herramienta", tool2Title: "FAQ y Documentación", tool2Desc: "Respuestas completas para detalles de suscripción y uso.", btnReadFaq: "Leer FAQs", inspTitle: "Inspiración", inspSub: "Pase el ratón para copiar el prompt", plansTitle: "Elige Tu Plan", luckyTitle: "¡Tienes mucha suerte!", luckyDesc1: "Eres de los primeros probadores. Tu rango es", luckyDesc2: "de 15 cuentas GRATIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Aplicar Código ⚡", plan1Mo: "1 Mes", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Año", planBestVal: "MEJOR VALOR", plan1Desc: "Renovación mensual flexible", plan3Desc: "La opción más popular", plan6Desc: "Valor excepcional para creadores", plan1YrDesc: "Máximo ahorro", btnSubMonth: "Suscripción Mensual", btnSub3Mo: "Suscripción 3 Meses", btnSub6Mo: "Suscripción 6 Meses", btnSubYr: "Suscripción Anual", mod18Title: "Términos de Suscripción", mod18Text: "🔞 <strong>Requisito:</strong><br>Tu cuenta de Google debe ser de <strong>18 años o mayor</strong>.", modCodeLbl: "Código de Descuento:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Pega este código en <strong>Add promo code</strong> durante el pago para un 30% de descuento.", btnConfirm18: "Confirmo que soy +18, Ir al Pago ↗", btnCancel: "Cancelar", btnRenew: "Renovar o Mejorar Plan", modSubTitle: "Tus Detalles de Suscripción", lblCurPlan: "Plan Actual", lblStartDate: "Fecha Inicio", lblEndDate: "Fecha Fin", lblTimeLeft: "Tiempo Restante", couponTitle: "¿Tienes un código promo?", btnApply: "Aplicar", modFaqTitle: "FAQ y Documentación", modDelTitle: "Eliminar Cuenta", modDelText: "Tu cuenta y datos serán eliminados permanentemente. Esta acción no se puede deshacer.", btnPermDelete: "Eliminar Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'Google puede mostrar <em>"Google no ha verificado esta app"</em>. Haz clic en <strong>"Avanzado"</strong> y luego en <strong>"Ir a la App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Consejo:</span> ¡Presiona <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> para pantalla completa!', btnUnderstand: "Entiendo, abrir herramienta", toastCopy: "Prompt copiado con éxito", toastCopyCode: "¡Código LAUNCH30 copiado!", toastLoginReq: "Inicia sesión con Google primero", toastSubReq: "Suscripción PRO requerida para abrir", toastLogout: "Sesión cerrada", toastDeleted: "Cuenta eliminada", toastDemo: "¡Demo próximamente!",
+                logoSub: "Crear • Editar • Inspirar", navHome: "Inicio", navGen: "Generador de Imágenes", navGallery: "Galería", navFaq: "FAQ y Guía", navSub: "Suscripción", statusFree: "Cuenta Gratis", btnManageSub: "Gestionar Suscripción", bannerOffer: "🔥 ¡Oferta de Lanzamiento: 30% de descuento! Código:", bannerTimerText: "Termina en:", btnClaimOffer: "Reclamar Oferta", searchPlaceholder: "Buscar herramientas o FAQs...", dropStatusLabel: "Estado de Suscripción", dropManage: "Gestionar Suscripción", dropDelete: "Eliminar Cuenta", dropLogout: "Cerrar Sesión", heroPill: "Bienvenido a Artify PRO", heroTitle: "Convierte tus ideas en <span>Imágenes Increíbles</span>", heroDesc: "Crea imágenes profesionales de alta calidad usando motores de IA avanzados con 100% de consistencia facial.", btnStartNow: "Empezar Ahora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistencia Facial", float2: "Generación Secuencial", float3: "Calidad UHD Cinemática", toolsTitle: "Tus Herramientas", toolsSub: "Selecciona una herramienta para empezar", lockText: "Haz clic para suscribirte y desbloquear", tagPopular: "Más Popular", tagGuide: "Guía Completa", tool1Title: "Canvas Pro (Generador)", tool1Desc: "Estudio integrado para generación, edición y bloqueo facial.", btnOpenTool: "Abrir Herramienta", tool2Title: "FAQ y Documentación", tool2Desc: "Respuestas completas para detalles de suscripción y uso.", btnReadFaq: "Leer FAQs", inspTitle: "Inspiration", inspSub: "Pase el ratón para copiar el prompt", plansTitle: "Elige Tu Plan", luckyTitle: "¡Tienes mucha suerte!", luckyDesc1: "Eres de los primeros probadores. Tu rango es", luckyDesc2: "de 15 cuentas GRATIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Aplicar Código ⚡", plan1Mo: "1 Mes", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Año", planBestVal: "MEJOR VALOR", plan1Desc: "Renovación mensual flexible", plan3Desc: "La opción más popular", plan6Desc: "Valor excepcional para creadores", plan1YrDesc: "Máximo ahorro", btnSubMonth: "Suscripción Mensual", btnSub3Mo: "Suscripción 3 Meses", btnSub6Mo: "Suscripción 6 Meses", btnSubYr: "Suscripción Anual", mod18Title: "Términos de Suscripción", mod18Text: "🔞 <strong>Requisito:</strong><br>Tu cuenta de Google debe ser de <strong>18 años o mayor</strong>.", modCodeLbl: "Código de Descuento:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Pega este código en <strong>Add promo code</strong> durante el pago para un 30% de descuento.", btnConfirm18: "Confirmo que soy +18, Ir al Pago ↗", btnCancel: "Cancelar", btnRenew: "Renovar o Mejorar Plan", modSubTitle: "Tus Detalles de Suscripción", lblCurPlan: "Plan Actual", lblStartDate: "Fecha Inicio", lblEndDate: "Fecha Fin", lblTimeLeft: "Tiempo Restante", couponTitle: "¿Tienes un código promo?", btnApply: "Aplicar", modFaqTitle: "FAQ y Documentación", modDelTitle: "Eliminar Cuenta", modDelText: "Tu cuenta y datos serán eliminados permanentemente. Esta acción no se puede deshacer.", btnPermDelete: "Eliminar Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'Google puede mostrar <em>"Google no ha verificado esta app"</em>. Haz clic en <strong>"Avanzado"</strong> y luego en <strong>"Ir a la App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Consejo:</span> ¡Presiona <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> para pantalla completa!', btnUnderstand: "Entiendo, abrir herramienta", toastCopy: "Prompt copiado con éxito", toastCopyCode: "¡Código LAUNCH30 copiado!", toastLoginReq: "Inicia sesión con Google primero", toastSubReq: "Suscripción PRO requerida para abrir", toastLogout: "Sesión cerrada", toastDeleted: "Cuenta eliminada", toastDemo: "¡Demo próximamente!",
                 btnCopy: "Copiar"
             },
             fr: {
@@ -775,16 +780,14 @@
             if (!document.getElementById('langMenuArea').contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
         });
 
+        // --- Fix: Fixed Timer for 2 weeks from Sep 11, 2026 ---
         function startGlobalTimer() {
-            let endTime = localStorage.getItem('artify_countdown_timer');
-            if (!endTime || parseInt(endTime) < new Date().getTime()) {
-                endTime = new Date().getTime() + (72 * 60 * 60 * 1000); // 3 days
-                localStorage.setItem('artify_countdown_timer', endTime);
-            }
-
+            // Sep 25, 2026 23:59:59 (Exactly 2 weeks from Sep 11)
+            const countDownDate = new Date("Sep 25, 2026 23:59:59").getTime();
+            
             const timerInterval = setInterval(function() {
                 const now = new Date().getTime();
-                const distance = parseInt(endTime) - now;
+                const distance = countDownDate - now;
                 if (distance < 0) {
                     clearInterval(timerInterval);
                     const banner = document.getElementById("globalBanner");
@@ -805,6 +808,7 @@
             showToast(translations[currentLang]?.toastCopyCode || translations['en'].toastCopyCode, 'success');
         }
 
+        // --- Fix: Real Promo Stats Logic ---
         async function fetchPromoStats() {
             const earlyBox = document.getElementById("earlyBirdBox");
             const rankEl = document.getElementById("userRankNumber");
@@ -814,20 +818,15 @@
                 return;
             }
 
-            if (!currentUser) {
-                if (earlyBox) earlyBox.style.display = 'block';
-                if (rankEl) rankEl.innerText = '#VIP';
-                return;
-            }
-
             try {
                 const res = await fetch('/api/promo-stats', { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 
+                // Show to ALL users (logged in or not), but with REAL data from server
                 if (data.active && data.remaining > 0) {
                     if (earlyBox) earlyBox.style.display = 'block';
-                    if (rankEl) rankEl.innerText = `#${data.currentRank}`;
+                    if (rankEl) rankEl.innerText = `#${data.currentRank}`; // Will show real rank even to guests if backend allows
                 } else {
                     if (earlyBox) earlyBox.style.display = 'none'; 
                 }
@@ -966,9 +965,16 @@
             
             checkSession();
             
-            // Default to English unless browser is arabic, this will also render the Google button and Marquee
-            if (navigator.language.startsWith('ar')) changeLanguage('ar');
-            else changeLanguage('en');
+            // --- Improved Language Detection ---
+            const userLang = navigator.language || navigator.userLanguage;
+            const langCode = userLang.split('-')[0].toLowerCase();
+            const supportedLangs = ['en', 'ar', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja'];
+            
+            if (supportedLangs.includes(langCode)) {
+                changeLanguage(langCode);
+            } else {
+                changeLanguage('en');
+            }
         };
 
         async function handleGoogleCredential(response) {
@@ -1015,10 +1021,18 @@
             fetchPromoStats(); 
         }
 
+        // --- Security Fix: Remove Hardcoded Coupon Fallback ---
         async function applyCoupon() {
             if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            let code = document.getElementById('couponInput').value.trim() || "MOAZA2FREE";
+            let code = document.getElementById('couponInput').value.trim();
             const msgEl = document.getElementById('couponMsg'); 
+            
+            if(!code) {
+                msgEl.style.color = 'var(--danger)'; 
+                msgEl.innerText = 'Please enter a code';
+                return;
+            }
+
             try {
                 const res = await fetch('/api/apply-coupon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ couponCode: code }) });
                 const data = await res.json();
