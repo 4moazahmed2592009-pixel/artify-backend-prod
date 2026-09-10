@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Artify PRO | Creator Dashboard</title>
+    <title>Artify PRO | لوحة تحكم المبدعين</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -25,18 +25,19 @@
             --warning: #f59e0b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, 'Cairo', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
-        
-        [dir="rtl"] body { font-family: 'Cairo', sans-serif; letter-spacing: 0; }
+        [dir="rtl"] body { letter-spacing: 0; }
+        [dir="ltr"] body { font-family: 'Cairo', 'Segoe UI', sans-serif; }
 
         .app-layout { display: flex; min-height: 100vh; }
 
         .sidebar {
-            width: 250px; background: var(--bg-sidebar); border-inline-end: 1px solid var(--border);
+            width: 250px; background: var(--bg-sidebar); border-left: 1px solid var(--border);
             display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px;
             position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 50;
         }
+        html[dir="ltr"] .sidebar { border-left: none; border-right: 1px solid var(--border); }
 
         .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 10px 25px; border-bottom: 1px solid var(--border); }
         .logo-icon { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
@@ -88,7 +89,8 @@
         .lang-menu-rel { position: relative; }
         .lang-switch { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .lang-switch:hover { border-color: var(--primary); }
-        .lang-dropdown { position: absolute; top: 48px; inset-inline-end: 0; width: 180px; max-height: 320px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); display: none; flex-direction: column; padding: 6px; z-index: 100; }
+        .lang-dropdown { position: absolute; top: 48px; left: 0; width: 200px; max-height: 320px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); display: none; flex-direction: column; padding: 6px; z-index: 100; }
+        html[dir="rtl"] .lang-dropdown { left: auto; right: 0; }
         .lang-dropdown.show { display: flex; }
         .lang-option { padding: 9px 12px; font-size: 13px; color: var(--text-muted); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: 0.15s; }
         .lang-option:hover { color: #fff; background: rgba(255,255,255,0.06); }
@@ -97,7 +99,8 @@
         .user-menu-rel { position: relative; }
         .user-badge { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 12px; border-radius: 25px; cursor: pointer; }
         .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0; }
-        .user-dropdown { position: absolute; top: 48px; inset-inline-end: 0; width: 220px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); display: none; flex-direction: column; padding: 8px; z-index: 100; }
+        .user-dropdown { position: absolute; top: 48px; left: 0; width: 220px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); display: none; flex-direction: column; padding: 8px; z-index: 100; }
+        html[dir="rtl"] .user-dropdown { left: auto; right: 0; }
         .user-dropdown.show { display: flex; }
         .dropdown-link { padding: 10px 12px; font-size: 13px; color: var(--text-muted); border-radius: 6px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: 0.2s; background: none; border: none; width: 100%; text-align: inherit; font-family: inherit; }
         .dropdown-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
@@ -114,10 +117,10 @@
             background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
             min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
         }
-        [dir="rtl"] .hero-banner { background-position: center right; }
+        html[dir="rtl"] .hero-banner { background-position: center right; }
 
         .banner-mask { position: absolute; inset: 0; background: linear-gradient(to right, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); z-index: 1; pointer-events: none; }
-        [dir="rtl"] .banner-mask { background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); }
+        html[dir="rtl"] .banner-mask { background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); }
 
         .banner-text { position: relative; z-index: 2; max-width: 580px; }
         .welcome-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 5px 14px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; font-weight: bold; }
@@ -146,7 +149,8 @@
         .tool-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .tool-card.primary-tool { border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, #11182c 0%, #0e1424 100%); }
 
-        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: row-reverse; }
+        html[dir="ltr"] .tool-top { flex-direction: row; }
         .tool-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
         .tool-tag { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: bold; white-space: nowrap; height: fit-content; }
         .tag-popular { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
@@ -171,7 +175,6 @@
         .marquee-track { display: flex; gap: 16px; width: max-content; animation: scrollShowcase 40s linear infinite; will-change: transform; }
         .marquee-track:hover { animation-play-state: paused; }
         @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        [dir="rtl"] @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(50%); } }
 
         .inspiration-card { width: 260px; height: 160px; border-radius: 14px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; }
         .inspiration-card img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; display: block; background: #0e1424; }
@@ -186,7 +189,8 @@
         .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 460px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
         .modal-box.large { max-width: 850px; }
         
-        .modal-close-btn { position: absolute; top: 15px; inset-inline-end: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        .modal-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        html[dir="rtl"] .modal-close-btn { right: auto; left: 15px; }
         .modal-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
         .modal-title { font-size: 22px; font-weight: 800; margin-bottom: 20px; text-align: center; }
@@ -203,9 +207,8 @@
         .price-num { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 8px 0 4px; }
         .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 14px; }
 
-        .faq-wrap { width: 100%; text-align: left; }
-        [dir="rtl"] .faq-wrap { text-align: right; }
-        
+        .faq-wrap { width: 100%; text-align: right; }
+        html[dir="ltr"] .faq-wrap { text-align: left; }
         .faq-item { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
         .faq-question { padding: 14px 18px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; background: none; border: none; width: 100%; text-align: inherit; color: inherit; font-family: inherit; }
         .faq-question .plus { transition: transform 0.2s; color: var(--text-muted); flex-shrink: 0; }
@@ -218,12 +221,8 @@
         .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
         .sub-info-item .value { font-size: 14px; font-weight: 700; color: #fff;}
 
-        /* Telegram Floating Button */
-        .telegram-btn { position: fixed; bottom: 30px; inset-inline-end: 30px; width: 55px; height: 55px; background: #0088cc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0, 136, 204, 0.5); cursor: pointer; z-index: 99; transition: transform 0.3s; text-decoration: none; }
-        .telegram-btn:hover { transform: scale(1.1); }
-        .telegram-btn svg { width: 30px; height: 30px; fill: #fff; margin-inline-end: 4px; }
-
-        #toast-container { position: fixed; bottom: 25px; inset-inline-start: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
+        #toast-container { position: fixed; bottom: 25px; left: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
+        html[dir="rtl"] #toast-container { left: auto; right: 25px; }
         .toast { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); border-inline-start: 4px solid var(--success); color: var(--text-main); font-size: 13px; opacity: 0; transform: translateY(15px); transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.danger { border-inline-start-color: var(--danger); }
@@ -236,8 +235,6 @@
             .sidebar { display: none; }
             .banner-float-card { display: none; }
             .search-container { width: 180px; }
-            .telegram-btn { bottom: 20px; inset-inline-end: 20px; width: 45px; height: 45px; }
-            .telegram-btn svg { width: 24px; height: 24px; }
         }
     </style>
 </head>
@@ -245,36 +242,31 @@
 
     <div id="toast-container"></div>
 
-    <a href="https://t.me/artifypro" target="_blank" class="telegram-btn" title="Support">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z"/>
-        </svg>
-    </a>
-
     <div class="app-layout">
         <aside class="sidebar">
             <div>
                 <div class="sidebar-logo">
                     <div class="logo-icon">A</div>
-                    <div class="logo-text"><h2>Artify PRO</h2><p data-i18n="logoSub">Create • Edit • Inspire</p></div>
+                    <div class="logo-text"><h2>Artify PRO</h2><p>Create • Edit • Inspire</p></div>
                 </div>
 
                 <ul class="nav-links">
-                    <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span data-i18n="navHome">Home</span></li>
-                    <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span data-i18n="navGen">Image Generator</span></li>
-                    <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span data-i18n="navGallery">Gallery</span></li>
-                    <li class="nav-item" onclick="openFaqModal()"><span class="icon">📖</span> <span data-i18n="navFaq">FAQ & Guide</span></li>
-                    <li class="nav-item" onclick="manageSubscriptionFlow()"><span class="icon">⚙️</span> <span data-i18n="navSub">Subscription</span></li>
+                    <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span>الرئيسية</span></li>
+                    <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span>مولد الصور</span></li>
+                    <li class="nav-item" onclick="showSoonToast()"><span class="icon">📁</span> <span>المشاريع</span></li>
+                    <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span>المعرض</span></li>
+                    <li class="nav-item" onclick="openFaqModal()"><span class="icon">📖</span> <span>الأسئلة الشائعة</span></li>
+                    <li class="nav-item" onclick="openPricingModal()"><span class="icon">⚙️</span> <span>الاشتراك</span></li>
                 </ul>
             </div>
 
             <div class="sidebar-bottom-card">
                 <div class="sub-quota">
-                    <span id="sidebarSubStatus" data-i18n="statusFree">Free Account</span>
+                    <span id="sidebarSubStatus">حساب مجاني</span>
                     <strong id="quotaCount">0 / 10</strong>
                 </div>
                 <button class="btn-upgrade-sidebar" onclick="manageSubscriptionFlow()">
-                    👑 <span id="sidebarBtnLabel" data-i18n="btnManageSub">Manage Subscription</span>
+                    👑 <span id="sidebarBtnLabel">إدارة الاشتراك</span>
                 </button>
             </div>
         </aside>
@@ -282,38 +274,28 @@
         <main class="main-wrapper">
             
             <div class="global-launch-banner" id="globalBanner">
-                <span data-i18n="bannerOffer">🔥 Launch Week Offer: 30% OFF all plans! Copy code:</span>
-                <span class="banner-code-badge" onclick="copyLaunchCoupon()" title="Copy Code">
+                <span>🔥 عرض أسبوع الإطلاق: خصم 30% لجميع الباقات! انسخ الكود:</span>
+                <span class="banner-code-badge" onclick="copyLaunchCoupon()" title="اضغط لنسخ الكود">
                     <strong>LAUNCH30</strong> 📋
                 </span>
-                <span data-i18n="bannerTimerText">Ends in:</span>
+                <span>وضعه في نافذة الدفع | ينتهي خلال:</span>
                 <span class="timer-badge" id="countdownTimer">[ 00 : 00 : 00 : 00 ]</span>
-                <button class="btn-launch-free" onclick="scrollToPricing()" data-i18n="btnClaimOffer">Claim Offer</button>
+                <button class="btn-launch-free" onclick="scrollToPricing()">احجز باقتك الآن</button>
             </div>
 
             <header class="topbar">
                 <div class="search-container">
                     <span style="color:var(--text-muted);">🔍</span>
-                    <input type="text" id="globalSearchInput" data-i18n="searchPlaceholder" placeholder="Search for tools or FAQs...">
+                    <input type="text" id="globalSearchInput" placeholder="ابحث عن أدوات أو مشاريع...">
+                    <span class="search-shortcut">Ctrl + K</span>
                 </div>
 
                 <div class="topbar-actions">
                     <div class="lang-menu-rel" id="langMenuArea">
                         <button class="lang-switch" onclick="toggleLangDropdown()" type="button">
-                            🌐 <span id="langCurrentLabel">English</span> <span style="font-size:10px;">▼</span>
+                            🌐 <span id="langCurrentLabel">العربية</span> <span style="font-size:10px;">▼</span>
                         </button>
-                        <div class="lang-dropdown" id="langDropdown">
-                            <div class="lang-option active" onclick="changeLanguage('en')">English <span style="font-size:10px; color:#38bdf8;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('ar')">العربية <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('es')">Español <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('fr')">Français <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('de')">Deutsch <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('it')">Italiano <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('pt')">Português <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('ru')">Русский <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('zh')">中文 <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('ja')">日本語 <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                        </div>
+                        <div class="lang-dropdown" id="langDropdown"></div>
                     </div>
 
                     <div id="g_id_signin_container"></div>
@@ -321,17 +303,17 @@
                     <div class="user-menu-rel" id="userMenuArea" style="display:none;">
                         <div class="user-badge" onclick="toggleUserDropdown()">
                             <div class="user-avatar" id="avatarLetter">M</div>
-                            <span id="navUserName" style="font-size:13px; font-weight:bold;">User</span>
+                            <span id="navUserName" style="font-size:13px; font-weight:bold;">المستخدم</span>
                             <span style="font-size:10px; color:var(--text-muted);">▼</span>
                         </div>
                         <div class="user-dropdown" id="userDropdown">
                             <div class="dropdown-status">
-                                <div class="label" data-i18n="dropStatusLabel">Subscription Status</div>
-                                <div class="value" id="dropSubStatus">PRO Account</div>
+                                <div class="label">حالة الاشتراك</div>
+                                <div class="value" id="dropSubStatus">حساب PRO</div>
                             </div>
-                            <button class="dropdown-link" onclick="manageSubscriptionFlow()">💳 <span data-i18n="dropManage">Manage Subscription</span></button>
-                            <button class="dropdown-link danger" onclick="openDeleteModal()">🗑️ <span data-i18n="dropDelete">Delete Account</span></button>
-                            <button class="dropdown-link" onclick="logout()">🚪 <span data-i18n="dropLogout">Logout</span></button>
+                            <button class="dropdown-link" onclick="manageSubscriptionFlow()">💳 <span>إدارة الاشتراك</span></button>
+                            <button class="dropdown-link danger" onclick="openDeleteModal()">🗑️ <span>حذف الحساب</span></button>
+                            <button class="dropdown-link" onclick="logout()">🚪 <span>تسجيل الخروج</span></button>
                         </div>
                     </div>
                 </div>
@@ -342,65 +324,77 @@
                 <section class="hero-banner">
                     <div class="banner-mask"></div>
                     <div class="banner-text">
-                        <div class="welcome-pill"><span>👑</span><span data-i18n="heroPill">Welcome to Artify PRO</span></div>
-                        <h1 class="banner-title" data-i18n="heroTitle">Turn your ideas into <span>Stunning Images</span></h1>
-                        <p class="banner-desc" data-i18n="heroDesc">Create high-quality professional images using advanced AI engines with 100% character face consistency.</p>
+                        <div class="welcome-pill"><span>👑</span><span>مرحباً بك في Artify PRO</span></div>
+                        <h1 class="banner-title" id="bannerTitle">حوّل أفكارك إلى <span>صور مذهلة</span></h1>
+                        <p class="banner-desc">أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.</p>
 
                         <div class="banner-buttons">
-                            <button class="btn-banner-primary" onclick="handleToolAction()"><span data-i18n="btnStartNow">Start Now</span> <span class="dir-arrow">→</span></button>
-                            <button class="btn-banner-ghost" onclick="playPromoVideo()"><span>▶</span> <span data-i18n="btnWatchDemo">Watch Demo</span></button>
+                            <button class="btn-banner-primary" onclick="handleToolAction()"><span>ابدأ الآن</span> <span class="dir-arrow">←</span></button>
+                            <button class="btn-banner-ghost" onclick="playPromoVideo()"><span>▶</span> <span>شاهد فيديو توضيحي</span></button>
                         </div>
                     </div>
 
                     <div class="banner-float-card">
-                        <div class="float-header"><span style="color:#818cf8;">✨</span><span data-i18n="floatHeader">Advanced AI</span></div>
+                        <div class="float-header"><span style="color:#818cf8;">✨</span><span>الذكاء الاصطناعي المتقدم</span></div>
                         <ul class="float-list">
-                            <li><span class="check">✓</span> <span data-i18n="float1">100% Face Consistency</span></li>
-                            <li><span class="check">✓</span> <span data-i18n="float2">Sequential Generation</span></li>
-                            <li><span class="check">✓</span> <span data-i18n="float3">Cinematic UHD Quality</span></li>
+                            <li><span class="check">✓</span> <span>ثبات ملامح الوجه 100%</span></li>
+                            <li><span class="check">✓</span> <span>توليد المشاهد المتسلسلة</span></li>
+                            <li><span class="check">✓</span> <span>دقة سينمائية فائقة الوضوح</span></li>
                         </ul>
                     </div>
                 </section>
 
                 <section>
                     <div class="section-header">
-                        <div class="section-title"><span style="color:var(--primary);">🎛️</span><span data-i18n="toolsTitle">Your Tools</span> <span class="section-subtitle" data-i18n="toolsSub">Select a tool to begin</span></div>
+                        <div class="section-title"><span style="color:var(--primary);">🎛️</span><span>أدواتك</span> <span class="section-subtitle">اختر الأداة للبدء</span></div>
                     </div>
 
                     <div class="tools-grid" id="toolsGrid">
                         <div class="tool-card primary-tool">
                             <div class="lock-overlay" id="canvasLock" onclick="handleToolAction()">
                                 <span class="lock-icon">🔒</span>
-                                <span class="lock-text" data-i18n="lockText">Click to Subscribe & Unlock</span>
+                                <span class="lock-text">اضغط للاشتراك وفتح الأداة</span>
                             </div>
                             <div class="tool-top">
                                 <div class="tool-icon">🎨</div>
-                                <span class="tool-tag tag-popular" data-i18n="tagPopular">Most Popular</span>
+                                <span class="tool-tag tag-popular">الأكثر استخداماً</span>
                             </div>
                             <div class="tool-content">
-                                <h3 data-i18n="tool1Title">Canvas Pro (Image Gen)</h3>
-                                <p data-i18n="tool1Desc">Integrated studio for generation, editing, and character face locking.</p>
+                                <h3>Canvas Pro (مولد الصور)</h3>
+                                <p>استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.</p>
                             </div>
-                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="btnOpenTool">Open Tool</span> <span>↗</span></button>
+                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span>فتح الأداة</span> <span>↗</span></button>
                         </div>
 
                         <div class="tool-card">
                             <div class="tool-top">
                                 <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
-                                <span class="tool-tag tag-soon" data-i18n="tagGuide">Comprehensive Guide</span>
+                                <span class="tool-tag tag-soon">دليل تفاعلي</span>
                             </div>
                             <div class="tool-content">
-                                <h3 data-i18n="tool2Title">FAQ & Documentation</h3>
-                                <p data-i18n="tool2Desc">Full answers for subscription details, usage policies, and workflows.</p>
+                                <h3>الوثائق والدليل</h3>
+                                <p>دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="btnReadFaq">Read FAQs</span> <span class="dir-arrow">→</span></button>
+                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span>عرض الدليل والأسئلة</span> <span class="dir-arrow">←</span></button>
+                        </div>
+
+                        <div class="tool-card" style="opacity:0.7;">
+                            <div class="tool-top">
+                                <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
+                                <span class="tool-tag tag-soon">قريباً</span>
+                            </div>
+                            <div class="tool-content">
+                                <h3>Google Drive Sync</h3>
+                                <p>مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.</p>
+                            </div>
+                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span>قريباً</span></button>
                         </div>
                     </div>
                 </section>
 
                 <section class="inspiration-wrap" id="inspirationSection">
                     <div class="section-header" style="margin-bottom:15px;">
-                        <div class="section-title"><span style="color:#eab308;">💡</span><span data-i18n="inspTitle">Inspiration</span><span class="section-subtitle" data-i18n="inspSub">Hover to copy prompt</span></div>
+                        <div class="section-title"><span style="color:#eab308;">💡</span><span>إلهام</span><span class="section-subtitle">مرر الماوس لنسخ البرومبت</span></div>
                     </div>
                     <div class="marquee-viewport">
                         <div class="marquee-track" id="marqueeTrack"></div>
@@ -410,43 +404,42 @@
                 <div id="purchase-section">
                     <div id="renewPlansAnchor"></div>
                     <div class="section-title" style="justify-content:center;" id="plansSectionLabel">
-                        <span data-i18n="plansTitle">Choose Your Plan</span>
+                        <span>اختر باقتك</span>
                     </div>
 
-                    <!-- صندوق Early Bird: معروض دائماً كطُعم للزوار، يختفي فقط إذا كان المستخدم PRO -->
-                    <div id="earlyBirdBox" style="display:block; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid var(--accent); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: center;">
-                        <div style="font-size: 20px; margin-bottom: 6px;">🎉 <strong data-i18n="luckyTitle">You are very lucky!</strong></div>
+                    <div id="earlyBirdBox" style="display:none; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid var(--accent); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 6px;">🎉 <strong>أنت محظوظ جداً!</strong></div>
                         <p style="font-size: 14px; color: #f8fafc; margin-bottom: 12px;">
-                            <span data-i18n="luckyDesc1">You are one of the early testers. Your current rank is </span> <span id="userRankNumber" style="color: #38bdf8; font-size: 18px; font-weight: 900;">#VIP</span> <span data-i18n="luckyDesc2">out of 15 FREE accounts!</span>
+                            أنت من أوائل المجربين للمنصة ورقمك الحالي هو <span id="userRankNumber" style="color: #38bdf8; font-size: 18px; font-weight: 900;">#1</span> من أصل 15 حساباً مجانياً!
                         </p>
                         <div style="display: inline-flex; align-items: center; flex-wrap:wrap; justify-content:center; gap: 8px; background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 8px; border: 1px dashed #38bdf8;">
-                            <span data-i18n="secretCodeLbl">Secret Code:</span>
+                            <span>الكود السري:</span>
                             <strong style="color: #38bdf8; letter-spacing: 1px; font-size: 15px;">MoazA2free</strong>
-                            <button onclick="autoFillPromoCode()" style="background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" data-i18n="btnApplySecret">Apply Code Now ⚡</button>
+                            <button onclick="autoFillPromoCode()" style="background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">تطبيق الكود فورا ⚡</button>
                         </div>
                     </div>
 
                     <div class="pricing-grid" id="pricingSection">
                         <div class="pricing-card" data-plan="month1">
-                            <h4 data-i18n="plan1Mo">1 Month</h4><div class="old-price">$15</div><div class="price-num" id="p-val-month1">$10.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan1Desc">Flexible monthly renewal</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="btnSubMonth">Subscribe Monthly</button>
+                            <h4>شهر واحد</h4><div class="old-price">$15</div><div class="price-num" id="p-val-month1">$10.50</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">تجديد شهري مرن للأفراد</p>
+                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')">اشتراك شهري</button>
                         </div>
                         <div class="pricing-card" data-plan="month3">
-                            <h4 data-i18n="plan3Mo">3 Months</h4><div class="old-price">$38</div><div class="price-num" id="p-val-month3">$26.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan3Desc">Most popular choice</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="btnSub3Mo">Subscribe 3 Months</button>
+                            <h4>3 شهور</h4><div class="old-price">$38</div><div class="price-num" id="p-val-month3">$26.50</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">الخيار الأكثر طلباً</p>
+                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')">اشتراك 3 شهور</button>
                         </div>
                         <div class="pricing-card featured" data-plan="month6">
-                            <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="planBestVal">BEST VALUE</div>
-                            <h4 data-i18n="plan6Mo">6 Months</h4><div class="old-price">$65</div><div class="price-num" id="p-val-month6">$45.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan6Desc">Exceptional value for creators</p>
-                            <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')" data-i18n="btnSub6Mo">Subscribe 6 Months</button>
+                            <div style="font-size:11px; color:var(--accent); font-weight:bold;">الأكثر توفيراً</div>
+                            <h4>6 شهور</h4><div class="old-price">$65</div><div class="price-num" id="p-val-month6">$45.50</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">قيمة استثنائية لصناع المحتوى</p>
+                            <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')">اشتراك 6 شهور</button>
                         </div>
                         <div class="pricing-card" data-plan="year1">
-                            <h4 data-i18n="plan1Yr">1 Year</h4><div class="old-price">$110</div><div class="price-num" id="p-val-year1">$77.00</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan1YrDesc">Maximum savings</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="btnSubYr">Subscribe Yearly</button>
+                            <h4>سنة كاملة</h4><div class="old-price">$110</div><div class="price-num" id="p-val-year1">$77.00</div>
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">أقصى توفير مع دعم دائم</p>
+                            <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')">اشتراك سنوي</button>
                         </div>
                     </div>
                 </div>
@@ -455,84 +448,84 @@
         </main>
     </div>
 
-    <!-- Modals -->
+    <!-- نافذة تأكيد الشروط ونسخ الكوبون قبل الدفع -->
     <div class="modal-overlay" id="preCheckoutModal">
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
             <div style="font-size: 38px; text-align: center; margin-bottom: 8px;">⚠️</div>
-            <div class="modal-title" style="margin-bottom: 12px;" data-i18n="mod18Title">Important Subscription Terms</div>
+            <div class="modal-title" style="margin-bottom: 12px;">شروط الاشتراك المهمة</div>
             
-            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #fca5a5; line-height: 1.7;" data-i18n="mod18Text">
-                🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google from running the AI engine.
+            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #fca5a5; line-height: 1.7; text-align: right;">
+                🔞 <strong>شرط أساسي لفتح وتشغيل أداة التوليد:</strong><br>
+                يجب أن يكون حساب Google المرتبط مسجلاً بعمر <strong>18 سنة أو أكبر</strong>. الحسابات الخاضعة لبرامج الرقابة الأبوية (Family Link) أو الأقل من 18 عاماً تمنعها Google تلقائياً من تشغيل أداة الذكاء الاصطناعي.
             </div>
 
             <div style="background: rgba(99, 102, 241, 0.1); border: 1px dashed var(--primary); border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 18px;">
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;" data-i18n="modCodeLbl">Launch Discount Code:</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">كود خصم الإطلاق المتاح لمدة أسبوع:</div>
                 <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
                     <code style="font-size: 18px; font-weight: 900; color: #38bdf8; letter-spacing: 1px; background: rgba(0,0,0,0.35); padding: 4px 12px; border-radius: 6px;">LAUNCH30</code>
-                    <button type="button" onclick="copyLaunchCoupon()" style="background: var(--primary); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold;" data-i18n="modCodeBtn">Copy Code 📋</button>
+                    <button type="button" onclick="copyLaunchCoupon()" style="background: var(--primary); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold;">نسخ الكود 📋</button>
                 </div>
-                <div style="font-size: 11px; color: #cbd5e1; margin-top: 8px;" data-i18n="modCodeDesc">
-                    Please paste this code in the <strong>"Add promo code"</strong> field during checkout for 30% off.
+                <div style="font-size: 11px; color: #cbd5e1; margin-top: 8px;">
+                    يرجى لصق الكود في خانة <strong>"Add promo code"</strong> داخل صفحة الدفع لتخفيض السعر بنسبة 30%.
                 </div>
             </div>
 
             <div class="modal-actions" style="flex-direction: column; gap: 8px;">
-                <button class="modal-btn modal-btn-primary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="proceedToWhopCheckout()" data-i18n="btnConfirm18">I confirm I am 18+, Proceed to Checkout ↗</button>
-                <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
+                <button class="modal-btn modal-btn-primary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="proceedToWhopCheckout()">أؤكد أن حسابي +18، ومتابعة للدفع ↗</button>
+                <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeModals()">إلغاء</button>
             </div>
         </div>
     </div>
 
-    <!-- Sub Status Modal -->
+    <!-- نافذة تفاصيل الاشتراك المحسوبة بدقة -->
     <div class="modal-overlay" id="subStatusModal">
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title" data-i18n="modSubTitle">Your Subscription Details</div>
+            <div class="modal-title">تفاصيل اشتراكك</div>
             <div class="sub-info-grid">
-                <div class="sub-info-item"><div class="label" data-i18n="lblCurPlan">Current Plan</div><div class="value" id="modalPlanName">PRO</div></div>
-                <div class="sub-info-item"><div class="label" data-i18n="lblStartDate">Start Date</div><div class="value" id="modalStartDate">—</div></div>
-                <div class="sub-info-item"><div class="label" data-i18n="lblEndDate">End Date</div><div class="value" id="modalExpiryDate">—</div></div>
-                <div class="sub-info-item"><div class="label" data-i18n="lblTimeLeft">Time Left</div><div class="value" id="modalDaysLeft" style="color:#38bdf8;">—</div></div>
+                <div class="sub-info-item"><div class="label">الباقة الحالية</div><div class="value" id="modalPlanName">PRO</div></div>
+                <div class="sub-info-item"><div class="label">تاريخ البدء</div><div class="value" id="modalStartDate">—</div></div>
+                <div class="sub-info-item"><div class="label">تاريخ الانتهاء</div><div class="value" id="modalExpiryDate">—</div></div>
+                <div class="sub-info-item"><div class="label">الوقت المتبقي بدقة</div><div class="value" id="modalDaysLeft" style="color:#38bdf8;">—</div></div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-                <button class="modal-btn modal-btn-primary" onclick="openPricingModal()" data-i18n="btnRenew">Renew or Upgrade Plan</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()">إلغاء</button>
+                <button class="modal-btn modal-btn-primary" onclick="openPricingModal()">تجديد أو ترقية الباقة</button>
             </div>
         </div>
     </div>
 
-    <!-- Pricing Modal -->
     <div class="modal-overlay" id="pricingModal">
         <div class="modal-box large">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title" data-i18n="plansTitle">Choose Your Plan</div>
+            <div class="modal-title" id="pricingModalTitle">اختر باقتك</div>
             
             <div class="pricing-grid">
                 <div class="pricing-card" data-plan="month1">
-                    <h4 data-i18n="plan1Mo">1 Month</h4><div class="old-price">$15</div><div class="price-num" id="modal-p-month1">$10.50</div>
-                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="btnSubMonth">Subscribe Monthly</button>
+                    <h4>شهر واحد</h4><div class="old-price">$15</div><div class="price-num" id="modal-p-month1">$10.50</div>
+                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')">اشتراك شهري</button>
                 </div>
                 <div class="pricing-card" data-plan="month3">
-                    <h4 data-i18n="plan3Mo">3 Months</h4><div class="old-price">$38</div><div class="price-num" id="modal-p-month3">$26.50</div>
-                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="btnSub3Mo">Subscribe 3 Months</button>
+                    <h4>3 شهور</h4><div class="old-price">$38</div><div class="price-num" id="modal-p-month3">$26.50</div>
+                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')">اشتراك 3 شهور</button>
                 </div>
                 <div class="pricing-card featured" data-plan="month6">
-                    <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="planBestVal">BEST VALUE</div>
-                    <h4 data-i18n="plan6Mo">6 Months</h4><div class="old-price">$65</div><div class="price-num" id="modal-p-month6">$45.50</div>
-                    <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')" data-i18n="btnSub6Mo">Subscribe 6 Months</button>
+                    <div style="font-size:11px; color:var(--accent); font-weight:bold;">الأكثر توفيراً</div>
+                    <h4>6 شهور</h4><div class="old-price">$65</div><div class="price-num" id="modal-p-month6">$45.50</div>
+                    <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')">اشتراك 6 شهور</button>
                 </div>
                 <div class="pricing-card" data-plan="year1">
-                    <h4 data-i18n="plan1Yr">1 Year</h4><div class="old-price">$110</div><div class="price-num" id="modal-p-year1">$77.00</div>
-                    <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="btnSubYr">Subscribe Yearly</button>
+                    <h4>سنة كاملة</h4><div class="old-price">$110</div><div class="price-num" id="modal-p-year1">$77.00</div>
+                    <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')">اشتراك سنوي</button>
                 </div>
             </div>
 
             <div class="coupon-box" style="max-width: 400px; margin: 20px auto 0; background: rgba(255,255,255,0.03); border: 1px dashed var(--primary); border-radius: 14px; padding: 15px; text-align: center;">
-                <h4 data-i18n="couponTitle">Have an activation or promo code?</h4>
+                <h4>هل تمتلك كود تفعيل أو خصم؟</h4>
                 <div class="coupon-input-group" style="display: flex; gap: 8px; margin-top: 10px;">
                     <input type="text" id="couponInput" placeholder="..." style="flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none;">
-                    <button onclick="applyCoupon()" style="padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer;" data-i18n="btnApply">Apply</button>
+                    <button onclick="applyCoupon()" style="padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer;">تطبيق</button>
                 </div>
                 <div id="couponMsg" style="font-size:12px; margin-top:8px; font-weight:bold;"></div>
             </div>
@@ -542,7 +535,7 @@
     <div class="modal-overlay" id="faqModal">
         <div class="modal-box large">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title" data-i18n="modFaqTitle">FAQ & Documentation</div>
+            <div class="modal-title">الأسئلة الشائعة</div>
             <div class="faq-wrap" id="faqList"></div>
         </div>
     </div>
@@ -550,11 +543,11 @@
     <div class="modal-overlay" id="deleteModal">
         <div class="modal-box">
             <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">⚠️</div>
-            <div class="modal-title" data-i18n="modDelTitle">Delete Account</div>
-            <div class="modal-text" data-i18n="modDelText">Your account, subscription, and all data will be permanently deleted. This action cannot be undone.</div>
+            <div class="modal-title">حذف الحساب نهائياً</div>
+            <div class="modal-text">سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع عن هذا الإجراء.</div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-                <button class="modal-btn modal-btn-danger" onclick="executeDeleteAccount()" data-i18n="btnPermDelete">Delete Permanently</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()">إلغاء</button>
+                <button class="modal-btn modal-btn-danger" onclick="executeDeleteAccount()">حذف نهائي</button>
             </div>
         </div>
     </div>
@@ -563,146 +556,26 @@
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
             <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">🛡️</div>
-            <div class="modal-title" style="text-align: center;" data-i18n="modWarnTitle">Important Notice Before Starting</div>
-            <div class="modal-text" style="line-height: 1.8;" data-i18n="modWarnText">
-                When you launch the tool, Google might show a message saying <em>"Google hasn't verified this app"</em>.<br><br>
-                This is a standard security procedure. Please click on <strong>"Advanced"</strong> then <strong>"Go to App"</strong>, and approve the connection.<br><br>
-                💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> For the best workspace experience, press <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> to enter full screen mode!
+            <div class="modal-title" style="text-align: center;">تنبيه هام قبل البدء</div>
+            <div class="modal-text" style="text-align: right; line-height: 1.8;">
+                بمجرد انتقالك للأداة، قد تظهر لك رسالة من Google تفيد بأن <em>"مطوراً مستقلاً أنشأ هذا التطبيق"</em>.<br><br>
+                هذا إجراء أمني روتيني طبيعي من جوجل. يرجى المتابعة بالضغط على <strong>"Advanced" (متقدم)</strong> ثم <strong>"Go to App" (الانتقال للتطبيق)</strong>، ثم الموافقة.<br><br>
+                💡 <span style="color:var(--primary); font-weight:bold;">نصيحة احترافية:</span> لتكبير الشاشة وملء الشاشة بالكامل للحصول على أفضل تجربة، اضغط على زر <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> وابدأ الإبداع!
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-                <button class="modal-btn modal-btn-primary" onclick="executeLaunchTool()" data-i18n="btnUnderstand">I understand, open tool</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModals()">إلغاء</button>
+                <button class="modal-btn modal-btn-primary" onclick="executeLaunchTool()">فهمت ذلك، افتح الأداة</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // 1. Language & Translation Dictionary (Fully Translated 10 Languages)
-        // ==========================================
-        const langNames = { en: "English", ar: "العربية", es: "Español", fr: "Français", de: "Deutsch", it: "Italiano", pt: "Português", ru: "Русский", zh: "中文", ja: "日本語" };
-        let currentLang = 'en';
-        
-        const translations = {
-            en: {
-                logoSub: "Create • Edit • Inspire", navHome: "Home", navGen: "Image Generator", navGallery: "Gallery", navFaq: "FAQ & Guide", navSub: "Subscription",
-                statusFree: "Free Account", btnManageSub: "Manage Subscription", bannerOffer: "🔥 Launch Week Offer: 30% OFF all plans! Copy code:", bannerTimerText: "Ends in:", btnClaimOffer: "Claim Offer", searchPlaceholder: "Search for tools or FAQs...",
-                dropStatusLabel: "Subscription Status", dropManage: "Manage Subscription", dropDelete: "Delete Account", dropLogout: "Logout",
-                heroPill: "Welcome to Artify PRO", heroTitle: "Turn your ideas into <span>Stunning Images</span>", heroDesc: "Create high-quality professional images using advanced AI engines with 100% character face consistency.",
-                btnStartNow: "Start Now", btnWatchDemo: "Watch Demo", floatHeader: "Advanced AI", float1: "100% Face Consistency", float2: "Sequential Generation", float3: "Cinematic UHD Quality",
-                toolsTitle: "Your Tools", toolsSub: "Select a tool to begin", lockText: "Click to Subscribe & Unlock", tagPopular: "Most Popular", tagGuide: "Comprehensive Guide",
-                tool1Title: "Canvas Pro (Image Gen)", tool1Desc: "Integrated studio for generation, editing, and character face locking.", btnOpenTool: "Open Tool",
-                tool2Title: "FAQ & Documentation", tool2Desc: "Full answers for subscription details, usage policies, and workflows.", btnReadFaq: "Read FAQs",
-                inspTitle: "Inspiration", inspSub: "Hover to copy prompt", plansTitle: "Choose Your Plan", luckyTitle: "You are very lucky!", luckyDesc1: "You are one of the early testers. Your rank is", luckyDesc2: "out of 15 FREE accounts!", secretCodeLbl: "Secret Code:", btnApplySecret: "Apply Code Now ⚡",
-                plan1Mo: "1 Month", plan3Mo: "3 Months", plan6Mo: "6 Months", plan1Yr: "1 Year", planBestVal: "BEST VALUE",
-                plan1Desc: "Flexible monthly renewal", plan3Desc: "Most popular choice", plan6Desc: "Exceptional value for creators", plan1YrDesc: "Maximum savings",
-                btnSubMonth: "Subscribe Monthly", btnSub3Mo: "Subscribe 3 Months", btnSub6Mo: "Subscribe 6 Months", btnSubYr: "Subscribe Yearly",
-                mod18Title: "Important Subscription Terms", mod18Text: "🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google.",
-                modCodeLbl: "Launch Discount Code:", modCodeBtn: "Copy Code 📋", modCodeDesc: "Please paste this code in the <strong>Add promo code</strong> field during checkout for 30% off.",
-                btnConfirm18: "I confirm I am 18+, Proceed to Checkout ↗", btnCancel: "Cancel", btnRenew: "Renew or Upgrade Plan",
-                modSubTitle: "Your Subscription Details", lblCurPlan: "Current Plan", lblStartDate: "Start Date", lblEndDate: "End Date", lblTimeLeft: "Time Left",
-                couponTitle: "Have an activation or promo code?", btnApply: "Apply",
-                modFaqTitle: "FAQ & Documentation", modDelTitle: "Delete Account", modDelText: "Your account, subscription, and all data will be permanently deleted. This action cannot be undone.", btnPermDelete: "Delete Permanently",
-                modWarnTitle: "Important Notice Before Starting", modWarnText: 'When you launch the tool, Google might show a message saying <em>"Google hasn\'t verified this app"</em>.<br><br>This is a standard procedure. Click <strong>"Advanced"</strong> then <strong>"Go to App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> Press <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> for full screen!', btnUnderstand: "I understand, open tool",
-                toastCopy: "Prompt copied successfully", toastCopyCode: "LAUNCH30 code copied successfully!", toastLoginReq: "Please login with Google first", toastSubReq: "PRO subscription required to open the tool", toastLogout: "Logged out successfully", toastDeleted: "Account deleted permanently", toastDemo: "Demo video coming soon!"
-            },
-            ar: {
-                logoSub: "أنشئ • عدّل • ألهم", navHome: "الرئيسية", navGen: "مولد الصور", navGallery: "المعرض", navFaq: "الأسئلة الشائعة", navSub: "الاشتراك",
-                statusFree: "حساب مجاني", btnManageSub: "إدارة الاشتراك", bannerOffer: "🔥 عرض الإطلاق: خصم 30%! الكود:", bannerTimerText: "ينتهي خلال:", btnClaimOffer: "احجز باقتك", searchPlaceholder: "ابحث عن أدوات أو أسئلة...",
-                dropStatusLabel: "حالة الاشتراك", dropManage: "إدارة الاشتراك", dropDelete: "حذف الحساب", dropLogout: "تسجيل الخروج",
-                heroPill: "مرحباً بك في Artify PRO", heroTitle: "حوّل أفكارك إلى <span>صور مذهلة</span>", heroDesc: "أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
-                btnStartNow: "ابدأ الآن", btnWatchDemo: "شاهد فيديو", floatHeader: "الذكاء الاصطناعي", float1: "ثبات ملامح الوجه 100%", float2: "توليد المشاهد المتسلسلة", float3: "دقة سينمائية فائقة",
-                toolsTitle: "أدواتك", toolsSub: "اختر الأداة للبدء", lockText: "اضغط للاشتراك وفتح الأداة", tagPopular: "الأكثر استخداماً", tagGuide: "دليل شامل",
-                tool1Title: "Canvas Pro (مولد الصور)", tool1Desc: "استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.", btnOpenTool: "فتح الأداة",
-                tool2Title: "الأسئلة الشائعة والدليل", tool2Desc: "إجابات كاملة لكل تفاصيل الاشتراك وسياسات الاستخدام.", btnReadFaq: "عرض الأسئلة",
-                inspTitle: "إلهام", inspSub: "مرر الماوس لنسخ البرومبت", plansTitle: "اختر باقتك", luckyTitle: "أنت محظوظ جداً!", luckyDesc1: "أنت من أوائل المجربين. رقمك هو", luckyDesc2: "من أصل 15 حساباً مجانياً!", secretCodeLbl: "الكود السري:", btnApplySecret: "تطبيق الكود فورا ⚡",
-                plan1Mo: "شهر واحد", plan3Mo: "3 شهور", plan6Mo: "6 شهور", plan1Yr: "سنة كاملة", planBestVal: "الأكثر توفيراً",
-                plan1Desc: "تجديد شهري مرن للأفراد", plan3Desc: "الخيار الأكثر طلباً", plan6Desc: "قيمة استثنائية لصناع المحتوى", plan1YrDesc: "أقصى توفير مع دعم دائم",
-                btnSubMonth: "اشتراك شهري", btnSub3Mo: "اشتراك 3 شهور", btnSub6Mo: "اشتراك 6 شهور", btnSubYr: "اشتراك سنوي",
-                mod18Title: "شروط الاشتراك المهمة", mod18Text: "🔞 <strong>شرط أساسي:</strong><br>يجب أن يكون حساب Google المرتبط مسجلاً بعمر <strong>18 سنة أو أكبر</strong>. الحسابات الأقل من 18 تمنعها Google من تشغيل الأداة.",
-                modCodeLbl: "كود خصم الإطلاق:", modCodeBtn: "نسخ الكود 📋", modCodeDesc: "يرجى لصق الكود في خانة <strong>Add promo code</strong> داخل صفحة الدفع لتخفيض السعر.",
-                btnConfirm18: "أؤكد أن حسابي +18، متابعة للدفع ↗", btnCancel: "إلغاء", btnRenew: "تجديد أو ترقية الباقة",
-                modSubTitle: "تفاصيل اشتراكك", lblCurPlan: "الباقة الحالية", lblStartDate: "تاريخ البدء", lblEndDate: "تاريخ الانتهاء", lblTimeLeft: "الوقت المتبقي",
-                couponTitle: "هل تمتلك كود تفعيل أو خصم؟", btnApply: "تطبيق",
-                modFaqTitle: "الأسئلة الشائعة والدليل", modDelTitle: "حذف الحساب نهائياً", modDelText: "سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع.", btnPermDelete: "حذف نهائي",
-                modWarnTitle: "تنبيه هام قبل البدء", modWarnText: 'بمجرد انتقالك للأداة، قد تظهر رسالة <em>"Google hasn\'t verified this app"</em>.<br><br>هذا إجراء أمني روتيني. اضغط <strong>"Advanced"</strong> ثم <strong>"Go to App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">نصيحة:</span> لتكبير الشاشة اضغط <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd>!', btnUnderstand: "فهمت ذلك، افتح الأداة",
-                toastCopy: "تم نسخ البرومبت بنجاح", toastCopyCode: "تم نسخ كود LAUNCH30 بنجاح!", toastLoginReq: "يرجى تسجيل الدخول بحساب Google أولاً", toastSubReq: "يلزم تفعيل اشتراك PRO لفتح الأداة", toastLogout: "تم تسجيل الخروج", toastDeleted: "تم حذف الحساب نهائياً", toastDemo: "سيتم إضافة الفيديو التوضيحي قريباً!"
-            },
-            es: {
-                logoSub: "Crear • Editar • Inspirar", navHome: "Inicio", navGen: "Generador de Imágenes", navGallery: "Galería", navFaq: "FAQ y Guía", navSub: "Suscripción", statusFree: "Cuenta Gratis", btnManageSub: "Gestionar Suscripción", bannerOffer: "🔥 ¡Oferta de Lanzamiento: 30% de descuento! Código:", bannerTimerText: "Termina en:", btnClaimOffer: "Reclamar Oferta", searchPlaceholder: "Buscar herramientas o FAQs...", dropStatusLabel: "Estado de Suscripción", dropManage: "Gestionar Suscripción", dropDelete: "Eliminar Cuenta", dropLogout: "Cerrar Sesión", heroPill: "Bienvenido a Artify PRO", heroTitle: "Convierte tus ideas en <span>Imágenes Increíbles</span>", heroDesc: "Crea imágenes profesionales de alta calidad usando motores de IA avanzados con 100% de consistencia facial.", btnStartNow: "Empezar Ahora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistencia Facial", float2: "Generación Secuencial", float3: "Calidad UHD Cinemática", toolsTitle: "Tus Herramientas", toolsSub: "Selecciona una herramienta para empezar", lockText: "Haz clic para suscribirte y desbloquear", tagPopular: "Más Popular", tagGuide: "Guía Completa", tool1Title: "Canvas Pro (Generador)", tool1Desc: "Estudio integrado para generación, edición y bloqueo facial.", btnOpenTool: "Abrir Herramienta", tool2Title: "FAQ y Documentación", tool2Desc: "Respuestas completas para detalles de suscripción y uso.", btnReadFaq: "Leer FAQs", inspTitle: "Inspiración", inspSub: "Pase el ratón para copiar el prompt", plansTitle: "Elige Tu Plan", luckyTitle: "¡Tienes mucha suerte!", luckyDesc1: "Eres de los primeros probadores. Tu rango es", luckyDesc2: "de 15 cuentas GRATIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Aplicar Código ⚡", plan1Mo: "1 Mes", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Año", planBestVal: "MEJOR VALOR", plan1Desc: "Renovación mensual flexible", plan3Desc: "La opción más popular", plan6Desc: "Valor excepcional para creadores", plan1YrDesc: "Máximo ahorro", btnSubMonth: "Suscripción Mensual", btnSub3Mo: "Suscripción 3 Meses", btnSub6Mo: "Suscripción 6 Meses", btnSubYr: "Suscripción Anual", mod18Title: "Términos de Suscripción", mod18Text: "🔞 <strong>Requisito:</strong><br>Tu cuenta de Google debe ser de <strong>18 años o mayor</strong>.", modCodeLbl: "Código de Descuento:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Pega este código en <strong>Add promo code</strong> durante el pago para un 30% de descuento.", btnConfirm18: "Confirmo que soy +18, Ir al Pago ↗", btnCancel: "Cancelar", btnRenew: "Renovar o Mejorar Plan", modSubTitle: "Tus Detalles de Suscripción", lblCurPlan: "Plan Actual", lblStartDate: "Fecha Inicio", lblEndDate: "Fecha Fin", lblTimeLeft: "Tiempo Restante", couponTitle: "¿Tienes un código promo?", btnApply: "Aplicar", modFaqTitle: "FAQ y Documentación", modDelTitle: "Eliminar Cuenta", modDelText: "Tu cuenta y datos serán eliminados permanentemente. Esta acción no se puede deshacer.", btnPermDelete: "Eliminar Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'Google puede mostrar <em>"Google no ha verificado esta app"</em>. Haz clic en <strong>"Avanzado"</strong> y luego en <strong>"Ir a la App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Consejo:</span> ¡Presiona <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> para pantalla completa!', btnUnderstand: "Entiendo, abrir herramienta", toastCopy: "Prompt copiado con éxito", toastCopyCode: "¡Código LAUNCH30 copiado!", toastLoginReq: "Inicia sesión con Google primero", toastSubReq: "Suscripción PRO requerida para abrir", toastLogout: "Sesión cerrada", toastDeleted: "Cuenta eliminada", toastDemo: "¡Demo próximamente!"
-            },
-            fr: {
-                logoSub: "Créer • Éditer • Inspirer", navHome: "Accueil", navGen: "Générateur d'Images", navGallery: "Galerie", navFaq: "FAQ & Guide", navSub: "Abonnement", statusFree: "Compte Gratuit", btnManageSub: "Gérer l'Abonnement", bannerOffer: "🔥 Offre de Lancement : -30% ! Code :", bannerTimerText: "Se termine dans :", btnClaimOffer: "Profiter de l'offre", searchPlaceholder: "Rechercher des outils ou FAQ...", dropStatusLabel: "Statut de l'Abonnement", dropManage: "Gérer l'Abonnement", dropDelete: "Supprimer le Compte", dropLogout: "Déconnexion", heroPill: "Bienvenue sur Artify PRO", heroTitle: "Transformez vos idées en <span>Images Superbes</span>", heroDesc: "Créez des images professionnelles de haute qualité avec l'IA et une cohérence faciale à 100%.", btnStartNow: "Commencer", btnWatchDemo: "Voir la Démo", floatHeader: "IA Avancée", float1: "Cohérence Faciale 100%", float2: "Génération Séquentielle", float3: "Qualité UHD Cinématique", toolsTitle: "Vos Outils", toolsSub: "Sélectionnez un outil pour commencer", lockText: "Cliquez pour vous abonner et débloquer", tagPopular: "Le Plus Populaire", tagGuide: "Guide Complet", tool1Title: "Canvas Pro (Générateur)", tool1Desc: "Studio intégré pour la génération, l'édition et le verrouillage du visage.", btnOpenTool: "Ouvrir l'Outil", tool2Title: "FAQ & Documentation", tool2Desc: "Réponses complètes pour les détails d'abonnement et politiques.", btnReadFaq: "Lire la FAQ", inspTitle: "Inspiration", inspSub: "Survolez pour copier le prompt", plansTitle: "Choisissez Votre Plan", luckyTitle: "Vous êtes très chanceux !", luckyDesc1: "Vous êtes parmi les premiers testeurs. Votre rang est", luckyDesc2: "sur 15 comptes GRATUITS !", secretCodeLbl: "Code Secret :", btnApplySecret: "Appliquer le Code ⚡", plan1Mo: "1 Mois", plan3Mo: "3 Mois", plan6Mo: "6 Mois", plan1Yr: "1 An", planBestVal: "MEILLEUR CHOIX", plan1Desc: "Renouvellement mensuel flexible", plan3Desc: "Le choix le plus populaire", plan6Desc: "Valeur exceptionnelle pour les créateurs", plan1YrDesc: "Économies maximales", btnSubMonth: "S'abonner (Mensuel)", btnSub3Mo: "S'abonner (3 Mois)", btnSub6Mo: "S'abonner (6 Mois)", btnSubYr: "S'abonner (Annuel)", mod18Title: "Conditions d'Abonnement", mod18Text: "🔞 <strong>Condition requise :</strong><br>Votre compte Google doit être enregistré avec un âge de <strong>18 ans ou plus</strong>.", modCodeLbl: "Code de Réduction :", modCodeBtn: "Copier le Code 📋", modCodeDesc: "Collez ce code dans <strong>Add promo code</strong> lors du paiement pour -30%.", btnConfirm18: "Je confirme avoir 18+, Payer ↗", btnCancel: "Annuler", btnRenew: "Renouveler le Plan", modSubTitle: "Détails de l'Abonnement", lblCurPlan: "Plan Actuel", lblStartDate: "Date de Début", lblEndDate: "Date de Fin", lblTimeLeft: "Temps Restant", couponTitle: "Avez-vous un code promo ?", btnApply: "Appliquer", modFaqTitle: "FAQ & Documentation", modDelTitle: "Supprimer le Compte", modDelText: "Votre compte et vos données seront définitivement supprimés.", btnPermDelete: "Supprimer Définitivement", modWarnTitle: "Avis Important", modWarnText: 'Google peut afficher <em>"Google n\'a pas vérifié cette application"</em>. Cliquez sur <strong>"Paramètres avancés"</strong> puis <strong>"Aller à l\'application"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Astuce :</span> Appuyez sur <kbd>F11</kbd> pour le plein écran !', btnUnderstand: "Je comprends, ouvrir l'outil", toastCopy: "Prompt copié", toastCopyCode: "Code LAUNCH30 copié !", toastLoginReq: "Veuillez vous connecter avec Google", toastSubReq: "Abonnement PRO requis", toastLogout: "Déconnexion réussie", toastDeleted: "Compte supprimé", toastDemo: "Démo à venir !"
-            },
-            de: {
-                logoSub: "Erstellen • Bearbeiten • Inspirieren", navHome: "Startseite", navGen: "Bildgenerator", navGallery: "Galerie", navFaq: "FAQ & Anleitung", navSub: "Abonnement", statusFree: "Kostenloses Konto", btnManageSub: "Abo verwalten", bannerOffer: "🔥 Einführungsangebot: 30% Rabatt! Code:", bannerTimerText: "Endet in:", btnClaimOffer: "Angebot einlösen", searchPlaceholder: "Suchen Sie nach Tools oder FAQs...", dropStatusLabel: "Abo-Status", dropManage: "Abo verwalten", dropDelete: "Konto löschen", dropLogout: "Abmelden", heroPill: "Willkommen bei Artify PRO", heroTitle: "Verwandle deine Ideen in <span>Atemberaubende Bilder</span>", heroDesc: "Erstellen Sie hochwertige professionelle Bilder mit 100% Gesichtskonsistenz.", btnStartNow: "Jetzt Starten", btnWatchDemo: "Demo ansehen", floatHeader: "Erweiterte KI", float1: "100% Gesichtskonsistenz", float2: "Sequenzielle Generierung", float3: "Kino-UHD-Qualität", toolsTitle: "Deine Tools", toolsSub: "Wähle ein Tool, um zu beginnen", lockText: "Klicken zum Abonnieren & Entsperren", tagPopular: "Beliebtestes", tagGuide: "Umfassender Leitfaden", tool1Title: "Canvas Pro (Generator)", tool1Desc: "Integriertes Studio für Generierung und Gesichtssperre.", btnOpenTool: "Tool öffnen", tool2Title: "FAQ & Dokumentation", tool2Desc: "Vollständige Antworten zu Abos und Richtlinien.", btnReadFaq: "FAQs lesen", inspTitle: "Inspiration", inspSub: "Hovern, um den Prompt zu kopieren", plansTitle: "Wähle deinen Plan", luckyTitle: "Du hast großes Glück!", luckyDesc1: "Du bist einer der ersten Tester. Dein Rang ist", luckyDesc2: "von 15 GRATIS-Konten!", secretCodeLbl: "Geheimcode:", btnApplySecret: "Code Anwenden ⚡", plan1Mo: "1 Monat", plan3Mo: "3 Monate", plan6Mo: "6 Monate", plan1Yr: "1 Jahr", planBestVal: "BESTER WERT", plan1Desc: "Flexible monatliche Verlängerung", plan3Desc: "Die beliebteste Wahl", plan6Desc: "Außergewöhnlicher Wert für Schöpfer", plan1YrDesc: "Maximale Ersparnis", btnSubMonth: "Monatlich abonnieren", btnSub3Mo: "3 Monate abonnieren", btnSub6Mo: "6 Monate abonnieren", btnSubYr: "Jährlich abonnieren", mod18Title: "Wichtige Abo-Bedingungen", mod18Text: "🔞 <strong>Voraussetzung:</strong><br>Dein Google-Konto muss für <strong>18 Jahre oder älter</strong> registriert sein.", modCodeLbl: "Rabattcode:", modCodeBtn: "Code Kopieren 📋", modCodeDesc: "Füge diesen Code beim Bezahlen unter <strong>Add promo code</strong> ein für 30% Rabatt.", btnConfirm18: "Ich bin 18+, zur Kasse ↗", btnCancel: "Abbrechen", btnRenew: "Plan verlängern oder upgraden", modSubTitle: "Deine Abo-Details", lblCurPlan: "Aktueller Plan", lblStartDate: "Startdatum", lblEndDate: "Enddatum", lblTimeLeft: "Verbleibende Zeit", couponTitle: "Hast du einen Promo-Code?", btnApply: "Anwenden", modFaqTitle: "FAQ & Dokumentation", modDelTitle: "Konto löschen", modDelText: "Dein Konto und alle Daten werden dauerhaft gelöscht.", btnPermDelete: "Dauerhaft Löschen", modWarnTitle: "Wichtiger Hinweis", modWarnText: 'Google zeigt eventuell <em>"Google hat diese App nicht überprüft"</em>. Klicke auf <strong>"Erweitert"</strong> und <strong>"Zur App gehen"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro-Tipp:</span> <kbd>F11</kbd> für Vollbildmodus!', btnUnderstand: "Ich verstehe, Tool öffnen", toastCopy: "Prompt kopiert", toastCopyCode: "Code LAUNCH30 kopiert!", toastLoginReq: "Bitte zuerst bei Google anmelden", toastSubReq: "PRO-Abo erforderlich", toastLogout: "Erfolgreich abgemeldet", toastDeleted: "Konto gelöscht", toastDemo: "Demo kommt bald!"
-            },
-            it: {
-                logoSub: "Crea • Modifica • Ispira", navHome: "Home", navGen: "Generatore di Immagini", navGallery: "Galleria", navFaq: "FAQ e Guida", navSub: "Abbonamento", statusFree: "Account Gratuito", btnManageSub: "Gestisci Abbonamento", bannerOffer: "🔥 Offerta di Lancio: 30% di sconto! Codice:", bannerTimerText: "Scade in:", btnClaimOffer: "Richiedi Offerta", searchPlaceholder: "Cerca strumenti o FAQ...", dropStatusLabel: "Stato Abbonamento", dropManage: "Gestisci Abbonamento", dropDelete: "Elimina Account", dropLogout: "Esci", heroPill: "Benvenuto su Artify PRO", heroTitle: "Trasforma le tue idee in <span>Immagini Incredibili</span>", heroDesc: "Crea immagini professionali di alta qualità con intelligenza artificiale.", btnStartNow: "Inizia Ora", btnWatchDemo: "Guarda la Demo", floatHeader: "IA Avanzata", float1: "100% Coerenza Facciale", float2: "Generazione Sequenziale", float3: "Qualità UHD Cinematografica", toolsTitle: "I Tuoi Strumenti", toolsSub: "Seleziona uno strumento per iniziare", lockText: "Clicca per abbonarti e sbloccare", tagPopular: "Più Popolare", tagGuide: "Guida Completa", tool1Title: "Canvas Pro (Generatore)", tool1Desc: "Studio integrato per generazione e blocco facciale.", btnOpenTool: "Apri Strumento", tool2Title: "FAQ e Documentazione", tool2Desc: "Risposte complete per abbonamenti e politiche di utilizzo.", btnReadFaq: "Leggi le FAQ", inspTitle: "Ispirazione", inspSub: "Passa il mouse per copiare il prompt", plansTitle: "Scegli Il Tuo Piano", luckyTitle: "Sei molto fortunato!", luckyDesc1: "Sei tra i primi tester. Il tuo posto è", luckyDesc2: "su 15 account GRATUITI!", secretCodeLbl: "Codice Segreto:", btnApplySecret: "Applica Codice ⚡", plan1Mo: "1 Mese", plan3Mo: "3 Mesi", plan6Mo: "6 Mesi", plan1Yr: "1 Anno", planBestVal: "MIGLIOR VALORE", plan1Desc: "Rinnovo mensile flessibile", plan3Desc: "La scelta più popolare", plan6Desc: "Valore eccezionale per i creatori", plan1YrDesc: "Risparmio massimo", btnSubMonth: "Abbonati Mensilmente", btnSub3Mo: "Abbonati a 3 Mesi", btnSub6Mo: "Abbonati a 6 Mesi", btnSubYr: "Abbonati Annualmente", mod18Title: "Termini di Abbonamento", mod18Text: "🔞 <strong>Requisito:</strong><br>Il tuo account Google deve essere registrato per <strong>18 anni o più</strong>.", modCodeLbl: "Codice Sconto:", modCodeBtn: "Copia Codice 📋", modCodeDesc: "Incolla questo codice in <strong>Add promo code</strong> durante il pagamento per il 30% di sconto.", btnConfirm18: "Confermo di avere 18+, Vai al Pagamento ↗", btnCancel: "Annulla", btnRenew: "Rinnova o Migliora", modSubTitle: "Dettagli Abbonamento", lblCurPlan: "Piano Attuale", lblStartDate: "Data di Inizio", lblEndDate: "Data di Fine", lblTimeLeft: "Tempo Rimasto", couponTitle: "Hai un codice promozionale?", btnApply: "Applica", modFaqTitle: "FAQ e Documentazione", modDelTitle: "Elimina Account", modDelText: "Il tuo account e tutti i dati verranno eliminati in modo permanente.", btnPermDelete: "Elimina Definitivamente", modWarnTitle: "Avviso Importante", modWarnText: 'Google potrebbe mostrare <em>"Google non ha verificato questa app"</em>. Clicca su <strong>"Avanzate"</strong> e poi <strong>"Vai all\'app"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Suggerimento:</span> Premi <kbd>F11</kbd> per lo schermo intero!', btnUnderstand: "Capisco, apri lo strumento", toastCopy: "Prompt copiato", toastCopyCode: "Codice copiato!", toastLoginReq: "Accedi con Google prima", toastSubReq: "Abbonamento PRO richiesto", toastLogout: "Scollegato con successo", toastDeleted: "Account eliminato", toastDemo: "Demo in arrivo!"
-            },
-            pt: {
-                logoSub: "Criar • Editar • Inspirar", navHome: "Início", navGen: "Gerador de Imagens", navGallery: "Galeria", navFaq: "FAQ e Guia", navSub: "Assinatura", statusFree: "Conta Gratuita", btnManageSub: "Gerenciar Assinatura", bannerOffer: "🔥 Oferta de Lançamento: 30% de desconto! Código:", bannerTimerText: "Termina em:", btnClaimOffer: "Garantir Oferta", searchPlaceholder: "Procurar ferramentas ou FAQs...", dropStatusLabel: "Status da Assinatura", dropManage: "Gerenciar Assinatura", dropDelete: "Excluir Conta", dropLogout: "Sair", heroPill: "Bem-vindo ao Artify PRO", heroTitle: "Transforme suas ideias em <span>Imagens Incríveis</span>", heroDesc: "Crie imagens profissionais com IA avançada e 100% de consistência facial.", btnStartNow: "Começar Agora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avançada", float1: "100% Consistência Facial", float2: "Geração Sequencial", float3: "Qualidade UHD Cinemática", toolsTitle: "Suas Ferramentas", toolsSub: "Selecione uma ferramenta para começar", lockText: "Clique para assinar e desbloquear", tagPopular: "Mais Popular", tagGuide: "Guia Completo", tool1Title: "Canvas Pro (Gerador)", tool1Desc: "Estúdio integrado para geração e bloqueio facial.", btnOpenTool: "Abrir Ferramenta", tool2Title: "FAQ e Documentação", tool2Desc: "Respostas completas para assinaturas e políticas de uso.", btnReadFaq: "Ler FAQs", inspTitle: "Inspiração", inspSub: "Passe o mouse para copiar", plansTitle: "Escolha Seu Plano", luckyTitle: "Você é muito sortudo!", luckyDesc1: "Você é um dos primeiros testadores. Sua posição é", luckyDesc2: "de 15 contas GRÁTIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Aplicar Código ⚡", plan1Mo: "1 Mês", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Ano", planBestVal: "MELHOR VALOR", plan1Desc: "Renovação mensal flexível", plan3Desc: "A escolha mais popular", plan6Desc: "Valor excepcional para criadores", plan1YrDesc: "Economia máxima", btnSubMonth: "Assinar Mensal", btnSub3Mo: "Assinar 3 Meses", btnSub6Mo: "Assinar 6 Meses", btnSubYr: "Assinar Anual", mod18Title: "Termos de Assinatura", mod18Text: "🔞 <strong>Requisito:</strong><br>Sua conta do Google deve ter <strong>18 anos ou mais</strong>.", modCodeLbl: "Código de Desconto:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Cole este código em <strong>Add promo code</strong> durante o pagamento para 30% off.", btnConfirm18: "Confirmo ter 18+, Ir para Pagamento ↗", btnCancel: "Cancelar", btnRenew: "Renovar ou Melhorar Plano", modSubTitle: "Detalhes da Assinatura", lblCurPlan: "Plano Atual", lblStartDate: "Data de Início", lblEndDate: "Data de Fim", lblTimeLeft: "Tempo Restante", couponTitle: "Tem um código promocional?", btnApply: "Aplicar", modFaqTitle: "FAQ e Documentação", modDelTitle: "Excluir Conta", modDelText: "Sua conta e dados serão excluídos permanentemente.", btnPermDelete: "Excluir Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'O Google pode mostrar <em>"O Google não verificou este app"</em>. Clique em <strong>"Avançado"</strong> e depois em <strong>"Acessar o App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Dica:</span> Pressione <kbd>F11</kbd> para tela cheia!', btnUnderstand: "Entendo, abrir ferramenta", toastCopy: "Prompt copiado", toastCopyCode: "Código copiado com sucesso!", toastLoginReq: "Faça login com o Google primeiro", toastSubReq: "Assinatura PRO necessária", toastLogout: "Desconectado", toastDeleted: "Conta excluída", toastDemo: "Demo em breve!"
-            },
-            ru: {
-                logoSub: "Создавай • Редактируй • Вдохновляй", navHome: "Главная", navGen: "Генератор", navGallery: "Галерея", navFaq: "FAQ и Руководство", navSub: "Подписка", statusFree: "Бесплатный аккаунт", btnManageSub: "Управление подпиской", bannerOffer: "🔥 Скидка 30% в честь запуска! Код:", bannerTimerText: "До конца:", btnClaimOffer: "Получить", searchPlaceholder: "Поиск...", dropStatusLabel: "Статус подписки", dropManage: "Управление подпиской", dropDelete: "Удалить аккаунт", dropLogout: "Выйти", heroPill: "Добро пожаловать в Artify PRO", heroTitle: "Преврати свои идеи в <span>Потрясающие Изображения</span>", heroDesc: "Создавайте профессиональные изображения с помощью ИИ и 100% согласованности лиц.", btnStartNow: "Начать", btnWatchDemo: "Смотреть демо", floatHeader: "Продвинутый ИИ", float1: "100% Согласованность Лиц", float2: "Последовательная генерация", float3: "Кинематографическое качество UHD", toolsTitle: "Ваши Инструменты", toolsSub: "Выберите инструмент", lockText: "Подпишитесь, чтобы разблокировать", tagPopular: "Популярное", tagGuide: "Руководство", tool1Title: "Canvas Pro", tool1Desc: "Интегрированная студия для генерации и блокировки лиц.", btnOpenTool: "Открыть", tool2Title: "FAQ и Документация", tool2Desc: "Ответы на вопросы о подписке.", btnReadFaq: "Читать FAQ", inspTitle: "Вдохновение", inspSub: "Наведите, чтобы скопировать промпт", plansTitle: "Выберите план", luckyTitle: "Вам очень повезло!", luckyDesc1: "Вы один из первых. Ваш ранг", luckyDesc2: "из 15 БЕСПЛАТНЫХ мест!", secretCodeLbl: "Секретный код:", btnApplySecret: "Применить ⚡", plan1Mo: "1 Месяц", plan3Mo: "3 Месяца", plan6Mo: "6 Месяцев", plan1Yr: "1 Год", planBestVal: "ЛУЧШИЙ ВЫБОР", plan1Desc: "Гибкое продление", plan3Desc: "Популярный выбор", plan6Desc: "Идеально для криэйторов", plan1YrDesc: "Максимальная экономия", btnSubMonth: "Подписка на месяц", btnSub3Mo: "Подписка на 3 месяца", btnSub6Mo: "Подписка на 6 месяцев", btnSubYr: "Подписка на год", mod18Title: "Условия подписки", mod18Text: "🔞 Ваш аккаунт Google должен быть зарегистрирован для пользователей <strong>старше 18 лет</strong>.", modCodeLbl: "Код на скидку:", modCodeBtn: "Копировать код 📋", modCodeDesc: "Вставьте код в поле <strong>Add promo code</strong> при оплате для скидки 30%.", btnConfirm18: "Мне есть 18+, к оплате ↗", btnCancel: "Отмена", btnRenew: "Продлить план", modSubTitle: "Детали подписки", lblCurPlan: "Ваш план", lblStartDate: "Дата начала", lblEndDate: "Дата окончания", lblTimeLeft: "Осталось времени", couponTitle: "Есть промокод?", btnApply: "Применить", modFaqTitle: "FAQ и Руководство", modDelTitle: "Удалить аккаунт", modDelText: "Ваш аккаунт и данные будут безвозвратно удалены.", btnPermDelete: "Удалить навсегда", modWarnTitle: "Важное замечание", modWarnText: 'Google может показать сообщение <em>"Это приложение не проверено"</em>. Нажмите <strong>"Дополнительные настройки"</strong>, затем <strong>"Перейти на страницу приложения"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Совет:</span> Нажмите <kbd>F11</kbd> для полноэкранного режима!', btnUnderstand: "Понятно, открыть инструмент", toastCopy: "Промпт скопирован", toastCopyCode: "Код скопирован!", toastLoginReq: "Пожалуйста, войдите через Google", toastSubReq: "Требуется подписка PRO", toastLogout: "Выход выполнен", toastDeleted: "Аккаунт удален", toastDemo: "Демо скоро появится!"
-            },
-            zh: {
-                logoSub: "创造 • 编辑 • 启发", navHome: "主页", navGen: "图像生成器", navGallery: "画廊", navFaq: "常见问题", navSub: "订阅", statusFree: "免费账户", btnManageSub: "管理订阅", bannerOffer: "🔥 首发优惠：全场七折！复制折扣码：", bannerTimerText: "结束于：", btnClaimOffer: "获取优惠", searchPlaceholder: "搜索...", dropStatusLabel: "订阅状态", dropManage: "管理订阅", dropDelete: "删除账户", dropLogout: "退出", heroPill: "欢迎来到 Artify PRO", heroTitle: "将您的想法转化为 <span>惊艳的图像</span>", heroDesc: "使用高级 AI 创建 100% 脸部一致性的高质量图像。", btnStartNow: "立即开始", btnWatchDemo: "观看演示", floatHeader: "高级 AI", float1: "100% 脸部一致性", float2: "连续生成", float3: "电影级 UHD 画质", toolsTitle: "您的工具", toolsSub: "选择工具开始", lockText: "点击订阅以解锁", tagPopular: "最受欢迎", tagGuide: "全面指南", tool1Title: "Canvas Pro", tool1Desc: "图像生成和角色面部锁定综合工作室。", btnOpenTool: "打开工具", tool2Title: "常见问题与文档", tool2Desc: "有关订阅和使用政策的完整解答。", btnReadFaq: "阅读 FAQ", inspTitle: "灵感", inspSub: "悬停以复制提示词", plansTitle: "选择您的计划", luckyTitle: "您非常幸运！", luckyDesc1: "您是早期测试者。您的排名是", luckyDesc2: "/ 15 个免费账户！", secretCodeLbl: "秘密代码：", btnApplySecret: "立即应用 ⚡", plan1Mo: "1 个月", plan3Mo: "3 个月", plan6Mo: "6 个月", plan1Yr: "1 年", planBestVal: "最超值", plan1Desc: "灵活的月度续订", plan3Desc: "最受欢迎的选择", plan6Desc: "创作者的超值选择", plan1YrDesc: "最大节省", btnSubMonth: "包月", btnSub3Mo: "包季", btnSub6Mo: "包半年", btnSubYr: "包年", mod18Title: "重要订阅条款", mod18Text: "🔞 <strong>核心要求：</strong><br>您的 Google 账户必须注册为 <strong>18 岁或以上</strong>。", modCodeLbl: "折扣码：", modCodeBtn: "复制代码 📋", modCodeDesc: "结账时将代码粘贴在 <strong>Add promo code</strong> 以获取 30% 折扣。", btnConfirm18: "我确认已满 18 岁，前往付款 ↗", btnCancel: "取消", btnRenew: "续订或升级", modSubTitle: "订阅详情", lblCurPlan: "当前计划", lblStartDate: "开始日期", lblEndDate: "结束日期", lblTimeLeft: "剩余时间", couponTitle: "有促销代码？", btnApply: "应用", modFaqTitle: "常见问题与文档", modDelTitle: "删除账户", modDelText: "您的账户和所有数据将被永久删除。", btnPermDelete: "永久删除", modWarnTitle: "开始前的重要提示", modWarnText: 'Google 可能会提示 <em>"Google 未验证此应用"</em>。这是标准程序。点击 <strong>"高级"</strong>，然后 <strong>"前往应用"</strong>。<br><br>💡 <span style="color:var(--primary); font-weight:bold;">提示：</span> 按 <kbd>F11</kbd> 全屏！', btnUnderstand: "我明白，打开工具", toastCopy: "提示词已复制", toastCopyCode: "折扣码已复制！", toastLoginReq: "请先登录 Google", toastSubReq: "需要 PRO 订阅", toastLogout: "已登出", toastDeleted: "账户已永久删除", toastDemo: "演示视频即将推出！"
-            },
-            ja: {
-                logoSub: "作成 • 編集 • インスパイア", navHome: "ホーム", navGen: "画像生成", navGallery: "ギャラリー", navFaq: "FAQとガイド", navSub: "サブスクリプション", statusFree: "無料アカウント", btnManageSub: "サブスクリプション管理", bannerOffer: "🔥 リリース記念: 30%オフ！コード:", bannerTimerText: "終了まで:", btnClaimOffer: "特典を取得", searchPlaceholder: "検索...", dropStatusLabel: "ステータス", dropManage: "管理", dropDelete: "アカウント削除", dropLogout: "ログアウト", heroPill: "Artify PRO へようこそ", heroTitle: "アイデアを <span>素晴らしい画像</span> に", heroDesc: "顔の一貫性が100%の高品質なAI画像を生成します。", btnStartNow: "始める", btnWatchDemo: "デモを見る", floatHeader: "高度なAI", float1: "顔の一貫性 100%", float2: "連続画像生成", float3: "シネマティックUHD", toolsTitle: "ツール", toolsSub: "ツールを選択", lockText: "登録してロック解除", tagPopular: "人気", tagGuide: "包括的なガイド", tool1Title: "Canvas Pro", tool1Desc: "画像生成と顔固定のための統合スタジオ。", btnOpenTool: "開く", tool2Title: "FAQとドキュメント", tool2Desc: "サブスクリプションとポリシーの完全な回答。", btnReadFaq: "FAQを読む", inspTitle: "インスピレーション", inspSub: "ホバーしてプロンプトをコピー", plansTitle: "プランを選択", luckyTitle: "あなたはとても幸運です！", luckyDesc1: "あなたは初期テスターです。順位は", luckyDesc2: "/ 15 無料アカウント中！", secretCodeLbl: "秘密のコード:", btnApplySecret: "コードを適用 ⚡", plan1Mo: "1ヶ月", plan3Mo: "3ヶ月", plan6Mo: "6ヶ月", plan1Yr: "1年", planBestVal: "ベストバリュー", plan1Desc: "柔軟な月次更新", plan3Desc: "最も人気の選択肢", plan6Desc: "クリエイターに最適", plan1YrDesc: "最大の節約", btnSubMonth: "月額登録", btnSub3Mo: "3ヶ月登録", btnSub6Mo: "6ヶ月登録", btnSubYr: "年額登録", mod18Title: "重要事項", mod18Text: "🔞 <strong>要件:</strong><br>Googleアカウントは <strong>18歳以上</strong> である必要があります。", modCodeLbl: "割引コード:", modCodeBtn: "コードをコピー 📋", modCodeDesc: "決済時に <strong>Add promo code</strong> に貼り付けて30%オフ。", btnConfirm18: "18歳以上です。決済へ進む ↗", btnCancel: "キャンセル", btnRenew: "プランを更新", modSubTitle: "サブスクリプション詳細", lblCurPlan: "現在のプラン", lblStartDate: "開始日", lblEndDate: "終了日", lblTimeLeft: "残り時間", couponTitle: "プロモコードがありますか？", btnApply: "適用", modFaqTitle: "FAQとドキュメント", modDelTitle: "アカウント削除", modDelText: "アカウントとすべてのデータは完全に削除されます。", btnPermDelete: "完全に削除", modWarnTitle: "開始前の重要な通知", modWarnText: 'Google が <em>"このアプリは確認されていません"</em> と表示する場合があります。<strong>「詳細」</strong> から <strong>「アプリへ移動」</strong> をクリックしてください。<br><br>💡 <span style="color:var(--primary); font-weight:bold;">ヒント:</span> <kbd>F11</kbd> キーで全画面表示に！', btnUnderstand: "理解しました", toastCopy: "コピーしました", toastCopyCode: "コードをコピーしました！", toastLoginReq: "Googleでログインしてください", toastSubReq: "PROサブスクリプションが必要です", toastLogout: "ログアウトしました", toastDeleted: "削除しました", toastDemo: "デモは近日公開！"
-            }
-        };
-
-        function changeLanguage(lang) {
-            currentLang = lang;
-            document.documentElement.lang = lang;
-            document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
-            
-            document.getElementById('langCurrentLabel').innerText = langNames[lang];
-            
-            document.querySelectorAll('.lang-option').forEach(opt => {
-                opt.classList.remove('active');
-                opt.querySelector('.check-mark').style.display = 'none';
-            });
-            const activeOpt = document.querySelector(`.lang-option[onclick="changeLanguage('${lang}')"]`);
-            if (activeOpt) {
-                activeOpt.classList.add('active');
-                activeOpt.querySelector('.check-mark').style.display = 'inline';
-            }
-            toggleLangDropdown();
-
-            // Apply translations dynamically with 100% coverage
-            const dict = translations[lang] || translations['en'];
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (dict[key]) {
-                    if (el.tagName === 'INPUT') el.placeholder = dict[key];
-                    else el.innerHTML = dict[key];
-                } else if (translations['en'][key]) {
-                    if (el.tagName === 'INPUT') el.placeholder = translations['en'][key];
-                    else el.innerHTML = translations['en'][key];
-                }
-            });
-            
-            renderFaq(); // Re-render FAQ to match language
-        }
-
-        // ==========================================
-        // UI Interactions & Auth
-        // ==========================================
-        let currentUser = null;
+        const langNames = { ar:"العربية", en:"English" };
+        let currentLang = 'ar'; let currentUser = null;
         let pendingCheckoutUrl = '';
 
         function toggleLangDropdown() { document.getElementById('langDropdown').classList.toggle('show'); document.getElementById('userDropdown').classList.remove('show');}
         function toggleUserDropdown() { document.getElementById('userDropdown').classList.toggle('show'); document.getElementById('langDropdown').classList.remove('show');}
-        
-        document.getElementById('globalSearchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const query = this.value.trim();
-                if (query) showToast(`No results for "${query}" yet.`, 'warning');
-            }
-        });
 
         function showToast(msg, type='success') {
             const container = document.getElementById('toast-container');
@@ -713,7 +586,8 @@
             setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
-        function playPromoVideo() { showToast(translations[currentLang]?.toastDemo || translations['en'].toastDemo, 'success'); } 
+        function showSoonToast() { showToast('هذه الميزة ستتوفر قريباً', 'warning'); }
+        function playPromoVideo() { showToast('سيتم إضافة الفيديو التوضيحي قريباً!', 'success'); } 
 
         function scrollToSection(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
         function scrollToPricing() { scrollToSection('renewPlansAnchor'); }
@@ -724,65 +598,59 @@
             if (!document.getElementById('langMenuArea').contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
         });
 
+        // العداد التنازلي لمدة أسبوع كامل
         function startGlobalTimer() {
             const countDownDate = new Date("Sep 16, 2026 22:00:00").getTime();
+            
             const timerInterval = setInterval(function() {
                 const now = new Date().getTime();
                 const distance = countDownDate - now;
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                const d = days < 10 ? "0" + days : days;
+                const h = hours < 10 ? "0" + hours : hours;
+                const m = minutes < 10 ? "0" + minutes : minutes;
+                const s = seconds < 10 ? "0" + seconds : seconds;
+
+                const timerEl = document.getElementById("countdownTimer");
+                if (timerEl) timerEl.innerText = `[ ${d} : ${h} : ${m} : ${s} ]`;
+
                 if (distance < 0) {
                     clearInterval(timerInterval);
                     const banner = document.getElementById("globalBanner");
                     if (banner) banner.style.display = "none";
-                    return;
                 }
-                const d = Math.floor(distance / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
-                const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
-                const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-                const s = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
-                const timerEl = document.getElementById("countdownTimer");
-                if (timerEl) timerEl.innerText = `[ ${d} : ${h} : ${m} : ${s} ]`;
             }, 1000);
         }
 
         function copyLaunchCoupon() {
             navigator.clipboard.writeText('LAUNCH30');
-            showToast(translations[currentLang]?.toastCopyCode || translations['en'].toastCopyCode, 'success');
+            showToast('تم نسخ كود الخصم LAUNCH30 بنجاح!', 'success');
         }
 
-        // ==================================================
-        // اصلاح صندوق Early Bird - يعمل لجميع الزوار!
-        // ==================================================
         async function fetchPromoStats() {
-            const earlyBox = document.getElementById("earlyBirdBox");
-            const rankEl = document.getElementById("userRankNumber");
-
-            // 1. إذا كان المستخدم مشترك فعلياً (PRO)، يختفي الصندوق لأنه لا يحتاجه.
-            if (currentUser && currentUser.subscriptionActive) {
-                if (earlyBox) earlyBox.style.display = 'none';
-                return;
-            }
-
-            // 2. إذا كان زائر جديد (غير مسجل الدخول)، نظهر الصندوق إجبارياً כطعم تسويقي
-            // (لأن السيرفر يرفض إعطاء الإحصائيات للزوار بسبب حماية requireAuth)
-            if (!currentUser) {
-                if (earlyBox) earlyBox.style.display = 'block';
-                if (rankEl) rankEl.innerText = '#VIP';
-                return;
-            }
-
-            // 3. إذا كان مستخدم مسجل الدخول ولكنه ليس PRO، نجلب رقمه الحقيقي من السيرفر
             try {
-                const res = await fetch('/api/promo-stats', { credentials: 'include' });
+                const res = await fetch('/api/promo-stats');
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                if (data.active && data.remaining > 0) {
-                    if (earlyBox) earlyBox.style.display = 'block';
-                    if (rankEl) rankEl.innerText = `#${data.currentRank}`;
-                } else {
-                    if (earlyBox) earlyBox.style.display = 'none'; // انتهت المقاعد
+                const earlyBox = document.getElementById("earlyBirdBox");
+                const rankEl = document.getElementById("userRankNumber");
+
+                if ((currentUser && currentUser.subscriptionActive) || !data.active || data.remaining <= 0) {
+                    if (earlyBox) earlyBox.style.display = 'none';
+                    return;
                 }
-            } catch (e) { console.log('Promo stats error'); }
+
+                if (earlyBox) earlyBox.style.display = 'block';
+                if (rankEl) rankEl.innerText = `#${data.currentRank}`;
+            } catch (e) {
+                console.log('Failed to fetch promo stats');
+            }
         }
 
         function autoFillPromoCode() {
@@ -810,40 +678,28 @@
                     <img src="${item.url}" alt="AI Scene" loading="lazy" />
                     <div class="insp-overlay">
                         <p class="insp-prompt">${item.prompt}</p>
-                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">📋 Copy</button>
+                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">📋 نسخ</button>
                     </div>
                 </div>
             `).join('');
         }
 
         function copyPrompt(text) {
-            if (!currentUser || !currentUser.subscriptionActive) { 
-                showToast(translations[currentLang]?.toastSubReq || translations['en'].toastSubReq, 'danger'); 
-                openPricingModal(); return; 
-            }
-            navigator.clipboard.writeText(text); 
-            showToast(translations[currentLang]?.toastCopy || translations['en'].toastCopy, 'success');
+            if (!currentUser || !currentUser.subscriptionActive) { showToast('ميزة نسخ البرومبت لمشتركي PRO فقط', 'danger'); openPricingModal(); return; }
+            navigator.clipboard.writeText(text); showToast('تم نسخ البرومبت بنجاح', 'success');
         }
 
-        const faqsEN = [
-            { q:"Does any Google account work?", a:"To generate professional images, the linked Google account must be registered as 18 years or older. Family Link accounts cannot use the tool." },
-            { q:"Are there any additional Google fees?", a:"No, the tool utilizes your free Google quota. The subscription covers all Artify PRO software features." },
-            { q:"Is there a limit to image generation?", a:"PRO subscribers get unlimited generations during their subscription period at the highest quality." },
-            { q:"How does face consistency work?", a:"The tool uses smart algorithms to lock the same features and face across different scenes. Just enable Character Consistency in the studio." },
-            { q:"Do I own the generated images?", a:"Yes, all images generated via your account are fully owned by you and can be used commercially without restrictions." }
-        ];
-        const faqsAR = [
-            { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. حسابات Family Link لن تعمل." },
-            { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية لـ Artify PRO." },
-            { q:"هل هناك حد أقصى للتوليد؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك بأعلى جودة." },
-            { q:"كيف تعمل ميزة ثبات ملامح الشخصيات؟", a:"تستخدم الأداة خوارزميات ذكية لتثبيت نفس الملامح عبر مشاهد مختلفة بتفعيل خيار Character Consistency." },
-            { q:"هل الصور الناتجة مملوكة لي تجارياً؟", a:"نعم، جميع الصور مملوكة لك بالكامل ويمكنك استخدامها تجارياً دون قيود." }
+        const faqs = [
+            { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." },
+            { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO." },
+            { q:"هل هناك حد أقصى لعدد الصور التي يمكنني توليدها؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك." },
+            { q:"هل الصور الناتجة مملوكة لي بالكامل ويمكن استخدامها تجارياً؟", a:"نعم، جميع الصور التي تولّدها عبر حسابك مملوكة لك بالكامل ويمكنك استخدامها في مشاريعك التجارية دون قيود." },
+            { q:"ما هي طرق الدفع المتاحة وسياسة الاسترجاع؟", a:"ندعم الدفع بأمان عبر Whop (بطاقات ائتمان و Apple Pay و Google Pay)، مع ضمان استرجاع 7 أيام للمشاكل التقنية." }
         ];
 
         function renderFaq() {
             const wrap = document.getElementById('faqList');
-            const faqData = currentLang === 'ar' ? faqsAR : faqsEN;
-            wrap.innerHTML = faqData.map(item => `
+            wrap.innerHTML = faqs.map(item => `
                 <div class="faq-item">
                     <button class="faq-question" onclick="this.closest('.faq-item').classList.toggle('active')">
                         <span>${item.q}</span> <span class="plus">+</span>
@@ -858,29 +714,45 @@
         function openFaqModal() { closeModals(); document.getElementById('faqModal').classList.add('show'); }
         function openDeleteModal() { document.getElementById('userDropdown').classList.remove('show'); closeModals(); document.getElementById('deleteModal').classList.add('show'); }
 
+        // ============================================================
+        // دالة إدارة الاشتراك المحسوبة بدقة (الأيام والساعات وتصحيح 1970)
+        // ============================================================
         function manageSubscriptionFlow() {
             document.getElementById('userDropdown').classList.remove('show');
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
+            if (!currentUser) { showToast('يرجى تسجيل الدخول بحساب Google أولاً', 'danger'); return; }
             if (currentUser.subscriptionActive) {
                 closeModals();
                 document.getElementById('modalPlanName').innerText = "Artify PRO";
                 
-                let startDateObj = (currentUser.startedAt && Number(currentUser.startedAt) > 0) ? new Date(Number(currentUser.startedAt)) : new Date(Number(currentUser.expiresAt) - (30 * 24 * 60 * 60 * 1000));
-                document.getElementById('modalStartDate').innerText = startDateObj.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+                // تصحيح تاريخ البدء (إذا كان 0 يُعرض تاريخ اليوم أو قبل شهر من الانتهاء)
+                let startDateObj;
+                if (currentUser.startedAt && Number(currentUser.startedAt) > 0) {
+                    startDateObj = new Date(Number(currentUser.startedAt));
+                } else {
+                    startDateObj = new Date(Number(currentUser.expiresAt) - (30 * 24 * 60 * 60 * 1000));
+                }
+                document.getElementById('modalStartDate').innerText = startDateObj.toLocaleDateString('ar-EG');
                 
+                // تاريخ الانتهاء
                 const expiryDateObj = new Date(Number(currentUser.expiresAt));
-                document.getElementById('modalExpiryDate').innerText = expiryDateObj.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+                document.getElementById('modalExpiryDate').innerText = expiryDateObj.toLocaleDateString('ar-EG');
                 
+                // حساب الوقت المتبقي بالساعات والأيام بدقة بدلاً من التقريب الصامت
                 const diffMs = expiryDateObj.getTime() - Date.now();
                 if (diffMs <= 0) {
-                    document.getElementById('modalDaysLeft').innerText = currentLang === 'ar' ? "انتهى" : "Expired";
+                    document.getElementById('modalDaysLeft').innerText = "انتهى الاشتراك";
                 } else {
                     const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
                     const days = Math.floor(totalHours / 24);
                     const remainingHours = totalHours % 24;
-                    if (days > 0) document.getElementById('modalDaysLeft').innerText = currentLang === 'ar' ? `${days} يوم و ${remainingHours} ساعة` : `${days} Days, ${remainingHours} Hours`;
-                    else document.getElementById('modalDaysLeft').innerText = currentLang === 'ar' ? `${remainingHours} ساعة متبقية` : `${remainingHours} Hours left`;
+                    
+                    if (days > 0) {
+                        document.getElementById('modalDaysLeft').innerText = `${days} يوم و ${remainingHours} ساعة`;
+                    } else {
+                        document.getElementById('modalDaysLeft').innerText = `${remainingHours} ساعة متبقية`;
+                    }
                 }
+
                 document.getElementById('subStatusModal').classList.add('show');
             } else {
                 openPricingModal();
@@ -888,44 +760,81 @@
         }
 
         function promptPlan(plan) {
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            const whopLinks = { 'month1': 'https://whop.com/checkout/plan_1AFMWzPSMlWF7', 'month3': 'https://whop.com/checkout/plan_hhPYAFHhQnZ2p', 'month6': 'https://whop.com/checkout/plan_SFcazKZDf63GC', 'year1': 'https://whop.com/checkout/plan_PJeLIwlopBsLV' };
+            if (!currentUser) { 
+                showToast('يرجى تسجيل الدخول بحساب Google أولاً', 'danger'); 
+                return; 
+            }
+            
+            const whopLinks = {
+                'month1': 'https://whop.com/checkout/plan_1AFMWzPSMlWF7',
+                'month3': 'https://whop.com/checkout/plan_hhPYAFHhQnZ2p',
+                'month6': 'https://whop.com/checkout/plan_SFcazKZDf63GC',
+                'year1': 'https://whop.com/checkout/plan_PJeLIwlopBsLV'
+            };
+
             pendingCheckoutUrl = whopLinks[plan];
-            if (pendingCheckoutUrl) { closeModals(); document.getElementById('preCheckoutModal').classList.add('show'); }
+            
+            if (pendingCheckoutUrl) {
+                closeModals();
+                document.getElementById('preCheckoutModal').classList.add('show');
+            }
         }
 
-        function proceedToWhopCheckout() { closeModals(); if (pendingCheckoutUrl) window.open(pendingCheckoutUrl, '_blank'); }
+        function proceedToWhopCheckout() {
+            closeModals();
+            if (pendingCheckoutUrl) {
+                window.open(pendingCheckoutUrl, '_blank');
+            }
+        }
 
         function handleToolAction() {
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            if (!currentUser.subscriptionActive) { showToast(translations[currentLang]?.toastSubReq || translations['en'].toastSubReq, 'danger'); openPricingModal(); return; }
+            if (!currentUser) { showToast('يرجى تسجيل الدخول بحساب Google أولاً', 'danger'); return; }
+            if (!currentUser.subscriptionActive) { showToast('يلزم تفعيل اشتراك PRO لفتح الأداة', 'danger'); openPricingModal(); return; }
+            
             const hasSeenWarning = localStorage.getItem('artify_warning_shown');
-            if (!hasSeenWarning) { closeModals(); document.getElementById('launchWarningModal').classList.add('show'); } 
-            else launchToolDirectly();
+            if (!hasSeenWarning) {
+                closeModals(); 
+                document.getElementById('launchWarningModal').classList.add('show');
+            } else {
+                launchToolDirectly();
+            }
         }
 
-        function executeLaunchTool() { localStorage.setItem('artify_warning_shown', 'true'); closeModals(); launchToolDirectly(); }
-        function launchToolDirectly() { window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`); }
+        function executeLaunchTool() {
+            localStorage.setItem('artify_warning_shown', 'true');
+            closeModals();
+            launchToolDirectly();
+        }
+
+        function launchToolDirectly() {
+            const screenW = window.screen.availWidth;
+            const screenH = window.screen.availHeight;
+            const features = `width=${screenW},height=${screenH},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+            window.open('/api/launch-app', 'ArtifyWorkspace', features);
+        }
 
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
 
         window.onload = function () {
-            startGlobalTimer(); initMarquee();
+            startGlobalTimer(); 
+            renderFaq(); 
+            initMarquee();
             google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
             google.accounts.id.renderButton(document.getElementById("g_id_signin_container"), { theme: "outline", size: "medium", text: "signin_with", shape: "pill" });
             checkSession();
-            
-            // Default to English unless browser is arabic
-            if (navigator.language.startsWith('ar')) changeLanguage('ar');
-            else changeLanguage('en');
         };
 
         async function handleGoogleCredential(response) {
             try {
                 const res = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ credential: response.credential }) });
-                if (res.ok) { showToast('Login successful', 'success'); checkSession(); } 
-                else showToast('Login failed', 'danger');
-            } catch(e) { showToast('Connection error', 'danger'); }
+                const data = await res.json();
+                if (res.ok) { 
+                    showToast('تم تسجيل الدخول بنجاح!', 'success'); 
+                    checkSession(); 
+                } else { 
+                    showToast(data.error || 'تعذّر تسجيل الدخول', 'danger'); 
+                }
+            } catch(e) { showToast('حدث خطأ في الاتصال، حاول مجدداً', 'danger'); }
         }
 
         async function checkSession() {
@@ -942,9 +851,9 @@
 
             if (!user) {
                 gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex';
-                document.getElementById('sidebarSubStatus').innerText = translations[currentLang]?.statusFree || translations['en'].statusFree; 
-                document.getElementById('quotaCount').innerText = '0 / 10';
-                fetchPromoStats(); return;
+                document.getElementById('sidebarSubStatus').innerText = 'حساب مجاني'; document.getElementById('quotaCount').innerText = '0 / 10';
+                fetchPromoStats(); 
+                return;
             }
 
             gBtn.style.display = 'none'; uMenu.style.display = 'flex';
@@ -953,41 +862,45 @@
 
             if (user.subscriptionActive) {
                 lock.style.display = 'none';
-                const dateStr = new Date(Number(user.expiresAt)).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+                const dateStr = new Date(Number(user.expiresAt)).toLocaleDateString('ar-EG');
                 document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
                 dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
+                fetchPromoStats(); 
             } else {
                 lock.style.display = 'flex';
-                document.getElementById('sidebarSubStatus').innerText = translations[currentLang]?.statusFree || translations['en'].statusFree;
-                dropSubStatus.innerText = translations[currentLang]?.dropLogout ? 'Inactive' : 'Inactive';
+                document.getElementById('sidebarSubStatus').innerText = 'غير مفعل';
+                dropSubStatus.innerText = 'حساب غير مفعل';
+                fetchPromoStats(); 
             }
-            fetchPromoStats(); 
         }
 
         async function applyCoupon() {
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            let code = document.getElementById('couponInput').value.trim() || "MOAZA2FREE";
+            if (!currentUser) { showToast('سجّل الدخول أولاً لتطبيق الكوبون', 'danger'); return; }
+            let code = document.getElementById('couponInput').value.trim();
+            if(!code) code = "MOAZA2FREE";
             const msgEl = document.getElementById('couponMsg'); 
             try {
                 const res = await fetch('/api/apply-coupon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ couponCode: code }) });
                 const data = await res.json();
-                if (res.ok && data.type === 'free') {
-                    msgEl.style.color = 'var(--success)'; msgEl.innerText = 'PRO Activated successfully!'; 
-                    showToast('PRO Activated successfully!', 'success');
-                    fetchPromoStats(); setTimeout(() => { closeModals(); checkSession(); }, 1200);
-                } else { msgEl.style.color = 'var(--danger)'; msgEl.innerText = data.error || 'Invalid code'; }
-            } catch (e) { msgEl.innerText = 'Connection error'; }
+                if (res.ok) {
+                    if (data.type === 'free') {
+                        msgEl.style.color = 'var(--success)'; msgEl.innerText = 'تمت ترقية حسابك إلى PRO مجاناً!'; showToast('تمت ترقية حسابك إلى PRO مجاناً!', 'success');
+                        fetchPromoStats();
+                        setTimeout(() => { closeModals(); checkSession(); }, 1200);
+                    }
+                } else { msgEl.style.color = 'var(--danger)'; msgEl.innerText = data.error || 'الكود غير صحيح أو منتهي'; }
+            } catch (e) { msgEl.innerText = 'حدث خطأ في الاتصال، حاول مجدداً'; }
         }
 
         async function executeDeleteAccount() {
-            try { await fetch('/api/delete-account', { method: 'POST', credentials: 'include' }); closeModals(); logout(true); showToast(translations[currentLang]?.toastDeleted || translations['en'].toastDeleted, 'success'); } 
-            catch(e) { showToast('Failed to delete account', 'danger'); }
+            try { await fetch('/api/delete-account', { method: 'POST', credentials: 'include' }); closeModals(); logout(true); showToast('تم حذف الحساب نهائياً', 'success'); } 
+            catch(e) { showToast('تعذر حذف الحساب', 'danger'); }
         }
 
         async function logout(skipToast) {
             document.getElementById('userDropdown').classList.remove('show');
             await fetch('/api/logout', { method: 'POST', credentials: 'include' }); currentUser = null; updateDashboardUI(null);
-            if (!skipToast) showToast(translations[currentLang]?.toastLogout || translations['en'].toastLogout, 'success');
+            if (!skipToast) showToast('تم تسجيل الخروج', 'success');
         }
     </script>
 </body>
