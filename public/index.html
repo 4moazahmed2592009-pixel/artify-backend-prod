@@ -1,3 +1,461 @@
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import { MongoClient } from 'mongodb';
+import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+
+// 1. حماية CORS
+const allowedOrigins = [
+  'https://artify-backend-prod.vercel.app',
+  'http://localhost:3000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS'));
+    }
+  },
+  credentials: true
+}));
+
+app.use(cookieParser());
+
+// 2. التقاط الـ raw body لتمكين التحقق من توقيع الويب هوك بدقة
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// متغيرات البيئة الأساسية
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const JWT_SECRET = process.env.JWT_SECRET;
+const MONGODB_URI = process.env.MONGODB_URI;
+const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
+
+// الثابت السري الداخلي للعرض المجاني (لا يرسل أبداً للعميل)
+const EARLY_BIRD_CODE = 'MOAZA2FREE';
+
+const isProd = process.env.NODE_ENV === 'production';
+
+// تأمين: إيقاف السيرفر لو المتغيرات الأساسية غير موجودة
+if (!JWT_SECRET || !MONGODB_URI) {
+  console.error("FATAL ERROR: Missing essential environment variables (JWT_SECRET or MONGODB_URI)");
+  process.exit(1);
+}
+
+let dbClient = null;
+async function getDb() {
+  if (!dbClient) {
+    dbClient = new MongoClient(MONGODB_URI);
+    await dbClient.connect();
+  }
+  return dbClient.db('artify');
+}
+
+// ==========================================
+// تسجيل الدخول (Google Auth)
+// ==========================================
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing credential' });
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload.email.toLowerCase();
+    const name = payload.name;
+
+    const db = await getDb();
+    const users = db.collection('users');
+
+    let user = await users.findOne({ email });
+    const now = Date.now();
+
+    if (!user) {
+      user = {
+        email,
+        name,
+        created_at: now,
+        started_at: 0,
+        expires_at: 0,
+        subscription_active: false,
+        plan: 'free',
+        whop_id: null
+      };
+      await users.insertOne(user);
+    }
+
+    const token = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: isProd, 
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ success: true, email, name });
+  } catch (err) {
+    console.error('Google Auth Error:', err);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+// ==========================================
+// التحقق من جلسة المستخدم
+// ==========================================
+app.get('/api/me', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const db = await getDb();
+    const user = await db.collection('users').findOne({ email: decoded.email.toLowerCase() });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isSubscribed = user.subscription_active && (user.expires_at > Date.now());
+
+    res.json({
+      email: user.email,
+      name: user.name,
+      subscriptionActive: isSubscribed,
+      plan: user.plan || 'free',
+      startedAt: user.started_at || 0,
+      expiresAt: user.expires_at || 0
+    });
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// ==========================================
+// Webhook الدفع المؤمن
+// ==========================================
+app.post('/api/whop-webhook', async (req, res) => {
+  try {
+    if (WHOP_WEBHOOK_SECRET) {
+      let signature = req.headers['webhook-signature'] || req.headers['x-whop-signature'];
+      if (!signature) {
+        console.warn('Webhook rejected: Missing signature header');
+        return res.status(401).json({ error: 'Missing signature' });
+      }
+
+      if (signature.includes('v1,')) {
+        signature = signature.split('v1,')[1];
+      }
+
+      const expectedSignature = crypto
+        .createHmac('sha256', WHOP_WEBHOOK_SECRET)
+        .update(req.rawBody || JSON.stringify(req.body))
+        .digest('hex');
+      
+      const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+
+      if (!isValid) {
+        console.warn('Webhook rejected: Invalid signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    }
+
+    const event = req.body;
+    const action = event.action || event.type;
+    const data = event.data || event;
+
+    if (!data) return res.status(200).json({ received: true });
+
+    const email = (data.user?.email || data.member?.email || data.email || '').toLowerCase();
+    const planId = data.plan_id || (data.plan && data.plan.id) || (data.line_items && data.line_items[0]?.plan_id) || '';
+
+    if (!email) return res.status(200).json({ received: true, note: 'No email found' });
+
+    const db = await getDb();
+    const users = db.collection('users');
+    const now = Date.now();
+
+    let durationDays = 30;
+    if (planId === 'plan_hhPYAFHhQnZ2p') durationDays = 90;
+    else if (planId === 'plan_SFcazKZDf63GC') durationDays = 180;
+    else if (planId === 'plan_PJeLIwlopBsLV') durationDays = 365;
+    else if (planId === 'plan_1AFMWzPSMlWF7') durationDays = 30;
+
+    const durationMs = durationDays * 24 * 60 * 60 * 1000;
+
+    if (action === 'membership.activated' || action === 'payment.succeeded') {
+      const existingUser = await users.findOne({ email });
+      
+      let newExpiry = now + durationMs;
+      if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+        newExpiry = existingUser.expires_at + durationMs;
+      }
+
+      await users.updateOne(
+        { email },
+        {
+          $set: {
+            subscription_active: true,
+            plan: 'PRO',
+            started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+            expires_at: newExpiry,
+            whop_id: data.user?.id || data.id || null,
+            updated_at: now
+          }
+        },
+        { upsert: true }
+      );
+      console.log(`PRO activated for ${email} for ${durationDays} days`);
+      
+    } else if (action === 'membership.terminated' || action === 'membership.cancelled' || action === 'subscription.canceled') {
+      await users.updateOne(
+        { email },
+        {
+          $set: {
+            subscription_active: false,
+            plan: 'free',
+            updated_at: now
+          }
+        }
+      );
+      console.log(`Subscription deactivated for ${email}`);
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('Webhook processing error:', err);
+    res.status(200).json({ error: 'Webhook error handled' });
+  }
+});
+
+// ==========================================
+// تطبيق الكوبونات العادية (التي يدخلها المستخدم يدوياً)
+// ==========================================
+app.post('/api/apply-coupon', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'يرجى تسجيل الدخول أولاً' });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const email = decoded.email.toLowerCase();
+    const { couponCode } = req.body;
+
+    if (!couponCode) return res.status(400).json({ error: 'يرجى إدخال الكود' });
+
+    const cleanCode = couponCode.trim().toUpperCase();
+    const db = await getDb();
+    const coupons = db.collection('coupons');
+    const users = db.collection('users');
+
+    const coupon = await coupons.findOne({ code: cleanCode });
+    if (!coupon) return res.status(404).json({ error: 'كود التفعيل غير صحيح' });
+
+    if (coupon.used_count >= coupon.max_uses) {
+      return res.status(400).json({ error: 'عذراً، نفدت الاستخدامات المتاحة لهذا الكود' });
+    }
+
+    const updateResult = await coupons.updateOne(
+      { code: cleanCode, used_count: { $lt: coupon.max_uses } },
+      { $inc: { used_count: 1 } }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      return res.status(400).json({ error: 'عذراً، نفدت الاستخدامات المتاحة لهذا الكود' });
+    }
+
+    const now = Date.now();
+    const durationMs = (coupon.duration_days || 30) * 24 * 60 * 60 * 1000;
+    const existingUser = await users.findOne({ email });
+    let newExpiry = now + durationMs;
+
+    if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+      newExpiry = existingUser.expires_at + durationMs;
+    }
+
+    await users.updateOne(
+      { email },
+      {
+        $set: {
+          subscription_active: true,
+          plan: 'PRO_COUPON',
+          started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+          expires_at: newExpiry,
+          coupon_used: cleanCode,
+          updated_at: now
+        }
+      }
+    );
+
+    res.json({ success: true, type: 'free', message: 'تم تفعيل الحساب بنجاح!' });
+  } catch (err) {
+    res.status(500).json({ error: 'فشل تطبيق الكود' });
+  }
+});
+
+// ==========================================
+// مسار آمن لتفعيل مكافأة الـ Early Bird
+// السيرفر هو مصدر الحقيقة ولا يطلب أي كود من العميل
+// ==========================================
+app.post('/api/claim-early-bird', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'يرجى تسجيل الدخول أولاً' });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const email = decoded.email.toLowerCase();
+
+    const db = await getDb();
+    const coupons = db.collection('coupons');
+    const users = db.collection('users');
+
+    // استخدام الثابت الداخلي السري
+    const coupon = await coupons.findOne({ code: EARLY_BIRD_CODE });
+    if (!coupon) {
+       console.error("Early bird coupon document not found in DB.");
+       return res.status(500).json({ error: 'خطأ داخلي في الخادم' });
+    }
+
+    if (coupon.used_count >= coupon.max_uses) {
+      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة للعرض المحدود' });
+    }
+
+    // تأمين ضد الـ Race Conditions
+    const updateResult = await coupons.updateOne(
+      { code: EARLY_BIRD_CODE, used_count: { $lt: coupon.max_uses } },
+      { $inc: { used_count: 1 } }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية' });
+    }
+
+    const now = Date.now();
+    const durationMs = (coupon.duration_days || 30) * 24 * 60 * 60 * 1000;
+    const existingUser = await users.findOne({ email });
+    let newExpiry = now + durationMs;
+
+    if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+      newExpiry = existingUser.expires_at + durationMs;
+    }
+
+    await users.updateOne(
+      { email },
+      {
+        $set: {
+          subscription_active: true,
+          plan: 'VIP_PRO',
+          started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+          expires_at: newExpiry,
+          coupon_used: EARLY_BIRD_CODE,
+          updated_at: now
+        }
+      }
+    );
+
+    res.json({ success: true, type: 'free', message: 'تم تفعيل حساب VIP PRO بنجاح!' });
+  } catch (err) {
+    console.error('Early Bird Claim Error:', err);
+    res.status(500).json({ error: 'حدث خطأ أثناء تفعيل المكافأة' });
+  }
+});
+
+
+// ==========================================
+// إحصائيات المقاعد المجانية
+// ==========================================
+app.get('/api/promo-stats', async (req, res) => {
+  try {
+    const db = await getDb();
+    // نجلب بناءً على الثابت الداخلي
+    const coupon = await db.collection('coupons').findOne({ code: EARLY_BIRD_CODE });
+    if (!coupon) return res.json({ active: false });
+
+    res.json({
+      active: true,
+      remaining: Math.max(0, coupon.max_uses - coupon.used_count),
+      currentRank: coupon.used_count + 1
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch promo stats' });
+  }
+});
+
+// ==========================================
+// تشغيل الأداة
+// ==========================================
+app.get('/api/launch-app', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.redirect('/?error=unauthorized');
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const db = await getDb();
+    const user = await db.collection('users').findOne({ email: decoded.email.toLowerCase() });
+
+    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
+      return res.redirect('/?error=subscription_required');
+    }
+
+    res.redirect('https://script.google.com/macros/s/AKfycby9D8zK3a2uM_4oJ_f1W6oH7L-U4VqL-9nE-demo/exec');
+  } catch (err) {
+    console.error('Launch error:', err);
+    res.redirect('/?error=access_denied');
+  }
+});
+
+// ==========================================
+// تسجيل الخروج وحذف الحساب
+// ==========================================
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
+  res.json({ success: true });
+});
+
+app.post('/api/delete-account', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const db = await getDb();
+    await db.collection('users').deleteOne({ email: decoded.email.toLowerCase() });
+
+    res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Delete failed' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running securely on port ${PORT} (Prod Mode: ${isProd})`);
+});
+
+export default app;
+```eof
+
+### 2. The Frontend Code (`index.html`)
+
+```html:index.html
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -306,6 +764,7 @@
                 <div style="display:flex; align-items:center; gap: 10px;">
                     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
                     
+                    <!-- Search Bar now triggers Real-time Filtering -->
                     <div class="search-container">
                         <span style="color:var(--text-muted);">🔍</span>
                         <input type="text" id="globalSearchInput" data-i18n="searchPlaceholder" placeholder="Search for tools or FAQs...">
@@ -437,7 +896,7 @@
                             <span data-i18n="luckyDesc2">out of 15 FREE accounts!</span>
                         </p>
                         <div style="display: inline-flex; align-items: center; justify-content:center; gap: 8px;">
-                            <button onclick="claimEarlyBirdSpot()" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;" data-i18n="btnApplySecret">Claim Free Lifetime Spot ⚡</button>
+                            <button onclick="promptEarlyBirdClaim()" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;" data-i18n="btnApplySecret">Claim Free Lifetime Spot ⚡</button>
                         </div>
                     </div>
 
@@ -471,6 +930,30 @@
     </div>
 
     <!-- Modals -->
+
+    <!-- New Early Bird Confirm Modal -->
+    <div class="modal-overlay" id="ageConfirmEarlyBirdModal">
+        <div class="modal-box">
+            <button class="modal-close-btn" onclick="closeModals()">✕</button>
+            <div style="font-size: 38px; text-align: center; margin-bottom: 8px;">🎁</div>
+            <div class="modal-title" style="margin-bottom: 12px;" data-i18n="modEarlyTitle">Claim Free Lifetime Spot</div>
+            
+            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #fca5a5; line-height: 1.7;" data-i18n="mod18Text">
+                🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google from running the AI engine.
+            </div>
+
+            <div class="modal-text" style="margin-bottom: 20px;" data-i18n="modEarlyDesc">
+                This is a limited free subscription for early testers. By proceeding, your account will be activated immediately without any payment.
+            </div>
+
+            <div class="modal-actions" style="flex-direction: column; gap: 8px;">
+                <button class="modal-btn modal-btn-primary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="claimEarlyBirdSpot()" data-i18n="btnConfirm18Early">I confirm I am 18+, Claim Now ⚡</button>
+                <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
     <div class="modal-overlay" id="preCheckoutModal">
         <div class="modal-box">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
@@ -607,7 +1090,7 @@
         }
 
         // ==========================================
-        // 1. Full 10 Languages Dictionary with 8 FAQs
+        // 1. Full 10 Languages Dictionary with 8 FAQs & Modal Translations
         // ==========================================
         const langNames = { en: "English", ar: "العربية", es: "Español", fr: "Français", de: "Deutsch", it: "Italiano", pt: "Português", ru: "Русский", zh: "中文", ja: "日本語" };
         let currentLang = 'en';
@@ -629,6 +1112,7 @@
                 mod18Title: "Important Subscription Terms", mod18Text: "🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google.",
                 modCodeLbl: "Launch Discount Code:", modCodeBtn: "Copy Code 📋", modCodeDesc: "Please paste this code in the <strong>Add promo code</strong> field during checkout for 30% off.",
                 btnConfirm18: "I confirm I am 18+, Proceed to Checkout ↗", btnCancel: "Cancel", btnRenew: "Renew or Upgrade Plan", checkoutWarnEmail: "Make sure to use your current Google email during checkout.",
+                modEarlyTitle: "Claim Free Lifetime Spot", modEarlyDesc: "This is a limited free subscription for early testers. By proceeding, your account will be activated immediately without any payment.", btnConfirm18Early: "I confirm I am 18+, Claim Now ⚡",
                 modSubTitle: "Your Subscription Details", lblCurPlan: "Current Plan", lblStartDate: "Start Date", lblEndDate: "End Date", lblTimeLeft: "Time Left",
                 couponTitle: "Have an activation or promo code?", btnApply: "Apply",
                 modFaqTitle: "FAQ & Documentation", modDelTitle: "Delete Account", modDelText: "Your account, subscription, and all data will be permanently deleted. This action cannot be undone.", btnPermDelete: "Delete Permanently",
@@ -662,6 +1146,7 @@
                 mod18Title: "شروط الاشتراك المهمة", mod18Text: "🔞 <strong>شرط أساسي:</strong><br>يجب أن يكون حساب Google المرتبط مسجلاً بعمر <strong>18 سنة أو أكبر</strong>. الحسابات الأقل من 18 تمنعها Google من تشغيل الأداة.",
                 modCodeLbl: "كود خصم الإطلاق:", modCodeBtn: "نسخ الكود 📋", modCodeDesc: "يرجى لصق الكود في خانة <strong>Add promo code</strong> داخل صفحة الدفع لتخفيض السعر.",
                 btnConfirm18: "أؤكد أن حسابي +18، متابعة للدفع ↗", btnCancel: "إلغاء", btnRenew: "تجديد أو ترقية الباقة", checkoutWarnEmail: "تأكد من استخدام نفس حساب جوجل الحالي أثناء الدفع.",
+                modEarlyTitle: "احجز مقعدك المجاني", modEarlyDesc: "هذا اشتراك مجاني محدود للمجربين الأوائل. بالمتابعة سيتم تفعيل حسابك فوراً بدون أي عملية دفع.", btnConfirm18Early: "أؤكد أن عمري +18 - فعّل الآن ⚡",
                 modSubTitle: "تفاصيل اشتراكك", lblCurPlan: "الباقة الحالية", lblStartDate: "تاريخ البدء", lblEndDate: "تاريخ الانتهاء", lblTimeLeft: "الوقت المتبقي",
                 couponTitle: "هل تمتلك كود تفعيل أو خصم؟", btnApply: "تطبيق",
                 modFaqTitle: "الأسئلة الشائعة والدليل", modDelTitle: "حذف الحساب نهائياً", modDelText: "سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع.", btnPermDelete: "حذف نهائي",
@@ -674,13 +1159,13 @@
                     { q:"هل هناك حد أقصى للتوليد؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك بأعلى جودة." },
                     { q:"كيف تعمل ميزة ثبات ملامح الشخصيات؟", a:"تستخدم الأداة خوارزميات ذكية لتثبيت نفس الملامح عبر مشاهد مختلفة بتفعيل خيار Character Consistency." },
                     { q:"هل الصور الناتجة مملوكة لي تجارياً؟", a:"نعم، جميع الصور مملوكة لك بالكامل ويمكنك استخدامها تجارياً دون قيود." },
-                    { q:"هل يمكنني الإلغاء أو استرداد الأموال؟", a:"يمكنك إلغاء التجديد التلقائي في أي وقت. نحن لا نقدم استرداداً للأموال عن الشهور المستخدمة جزئياً." },
+                    { q:"هل يمكنني الإلغاء أو استرداد الأموال؟", a:"يمكنك إلغاء التجديد التلقائي في أي وقت لتجنب الرسوم المستقبلية. نحن لا نقدم استرداداً للأموال عن الشهور المستخدمة جزئياً." },
                     { q:"هل يمكنني استخدام الحساب على أكثر من جهاز؟", a:"نعم، اشتراكك مرتبط بحساب جوجل، مما يسمح لك بالدخول لأدواتك من أي جهاز أو متصفح." },
                     { q:"كيف أحصل على الدعم الفني؟", a:"يمكنك التواصل مع فريق الدعم مباشرة عبر الضغط على أيقونة تليجرام العائمة أسفل الشاشة." }
                 ]
             },
             es: {
-                logoSub: "Crear • Editar • Inspirar", navHome: "Inicio", navGen: "Generador de Imágenes", navGallery: "Galería", navFaq: "FAQ y Guía", navSub: "Suscripción", statusFree: "Cuenta Gratis", btnManageSub: "Gestionar Suscripción", bannerOffer: "🔥 ¡Oferta de Lanzamiento: 30% de descuento! Código:", bannerTimerText: "Termina en:", btnClaimOffer: "Reclamar Oferta", searchPlaceholder: "Buscar herramientas o FAQs...", dropStatusLabel: "Estado de Suscripción", dropManage: "Gestionar Suscripción", dropDelete: "Eliminar Cuenta", dropLogout: "Cerrar Sesión", heroPill: "Bienvenido a Artify PRO", heroTitle: "Convierte tus ideas en <span>Imágenes Increíbles</span>", heroDesc: "Crea imágenes profesionales de alta calidad usando motores de IA avanzados.", btnStartNow: "Empezar Ahora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistencia Facial", float2: "Generación Secuencial", float3: "Calidad UHD Cinemática", toolsTitle: "Tus Herramientas", toolsSub: "Selecciona una herramienta para empezar", lockText: "Haz clic para suscribirte y desbloquear", tagPopular: "Más Popular", tagGuide: "Guía Completa", tool1Title: "Canvas Pro (Generador)", tool1Desc: "Estudio integrado para generación y edición.", btnOpenTool: "Abrir Herramienta", tool2Title: "FAQ y Documentación", tool2Desc: "Respuestas completas para detalles de suscripción y uso.", btnReadFaq: "Leer FAQs", inspTitle: "Inspiración", inspSub: "Pase el ratón para copiar", plansTitle: "Elige Tu Plan", luckyTitle: "¡Tienes mucha suerte!", luckyDesc1: "Eres de los primeros probadores. Tu rango es", luckyDesc2: "de 15 cuentas GRATIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Reclamar Puesto ⚡", plan1Mo: "1 Mes", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Año", planBestVal: "MEJOR VALOR", plan1Desc: "Renovación mensual flexible", plan3Desc: "La opción más popular", plan6Desc: "Valor excepcional para creadores", plan1YrDesc: "Máximo ahorro", btnSubMonth: "Suscribirse", btnSub3Mo: "Suscribirse", btnSub6Mo: "Suscribirse", btnSubYr: "Suscribirse", mod18Title: "Términos de Suscripción", mod18Text: "🔞 <strong>Requisito:</strong><br>Tu cuenta de Google debe ser de <strong>18 años o mayor</strong>.", modCodeLbl: "Código de Descuento:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Pega este código en <strong>Add promo code</strong> durante el pago para un 30% de descuento.", btnConfirm18: "Confirmo que soy +18, Ir al Pago ↗", btnCancel: "Cancelar", btnRenew: "Renovar o Mejorar Plan", checkoutWarnEmail: "Asegúrate de usar tu correo actual de Google durante el pago.", modSubTitle: "Tus Detalles de Suscripción", lblCurPlan: "Plan Actual", lblStartDate: "Fecha Inicio", lblEndDate: "Fecha Fin", lblTimeLeft: "Tiempo Restante", couponTitle: "¿Tienes un código promo?", btnApply: "Aplicar", modFaqTitle: "FAQ y Documentación", modDelTitle: "Eliminar Cuenta", modDelText: "Tu cuenta y datos serán eliminados permanentemente.", btnPermDelete: "Eliminar Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'Google puede mostrar <em>"Google no ha verificado esta app"</em>. Haz clic en <strong>"Avanzado"</strong> y luego en <strong>"Ir a la App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Consejo:</span> ¡Presiona <kbd>F11</kbd> para pantalla completa!', btnUnderstand: "Entiendo, abrir herramienta", toastCopy: "Copiado con éxito", toastCopyCode: "¡Código copiado!", toastLoginReq: "Inicia sesión con Google primero", toastSubReq: "Suscripción PRO requerida", toastLogout: "Sesión cerrada", toastDeleted: "Cuenta eliminada", toastDemo: "¡Próximamente!", btnCopy: "Copiar", toastEnterCode: "Por favor, introduce un código", toastInvalidCode: "Código inválido o expirado", toastConnError: "Error de conexión.", toastPromoSuccess: "¡PRO Activado!", noSearchResults: "Ningún artículo coincide con tu búsqueda.",
+                logoSub: "Crear • Editar • Inspirar", navHome: "Inicio", navGen: "Generador de Imágenes", navGallery: "Galería", navFaq: "FAQ y Guía", navSub: "Suscripción", statusFree: "Cuenta Gratis", btnManageSub: "Gestionar Suscripción", bannerOffer: "🔥 ¡Oferta de Lanzamiento: 30% de descuento! Código:", bannerTimerText: "Termina en:", btnClaimOffer: "Reclamar Oferta", searchPlaceholder: "Buscar herramientas o FAQs...", dropStatusLabel: "Estado de Suscripción", dropManage: "Gestionar Suscripción", dropDelete: "Eliminar Cuenta", dropLogout: "Cerrar Sesión", heroPill: "Bienvenido a Artify PRO", heroTitle: "Convierte tus ideas en <span>Imágenes Increíbles</span>", heroDesc: "Crea imágenes profesionales de alta calidad usando motores de IA avanzados con 100% de consistencia facial.", btnStartNow: "Empezar Ahora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistencia Facial", float2: "Generación Secuencial", float3: "Calidad UHD Cinemática", toolsTitle: "Tus Herramientas", toolsSub: "Selecciona una herramienta para empezar", lockText: "Haz clic para suscribirte y desbloquear", tagPopular: "Más Popular", tagGuide: "Guía Completa", tool1Title: "Canvas Pro (Generador)", tool1Desc: "Estudio integrado para generación, edición y bloqueo facial.", btnOpenTool: "Abrir Herramienta", tool2Title: "FAQ y Documentación", tool2Desc: "Respuestas completas para detalles de suscripción y uso.", btnReadFaq: "Leer FAQs", inspTitle: "Inspiración", inspSub: "Pase el ratón para copiar el prompt", plansTitle: "Elige Tu Plan", luckyTitle: "¡Tienes mucha suerte!", luckyDesc1: "Eres de los primeros probadores. Tu rango es", luckyDesc2: "de 15 cuentas GRATIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Reclamar Puesto Gratis ⚡", plan1Mo: "1 Mes", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Año", planBestVal: "MEJOR VALOR", plan1Desc: "Renovación mensual flexible", plan3Desc: "La opción más popular", plan6Desc: "Valor excepcional para creadores", plan1YrDesc: "Máximo ahorro", btnSubMonth: "Suscripción Mensual", btnSub3Mo: "Suscripción 3 Meses", btnSub6Mo: "Suscripción 6 Meses", btnSubYr: "Suscripción Anual", mod18Title: "Términos de Suscripción", mod18Text: "🔞 <strong>Requisito:</strong><br>Tu cuenta de Google debe ser de <strong>18 años o mayor</strong>.", modCodeLbl: "Código de Descuento:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Pega este código en <strong>Add promo code</strong> durante el pago para un 30% de descuento.", btnConfirm18: "Confirmo que soy +18, Ir al Pago ↗", btnCancel: "Cancelar", btnRenew: "Renovar o Mejorar Plan", checkoutWarnEmail: "Asegúrate de usar tu correo actual de Google durante el pago.", modEarlyTitle: "Reclamar Puesto Gratis", modEarlyDesc: "Esta es una suscripción gratuita limitada. Tu cuenta se activará inmediatamente sin ningún pago.", btnConfirm18Early: "Confirmo que soy +18, Activar ⚡", modSubTitle: "Tus Detalles de Suscripción", lblCurPlan: "Plan Actual", lblStartDate: "Fecha Inicio", lblEndDate: "Fecha Fin", lblTimeLeft: "Tiempo Restante", couponTitle: "¿Tienes un código promo?", btnApply: "Aplicar", modFaqTitle: "FAQ y Documentación", modDelTitle: "Eliminar Cuenta", modDelText: "Tu cuenta y datos serán eliminados permanentemente. Esta acción no se puede deshacer.", btnPermDelete: "Eliminar Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'Google puede mostrar <em>"Google no ha verificado esta app"</em>. Haz clic en <strong>"Avanzado"</strong> y luego en <strong>"Ir a la App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Consejo:</span> ¡Presiona <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> para pantalla completa!', btnUnderstand: "Entiendo, abrir herramienta", toastCopy: "Prompt copiado con éxito", toastCopyCode: "¡Código LAUNCH30 copiado!", toastLoginReq: "Inicia sesión con Google primero", toastSubReq: "Suscripción PRO requerida para abrir", toastLogout: "Sesión cerrada", toastDeleted: "Cuenta eliminada", toastDemo: "¡Demo próximamente!", btnCopy: "Copiar", toastEnterCode: "Introduce un código", toastInvalidCode: "Código inválido o expirado", toastConnError: "Error de conexión.", toastPromoSuccess: "¡PRO Activado!", noSearchResults: "Sin resultados.",
                 faqs: [
                     { q:"¿Funciona cualquier cuenta de Google?", a:"Tu cuenta debe estar registrada para mayores de 18 años. Family Link no funciona." },
                     { q:"¿Hay tarifas adicionales de Google?", a:"No, la suscripción cubre todas las funciones." },
@@ -693,7 +1178,7 @@
                 ]
             },
             fr: {
-                logoSub: "Créer • Éditer • Inspirer", navHome: "Accueil", navGen: "Générateur d'Images", navGallery: "Galerie", navFaq: "FAQ & Guide", navSub: "Abonnement", statusFree: "Compte Gratuit", btnManageSub: "Gérer l'Abonnement", bannerOffer: "🔥 Offre de Lancement : -30% ! Code :", bannerTimerText: "Se termine dans :", btnClaimOffer: "Profiter de l'offre", searchPlaceholder: "Rechercher...", dropStatusLabel: "Statut de l'Abonnement", dropManage: "Gérer l'Abonnement", dropDelete: "Supprimer le Compte", dropLogout: "Déconnexion", heroPill: "Bienvenue sur Artify PRO", heroTitle: "Transformez vos idées en <span>Images Superbes</span>", heroDesc: "Créez des images professionnelles avec l'IA.", btnStartNow: "Commencer", btnWatchDemo: "Voir la Démo", floatHeader: "IA Avancée", float1: "Cohérence Faciale 100%", float2: "Génération Séquentielle", float3: "Qualité UHD", toolsTitle: "Vos Outils", toolsSub: "Sélectionnez un outil", lockText: "Abonnez-vous pour débloquer", tagPopular: "Populaire", tagGuide: "Guide Complet", tool1Title: "Canvas Pro", tool1Desc: "Studio intégré pour la génération et l'édition.", btnOpenTool: "Ouvrir l'Outil", tool2Title: "FAQ & Documentation", tool2Desc: "Réponses complètes.", btnReadFaq: "Lire la FAQ", inspTitle: "Inspiration", inspSub: "Survolez pour copier", plansTitle: "Choisissez Votre Plan", luckyTitle: "Vous êtes très chanceux !", luckyDesc1: "Vous êtes parmi les premiers testeurs. Votre rang est", luckyDesc2: "sur 15 comptes GRATUITS !", secretCodeLbl: "Code Secret :", btnApplySecret: "Réclamer ⚡", plan1Mo: "1 Mois", plan3Mo: "3 Mois", plan6Mo: "6 Mois", plan1Yr: "1 An", planBestVal: "MEILLEUR CHOIX", plan1Desc: "Renouvellement flexible", plan3Desc: "Le plus populaire", plan6Desc: "Valeur exceptionnelle", plan1YrDesc: "Économies maximales", btnSubMonth: "S'abonner", btnSub3Mo: "S'abonner", btnSub6Mo: "S'abonner", btnSubYr: "S'abonner", mod18Title: "Conditions", mod18Text: "🔞 <strong>Condition :</strong> Votre compte Google doit avoir 18 ans ou plus.", modCodeLbl: "Code :", modCodeBtn: "Copier 📋", modCodeDesc: "Collez ce code lors du paiement.", btnConfirm18: "Je confirme (18+), Payer ↗", btnCancel: "Annuler", btnRenew: "Renouveler", checkoutWarnEmail: "Utilisez votre e-mail Google actuel lors du paiement.", modSubTitle: "Détails de l'Abonnement", lblCurPlan: "Plan Actuel", lblStartDate: "Date de Début", lblEndDate: "Date de Fin", lblTimeLeft: "Temps Restant", couponTitle: "Code promo ?", btnApply: "Appliquer", modFaqTitle: "FAQ", modDelTitle: "Supprimer", modDelText: "Vos données seront supprimées définitivement.", btnPermDelete: "Supprimer Définitivement", modWarnTitle: "Avis Important", modWarnText: 'Cliquez sur <strong>"Paramètres avancés"</strong> puis <strong>"Aller à l\'application"</strong>.', btnUnderstand: "Ouvrir l'outil", toastCopy: "Copié", toastCopyCode: "Code copié !", toastLoginReq: "Connectez-vous avec Google", toastSubReq: "Abonnement PRO requis", toastLogout: "Déconnexion", toastDeleted: "Compte supprimé", toastDemo: "À venir !", btnCopy: "Copier", toastEnterCode: "Entrez un code", toastInvalidCode: "Code invalide", toastConnError: "Erreur de connexion.", toastPromoSuccess: "PRO Activé !", noSearchResults: "Aucun résultat.",
+                logoSub: "Créer • Éditer • Inspirer", navHome: "Accueil", navGen: "Générateur d'Images", navGallery: "Galerie", navFaq: "FAQ & Guide", navSub: "Abonnement", statusFree: "Compte Gratuit", btnManageSub: "Gérer l'Abonnement", bannerOffer: "🔥 Offre de Lancement : -30% ! Code :", bannerTimerText: "Se termine dans :", btnClaimOffer: "Profiter de l'offre", searchPlaceholder: "Rechercher des outils ou FAQ...", dropStatusLabel: "Statut de l'Abonnement", dropManage: "Gérer l'Abonnement", dropDelete: "Supprimer le Compte", dropLogout: "Déconnexion", heroPill: "Bienvenue sur Artify PRO", heroTitle: "Transformez vos idées en <span>Images Superbes</span>", heroDesc: "Créez des images professionnelles de haute qualité avec l'IA.", btnStartNow: "Commencer", btnWatchDemo: "Voir la Démo", floatHeader: "IA Avancée", float1: "Cohérence Faciale 100%", float2: "Génération Séquentielle", float3: "Qualité UHD Cinématique", toolsTitle: "Vos Outils", toolsSub: "Sélectionnez un outil pour commencer", lockText: "Cliquez pour vous abonner et débloquer", tagPopular: "Le Plus Populaire", tagGuide: "Guide Complet", tool1Title: "Canvas Pro (Générateur)", tool1Desc: "Studio intégré pour la génération, l'édition et le verrouillage du visage.", btnOpenTool: "Ouvrir l'Outil", tool2Title: "FAQ & Documentation", tool2Desc: "Réponses complètes pour les détails d'abonnement et politiques.", btnReadFaq: "Lire la FAQ", inspTitle: "Inspiration", inspSub: "Survolez pour copier le prompt", plansTitle: "Choisissez Votre Plan", luckyTitle: "Vous êtes très chanceux !", luckyDesc1: "Vous êtes parmi les premiers testeurs. Votre rang est", luckyDesc2: "sur 15 comptes GRATUITS !", secretCodeLbl: "Code Secret :", btnApplySecret: "Réclamer Place Gratuite ⚡", plan1Mo: "1 Mois", plan3Mo: "3 Mois", plan6Mo: "6 Mois", plan1Yr: "1 An", planBestVal: "MEILLEUR CHOIX", plan1Desc: "Renouvellement mensuel flexible", plan3Desc: "Le choix le plus populaire", plan6Desc: "Valeur exceptionnelle pour les créateurs", plan1YrDesc: "Économies maximales", btnSubMonth: "S'abonner (Mensuel)", btnSub3Mo: "S'abonner (3 Mois)", btnSub6Mo: "S'abonner (6 Mois)", btnSubYr: "S'abonner (Annuel)", mod18Title: "Conditions d'Abonnement", mod18Text: "🔞 <strong>Condition requise :</strong><br>Votre compte Google doit être enregistré avec un âge de <strong>18 ans ou plus</strong>.", modCodeLbl: "Code de Réduction :", modCodeBtn: "Copier le Code 📋", modCodeDesc: "Collez ce code dans <strong>Add promo code</strong> lors du paiement pour -30%.", btnConfirm18: "Je confirme avoir 18+, Payer ↗", btnCancel: "Annuler", btnRenew: "Renouveler le Plan", checkoutWarnEmail: "Utilisez votre e-mail Google actuel lors du paiement.", modEarlyTitle: "Réclamer Place Gratuite", modEarlyDesc: "Ceci est un abonnement gratuit limité. Votre compte sera activé immédiatement sans paiement.", btnConfirm18Early: "Je confirme avoir 18+, Activer ⚡", modSubTitle: "Détails de l'Abonnement", lblCurPlan: "Plan Actuel", lblStartDate: "Date de Début", lblEndDate: "Date de Fin", lblTimeLeft: "Temps Restant", couponTitle: "Avez-vous un code promo ?", btnApply: "Appliquer", modFaqTitle: "FAQ & Documentation", modDelTitle: "Supprimer le Compte", modDelText: "Votre compte et vos données seront définitivement supprimés.", btnPermDelete: "Supprimer Définitivement", modWarnTitle: "Avis Important", modWarnText: 'Google peut afficher <em>"Google n\'a pas vérifié cette application"</em>. Cliquez sur <strong>"Paramètres avancés"</strong> puis <strong>"Aller à l\'application"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Astuce :</span> Appuyez sur <kbd>F11</kbd> pour le plein écran !', btnUnderstand: "Je comprends, ouvrir l'outil", toastCopy: "Prompt copié", toastCopyCode: "Code LAUNCH30 copié !", toastLoginReq: "Veuillez vous connecter avec Google", toastSubReq: "Abonnement PRO requis", toastLogout: "Déconnexion réussie", toastDeleted: "Compte supprimé", toastDemo: "Démo à venir !", btnCopy: "Copier", toastEnterCode: "Entrez un code", toastInvalidCode: "Code invalide", toastConnError: "Erreur de connexion.", toastPromoSuccess: "PRO Activé !", noSearchResults: "Aucun résultat.",
                 faqs: [
                     { q:"N'importe quel compte Google fonctionne-t-il ?", a:"Il faut avoir 18 ans ou plus. Family Link ne fonctionne pas." },
                     { q:"Des frais supplémentaires ?", a:"Non, l'abonnement couvre tout." },
@@ -706,7 +1191,7 @@
                 ]
             },
             de: {
-                logoSub: "Erstellen • Bearbeiten", navHome: "Startseite", navGen: "Bildgenerator", navGallery: "Galerie", navFaq: "FAQ", navSub: "Abo", statusFree: "Gratis", btnManageSub: "Abo verwalten", bannerOffer: "🔥 30% Rabatt! Code:", bannerTimerText: "Endet in:", btnClaimOffer: "Angebot", searchPlaceholder: "Suchen...", dropStatusLabel: "Abo-Status", dropManage: "Abo verwalten", dropDelete: "Konto löschen", dropLogout: "Abmelden", heroPill: "Willkommen", heroTitle: "Atemberaubende <span>Bilder</span>", heroDesc: "Erstellen Sie professionelle KI-Bilder.", btnStartNow: "Starten", btnWatchDemo: "Demo", floatHeader: "KI", float1: "100% Gesichtskonsistenz", float2: "Sequenzen", float3: "UHD Qualität", toolsTitle: "Tools", toolsSub: "Wählen Sie ein Tool", lockText: "Abonnieren & Entsperren", tagPopular: "Beliebt", tagGuide: "Guide", tool1Title: "Canvas Pro", tool1Desc: "Studio für Generierung.", btnOpenTool: "Öffnen", tool2Title: "FAQ", tool2Desc: "Antworten und Richtlinien.", btnReadFaq: "Lesen", inspTitle: "Inspiration", inspSub: "Hovern zum Kopieren", plansTitle: "Plan wählen", luckyTitle: "Du hast Glück!", luckyDesc1: "Dein Rang ist", luckyDesc2: "von 15!", secretCodeLbl: "Code:", btnApplySecret: "Anwenden ⚡", plan1Mo: "1 Monat", plan3Mo: "3 Monate", plan6Mo: "6 Monate", plan1Yr: "1 Jahr", planBestVal: "BESTER WERT", plan1Desc: "Flexibel", plan3Desc: "Beliebt", plan6Desc: "Perfekt", plan1YrDesc: "Maximal sparen", btnSubMonth: "Abonnieren", btnSub3Mo: "Abonnieren", btnSub6Mo: "Abonnieren", btnSubYr: "Abonnieren", mod18Title: "Bedingungen", mod18Text: "🔞 Dein Google-Konto muss für <strong>18+</strong> registriert sein.", modCodeLbl: "Rabattcode:", modCodeBtn: "Kopieren", modCodeDesc: "Code an der Kasse einfügen.", btnConfirm18: "Ich bin 18+, zur Kasse ↗", btnCancel: "Abbrechen", btnRenew: "Verlängern", checkoutWarnEmail: "Verwende deine Google-E-Mail.", modSubTitle: "Abo-Details", lblCurPlan: "Plan", lblStartDate: "Start", lblEndDate: "Ende", lblTimeLeft: "Verbleibend", couponTitle: "Promo-Code?", btnApply: "Anwenden", modFaqTitle: "FAQ", modDelTitle: "Löschen", modDelText: "Konto wird dauerhaft gelöscht.", btnPermDelete: "Löschen", modWarnTitle: "Hinweis", modWarnText: 'Klicke auf <strong>"Erweitert"</strong> und <strong>"Zur App gehen"</strong>.', btnUnderstand: "Verstanden", toastCopy: "Kopiert", toastCopyCode: "Code kopiert!", toastLoginReq: "Bitte anmelden", toastSubReq: "PRO-Abo erforderlich", toastLogout: "Abgemeldet", toastDeleted: "Gelöscht", toastDemo: "Bald!", btnCopy: "Kopieren", toastEnterCode: "Code eingeben", toastInvalidCode: "Ungültig", toastConnError: "Fehler.", toastPromoSuccess: "Aktiviert!", noSearchResults: "Keine Ergebnisse.",
+                logoSub: "Erstellen • Bearbeiten • Inspirieren", navHome: "Startseite", navGen: "Bildgenerator", navGallery: "Galerie", navFaq: "FAQ & Anleitung", navSub: "Abonnement", statusFree: "Kostenloses Konto", btnManageSub: "Abo verwalten", bannerOffer: "🔥 Einführungsangebot: 30% Rabatt! Code:", bannerTimerText: "Endet in:", btnClaimOffer: "Angebot einlösen", searchPlaceholder: "Suchen Sie nach Tools oder FAQs...", dropStatusLabel: "Abo-Status", dropManage: "Abo verwalten", dropDelete: "Konto löschen", dropLogout: "Abmelden", heroPill: "Willkommen bei Artify PRO", heroTitle: "Verwandle deine Ideen in <span>Atemberaubende Bilder</span>", heroDesc: "Erstellen Sie hochwertige professionelle Bilder mit 100% Gesichtskonsistenz.", btnStartNow: "Jetzt Starten", btnWatchDemo: "Demo ansehen", floatHeader: "Erweiterte KI", float1: "100% Gesichtskonsistenz", float2: "Sequenzielle Generierung", float3: "Kino-UHD-Qualität", toolsTitle: "Deine Tools", toolsSub: "Wähle ein Tool, um zu beginnen", lockText: "Klicken zum Abonnieren & Entsperren", tagPopular: "Beliebtestes", tagGuide: "Umfassender Leitfaden", tool1Title: "Canvas Pro (Generator)", tool1Desc: "Integriertes Studio für Generierung und Gesichtssperre.", btnOpenTool: "Tool öffnen", tool2Title: "FAQ & Dokumentation", tool2Desc: "Vollständige Antworten zu Abos und Richtlinien.", btnReadFaq: "FAQs lesen", inspTitle: "Inspiration", inspSub: "Hovern, um den Prompt zu kopieren", plansTitle: "Wähle deinen Plan", luckyTitle: "Du hast großes Glück!", luckyDesc1: "Du bist einer der ersten Tester. Dein Rang ist", luckyDesc2: "von 15 GRATIS-Konten!", secretCodeLbl: "Geheimcode:", btnApplySecret: "Gratisplatz sichern ⚡", plan1Mo: "1 Monat", plan3Mo: "3 Monate", plan6Mo: "6 Monate", plan1Yr: "1 Jahr", planBestVal: "BESTER WERT", plan1Desc: "Flexible monatliche Verlängerung", plan3Desc: "Die beliebteste Wahl", plan6Desc: "Außergewöhnlicher Wert für Schöpfer", plan1YrDesc: "Maximale Ersparnis", btnSubMonth: "Monatlich abonnieren", btnSub3Mo: "3 Monate abonnieren", btnSub6Mo: "6 Monate abonnieren", btnSubYr: "Jährlich abonnieren", mod18Title: "Wichtige Abo-Bedingungen", mod18Text: "🔞 <strong>Voraussetzung:</strong><br>Dein Google-Konto muss für <strong>18 Jahre oder älter</strong> registriert sein.", modCodeLbl: "Rabattcode:", modCodeBtn: "Code Kopieren 📋", modCodeDesc: "Füge diesen Code beim Bezahlen unter <strong>Add promo code</strong> ein für 30% Rabatt.", btnConfirm18: "Ich bin 18+, zur Kasse ↗", btnCancel: "Abbrechen", btnRenew: "Plan verlängern oder upgraden", checkoutWarnEmail: "Verwende deine Google-E-Mail beim Bezahlen.", modEarlyTitle: "Gratisplatz sichern", modEarlyDesc: "Dies ist ein limitiertes kostenloses Abo. Dein Konto wird sofort ohne Zahlung aktiviert.", btnConfirm18Early: "Ich bin 18+, Aktivieren ⚡", modSubTitle: "Deine Abo-Details", lblCurPlan: "Aktueller Plan", lblStartDate: "Startdatum", lblEndDate: "Enddatum", lblTimeLeft: "Verbleibende Zeit", couponTitle: "Hast du einen Promo-Code?", btnApply: "Anwenden", modFaqTitle: "FAQ & Dokumentation", modDelTitle: "Konto löschen", modDelText: "Dein Konto und alle Daten werden dauerhaft gelöscht.", btnPermDelete: "Dauerhaft Löschen", modWarnTitle: "Wichtiger Hinweis", modWarnText: 'Google zeigt eventuell <em>"Google hat diese App nicht überprüft"</em>. Klicke auf <strong>"Erweitert"</strong> und <strong>"Zur App gehen"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro-Tipp:</span> <kbd>F11</kbd> für Vollbildmodus!', btnUnderstand: "Ich verstehe, Tool öffnen", toastCopy: "Prompt kopiert", toastCopyCode: "Code LAUNCH30 kopiert!", toastLoginReq: "Bitte zuerst bei Google anmelden", toastSubReq: "PRO-Abo erforderlich", toastLogout: "Erfolgreich abgemeldet", toastDeleted: "Konto gelöscht", toastDemo: "Demo kommt bald!", btnCopy: "Kopieren", toastEnterCode: "Code eingeben", toastInvalidCode: "Ungültig", toastConnError: "Fehler.", toastPromoSuccess: "Aktiviert!", noSearchResults: "Keine Ergebnisse.",
                 faqs: [
                     { q:"Welches Konto?", a:"18+ Google Konto erforderlich." },
                     { q:"Zusatzkosten?", a:"Nein." },
@@ -719,7 +1204,7 @@
                 ]
             },
             it: {
-                logoSub: "Crea • Modifica", navHome: "Home", navGen: "Generatore", navGallery: "Galleria", navFaq: "FAQ", navSub: "Abbonamento", statusFree: "Gratis", btnManageSub: "Gestisci", bannerOffer: "🔥 30% di sconto! Codice:", bannerTimerText: "Scade in:", btnClaimOffer: "Richiedi", searchPlaceholder: "Cerca...", dropStatusLabel: "Stato", dropManage: "Gestisci", dropDelete: "Elimina Account", dropLogout: "Esci", heroPill: "Benvenuto", heroTitle: "Immagini <span>Incredibili</span>", heroDesc: "Crea immagini professionali con IA.", btnStartNow: "Inizia", btnWatchDemo: "Demo", floatHeader: "IA", float1: "100% Coerenza", float2: "Sequenziale", float3: "UHD", toolsTitle: "Strumenti", toolsSub: "Seleziona", lockText: "Abbonati", tagPopular: "Popolare", tagGuide: "Guida", tool1Title: "Canvas Pro", tool1Desc: "Studio IA.", btnOpenTool: "Apri", tool2Title: "FAQ", tool2Desc: "Risposte.", btnReadFaq: "Leggi", inspTitle: "Ispirazione", inspSub: "Copia", plansTitle: "Piani", luckyTitle: "Fortunato!", luckyDesc1: "Il tuo posto è", luckyDesc2: "di 15!", secretCodeLbl: "Codice:", btnApplySecret: "Applica ⚡", plan1Mo: "1 Mese", plan3Mo: "3 Mesi", plan6Mo: "6 Mesi", plan1Yr: "1 Anno", planBestVal: "MIGLIORE", plan1Desc: "Flessibile", plan3Desc: "Popolare", plan6Desc: "Valore", plan1YrDesc: "Risparmio", btnSubMonth: "Abbonati", btnSub3Mo: "Abbonati", btnSub6Mo: "Abbonati", btnSubYr: "Abbonati", mod18Title: "Termini", mod18Text: "🔞 Il tuo account deve avere <strong>18+ anni</strong>.", modCodeLbl: "Sconto:", modCodeBtn: "Copia", modCodeDesc: "Incolla al checkout.", btnConfirm18: "Ho 18+, Paga ↗", btnCancel: "Annulla", btnRenew: "Rinnova", checkoutWarnEmail: "Usa la tua email Google attuale.", modSubTitle: "Dettagli", lblCurPlan: "Piano", lblStartDate: "Inizio", lblEndDate: "Fine", lblTimeLeft: "Rimasto", couponTitle: "Codice promo?", btnApply: "Applica", modFaqTitle: "FAQ", modDelTitle: "Elimina", modDelText: "Eliminazione permanente.", btnPermDelete: "Elimina", modWarnTitle: "Avviso", modWarnText: 'Clicca <strong>"Avanzate"</strong> e <strong>"Vai all\'app"</strong>.', btnUnderstand: "Capito", toastCopy: "Copiato", toastCopyCode: "Codice copiato!", toastLoginReq: "Accedi prima", toastSubReq: "PRO richiesto", toastLogout: "Scollegato", toastDeleted: "Eliminato", toastDemo: "In arrivo!", btnCopy: "Copia", toastEnterCode: "Inserisci codice", toastInvalidCode: "Non valido", toastConnError: "Errore.", toastPromoSuccess: "Attivato!", noSearchResults: "Nessun risultato.",
+                logoSub: "Crea • Modifica • Ispira", navHome: "Home", navGen: "Generatore di Immagini", navGallery: "Galleria", navFaq: "FAQ e Guida", navSub: "Abbonamento", statusFree: "Account Gratuito", btnManageSub: "Gestisci Abbonamento", bannerOffer: "🔥 Offerta di Lancio: 30% di sconto! Codice:", bannerTimerText: "Scade in:", btnClaimOffer: "Richiedi Offerta", searchPlaceholder: "Cerca strumenti o FAQ...", dropStatusLabel: "Stato Abbonamento", dropManage: "Gestisci Abbonamento", dropDelete: "Elimina Account", dropLogout: "Esci", heroPill: "Benvenuto su Artify PRO", heroTitle: "Trasforma le tue idee in <span>Immagini Incredibili</span>", heroDesc: "Crea immagini professionali di alta qualità con intelligenza artificiale.", btnStartNow: "Inizia Ora", btnWatchDemo: "Guarda la Demo", floatHeader: "IA Avanzata", float1: "100% Coerenza Facciale", float2: "Generazione Sequenziale", float3: "Qualità UHD Cinematografica", toolsTitle: "I Tuoi Strumenti", toolsSub: "Seleziona uno strumento per iniziare", lockText: "Clicca per abbonarti e sbloccare", tagPopular: "Più Popolare", tagGuide: "Guida Completa", tool1Title: "Canvas Pro (Generatore)", tool1Desc: "Studio integrato per generazione e blocco facciale.", btnOpenTool: "Apri Strumento", tool2Title: "FAQ e Documentazione", tool2Desc: "Risposte complete per abbonamenti e politiche di utilizzo.", btnReadFaq: "Leggi le FAQ", inspTitle: "Ispirazione", inspSub: "Passa il mouse per copiare il prompt", plansTitle: "Scegli Il Tuo Piano", luckyTitle: "Sei molto fortunato!", luckyDesc1: "Sei tra i primi tester. Il tuo posto è", luckyDesc2: "su 15 account GRATUITI!", secretCodeLbl: "Codice Segreto:", btnApplySecret: "Richiedi Posto Gratis ⚡", plan1Mo: "1 Mese", plan3Mo: "3 Mesi", plan6Mo: "6 Mesi", plan1Yr: "1 Anno", planBestVal: "MIGLIOR VALORE", plan1Desc: "Rinnovo mensile flessibile", plan3Desc: "La scelta più popolare", plan6Desc: "Valore eccezionale per i creatori", plan1YrDesc: "Risparmio massimo", btnSubMonth: "Abbonati Mensilmente", btnSub3Mo: "Abbonati a 3 Mesi", btnSub6Mo: "Abbonati a 6 Mesi", btnSubYr: "Abbonati Annualmente", mod18Title: "Termini di Abbonamento", mod18Text: "🔞 <strong>Requisito:</strong><br>Il tuo account Google deve essere registrato per <strong>18 anni o più</strong>.", modCodeLbl: "Codice Sconto:", modCodeBtn: "Copia Codice 📋", modCodeDesc: "Incolla questo codice in <strong>Add promo code</strong> durante il pagamento per il 30% di sconto.", btnConfirm18: "Confermo di avere 18+, Vai al Pagamento ↗", btnCancel: "Annulla", btnRenew: "Rinnova o Migliora", checkoutWarnEmail: "Usa la tua email Google attuale al checkout.", modEarlyTitle: "Richiedi Posto Gratis", modEarlyDesc: "Abbonamento gratuito limitato. Il tuo account sarà attivato subito senza pagamento.", btnConfirm18Early: "Ho 18+, Attiva ⚡", modSubTitle: "Dettagli Abbonamento", lblCurPlan: "Piano Attuale", lblStartDate: "Data di Inizio", lblEndDate: "Data di Fine", lblTimeLeft: "Tempo Rimasto", couponTitle: "Hai un codice promozionale?", btnApply: "Applica", modFaqTitle: "FAQ e Documentazione", modDelTitle: "Elimina Account", modDelText: "Il tuo account e tutti i dati verranno eliminati in modo permanente.", btnPermDelete: "Elimina Definitivamente", modWarnTitle: "Avviso Importante", modWarnText: 'Google potrebbe mostrare <em>"Google non ha verificato questa app"</em>. Clicca su <strong>"Avanzate"</strong> e poi <strong>"Vai all\'app"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Suggerimento:</span> Premi <kbd>F11</kbd> per lo schermo intero!', btnUnderstand: "Capisco, apri lo strumento", toastCopy: "Prompt copiato", toastCopyCode: "Codice copiato!", toastLoginReq: "Accedi con Google prima", toastSubReq: "Abbonamento PRO richiesto", toastLogout: "Scollegato con successo", toastDeleted: "Account eliminato", toastDemo: "Demo in arrivo!", btnCopy: "Copia", toastEnterCode: "Inserisci codice", toastInvalidCode: "Non valido", toastConnError: "Errore.", toastPromoSuccess: "Attivato!", noSearchResults: "Nessun risultato.",
                 faqs: [
                     { q:"Quale account Google?", a:"Registrato come 18+. Family Link non funziona." },
                     { q:"Costi extra?", a:"No." },
@@ -732,7 +1217,7 @@
                 ]
             },
             pt: {
-                logoSub: "Criar • Editar", navHome: "Início", navGen: "Gerador", navGallery: "Galeria", navFaq: "FAQ", navSub: "Assinatura", statusFree: "Grátis", btnManageSub: "Gerenciar", bannerOffer: "🔥 30% off! Código:", bannerTimerText: "Termina em:", btnClaimOffer: "Garantir", searchPlaceholder: "Procurar...", dropStatusLabel: "Status", dropManage: "Gerenciar", dropDelete: "Excluir Conta", dropLogout: "Sair", heroPill: "Bem-vindo", heroTitle: "Imagens <span>Incríveis</span>", heroDesc: "Crie imagens com IA.", btnStartNow: "Começar", btnWatchDemo: "Demo", floatHeader: "IA", float1: "100% Consistência", float2: "Sequencial", float3: "UHD", toolsTitle: "Ferramentas", toolsSub: "Selecione", lockText: "Assinar", tagPopular: "Popular", tagGuide: "Guia", tool1Title: "Canvas Pro", tool1Desc: "Estúdio IA.", btnOpenTool: "Abrir", tool2Title: "FAQ", tool2Desc: "Respostas.", btnReadFaq: "Ler", inspTitle: "Inspiração", inspSub: "Copiar", plansTitle: "Planos", luckyTitle: "Sortudo!", luckyDesc1: "Sua posição é", luckyDesc2: "de 15!", secretCodeLbl: "Código:", btnApplySecret: "Aplicar ⚡", plan1Mo: "1 Mês", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Ano", planBestVal: "MELHOR", plan1Desc: "Flexível", plan3Desc: "Popular", plan6Desc: "Valor", plan1YrDesc: "Economia", btnSubMonth: "Assinar", btnSub3Mo: "Assinar", btnSub6Mo: "Assinar", btnSubYr: "Assinar", mod18Title: "Termos", mod18Text: "🔞 Sua conta deve ter <strong>18+ anos</strong>.", modCodeLbl: "Desconto:", modCodeBtn: "Copiar", modCodeDesc: "Cole no checkout.", btnConfirm18: "Tenho 18+, Pagar ↗", btnCancel: "Cancelar", btnRenew: "Renovar", checkoutWarnEmail: "Use seu e-mail do Google.", modSubTitle: "Detalhes", lblCurPlan: "Plano", lblStartDate: "Início", lblEndDate: "Fim", lblTimeLeft: "Restante", couponTitle: "Código?", btnApply: "Aplicar", modFaqTitle: "FAQ", modDelTitle: "Excluir", modDelText: "Exclusão permanente.", btnPermDelete: "Excluir", modWarnTitle: "Aviso", modWarnText: 'Clique <strong>"Avançado"</strong> e <strong>"Acessar o App"</strong>.', btnUnderstand: "Entendi", toastCopy: "Copiado", toastCopyCode: "Código copiado!", toastLoginReq: "Faça login", toastSubReq: "PRO necessário", toastLogout: "Saiu", toastDeleted: "Excluída", toastDemo: "Em breve!", btnCopy: "Copiar", toastEnterCode: "Insira código", toastInvalidCode: "Inválido", toastConnError: "Erro.", toastPromoSuccess: "Ativado!", noSearchResults: "Sem resultados.",
+                logoSub: "Criar • Editar • Inspirar", navHome: "Início", navGen: "Gerador de Imagens", navGallery: "Galeria", navFaq: "FAQ e Guia", navSub: "Assinatura", statusFree: "Conta Gratuita", btnManageSub: "Gerenciar Assinatura", bannerOffer: "🔥 Oferta de Lançamento: 30% de desconto! Código:", bannerTimerText: "Termina em:", btnClaimOffer: "Garantir Oferta", searchPlaceholder: "Procurar ferramentas ou FAQs...", dropStatusLabel: "Status da Assinatura", dropManage: "Gerenciar Assinatura", dropDelete: "Excluir Conta", dropLogout: "Sair", heroPill: "Bem-vindo ao Artify PRO", heroTitle: "Transforme suas ideias em <span>Imagens Incríveis</span>", heroDesc: "Crie imagens profissionais com IA avançada e 100% de consistência facial.", btnStartNow: "Começar Agora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistência Facial", float2: "Geração Sequencial", float3: "Qualidade UHD Cinemática", toolsTitle: "Suas Ferramentas", toolsSub: "Selecione uma ferramenta para começar", lockText: "Clique para assinar e desbloquear", tagPopular: "Mais Popular", tagGuide: "Guia Completo", tool1Title: "Canvas Pro (Gerador)", tool1Desc: "Estúdio integrado para geração e bloqueio facial.", btnOpenTool: "Abrir Ferramenta", tool2Title: "FAQ e Documentação", tool2Desc: "Respostas completas para assinaturas e políticas de uso.", btnReadFaq: "Ler FAQs", inspTitle: "Inspiração", inspSub: "Passe o mouse para copiar", plansTitle: "Escolha Seu Plano", luckyTitle: "Você é muito sortudo!", luckyDesc1: "Você é um dos primeiros testadores. Sua posição é", luckyDesc2: "de 15 contas GRÁTIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Garantir Vaga Grátis ⚡", plan1Mo: "1 Mês", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Ano", planBestVal: "MELHOR VALOR", plan1Desc: "Renovação mensal flexível", plan3Desc: "A escolha mais popular", plan6Desc: "Valor excepcional para criadores", plan1YrDesc: "Economia máxima", btnSubMonth: "Assinar Mensal", btnSub3Mo: "Assinar 3 Meses", btnSub6Mo: "Assinar 6 Meses", btnSubYr: "Assinar Anual", mod18Title: "Termos de Assinatura", mod18Text: "🔞 <strong>Requisito:</strong><br>Sua conta do Google deve ter <strong>18 anos ou mais</strong>.", modCodeLbl: "Código de Desconto:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Cole este código em <strong>Add promo code</strong> durante o pagamento para 30% off.", btnConfirm18: "Confirmo ter 18+, Ir para Pagamento ↗", btnCancel: "Cancelar", btnRenew: "Renovar ou Melhorar Plano", checkoutWarnEmail: "Use seu e-mail do Google no pagamento.", modEarlyTitle: "Garantir Vaga Grátis", modEarlyDesc: "Esta é uma assinatura gratuita limitada. Sua conta será ativada imediatamente sem pagamento.", btnConfirm18Early: "Tenho 18+, Ativar ⚡", modSubTitle: "Detalhes da Assinatura", lblCurPlan: "Plano Atual", lblStartDate: "Data de Início", lblEndDate: "Data de Fim", lblTimeLeft: "Tempo Restante", couponTitle: "Tem um código promocional?", btnApply: "Aplicar", modFaqTitle: "FAQ e Documentação", modDelTitle: "Excluir Conta", modDelText: "Sua conta e dados serão excluídos permanentemente.", btnPermDelete: "Excluir Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'O Google pode mostrar <em>"O Google não verificou este app"</em>. Clique em <strong>"Avançado"</strong> e depois em <strong>"Acessar o App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Dica:</span> Pressione <kbd>F11</kbd> para tela cheia!', btnUnderstand: "Entendo, abrir ferramenta", toastCopy: "Prompt copiado", toastCopyCode: "Código copiado com sucesso!", toastLoginReq: "Faça login com o Google primeiro", toastSubReq: "Assinatura PRO necessária", toastLogout: "Desconectado", toastDeleted: "Conta excluída", toastDemo: "Demo em breve!", btnCopy: "Copiar", toastEnterCode: "Insira código", toastInvalidCode: "Inválido", toastConnError: "Erro.", toastPromoSuccess: "Ativado!", noSearchResults: "Sem resultados.",
                 faqs: [
                     { q:"Qual conta Google?", a:"Maiores de 18 anos. Family Link não funciona." },
                     { q:"Taxas extras?", a:"Não." },
@@ -745,7 +1230,7 @@
                 ]
             },
             ru: {
-                logoSub: "Создавай • Редактируй", navHome: "Главная", navGen: "Генератор", navGallery: "Галерея", navFaq: "FAQ", navSub: "Подписка", statusFree: "Бесплатно", btnManageSub: "Управление", bannerOffer: "🔥 Скидка 30%! Код:", bannerTimerText: "Конец:", btnClaimOffer: "Получить", searchPlaceholder: "Поиск...", dropStatusLabel: "Статус", dropManage: "Управление", dropDelete: "Удалить аккаунт", dropLogout: "Выйти", heroPill: "Добро пожаловать", heroTitle: "Потрясающие <span>Изображения</span>", heroDesc: "Профессиональный ИИ.", btnStartNow: "Начать", btnWatchDemo: "Демо", floatHeader: "ИИ", float1: "100% Лица", float2: "Секвенции", float3: "UHD", toolsTitle: "Инструменты", toolsSub: "Выберите", lockText: "Подписка", tagPopular: "Популярно", tagGuide: "Гайд", tool1Title: "Canvas Pro", tool1Desc: "Студия.", btnOpenTool: "Открыть", tool2Title: "FAQ", tool2Desc: "Ответы.", btnReadFaq: "Читать", inspTitle: "Вдохновение", inspSub: "Копировать", plansTitle: "Планы", luckyTitle: "Повезло!", luckyDesc1: "Ваш ранг", luckyDesc2: "из 15!", secretCodeLbl: "Код:", btnApplySecret: "Применить ⚡", plan1Mo: "1 Месяц", plan3Mo: "3 Месяца", plan6Mo: "6 Месяцев", plan1Yr: "1 Год", planBestVal: "ЛУЧШИЙ", plan1Desc: "Гибко", plan3Desc: "Популярно", plan6Desc: "Выгодно", plan1YrDesc: "Экономия", btnSubMonth: "Подписка", btnSub3Mo: "Подписка", btnSub6Mo: "Подписка", btnSubYr: "Подписка", mod18Title: "Условия", mod18Text: "🔞 Аккаунт <strong>18+</strong>.", modCodeLbl: "Скидка:", modCodeBtn: "Копировать", modCodeDesc: "Вставьте при оплате.", btnConfirm18: "Мне 18+, Оплатить ↗", btnCancel: "Отмена", btnRenew: "Продлить", checkoutWarnEmail: "Используйте ваш email.", modSubTitle: "Детали", lblCurPlan: "План", lblStartDate: "Начало", lblEndDate: "Конец", lblTimeLeft: "Осталось", couponTitle: "Промокод?", btnApply: "Применить", modFaqTitle: "FAQ", modDelTitle: "Удалить", modDelText: "Навсегда.", btnPermDelete: "Удалить", modWarnTitle: "Внимание", modWarnText: 'Нажмите <strong>"Дополнительные настройки"</strong>.', btnUnderstand: "Понятно", toastCopy: "Скопировано", toastCopyCode: "Код скопирован!", toastLoginReq: "Войдите", toastSubReq: "Нужен PRO", toastLogout: "Вышли", toastDeleted: "Удален", toastDemo: "Скоро!", btnCopy: "Копировать", toastEnterCode: "Введите код", toastInvalidCode: "Неверно", toastConnError: "Ошибка.", toastPromoSuccess: "Активировано!", noSearchResults: "Нет результатов.",
+                logoSub: "Создавай • Редактируй • Вдохновляй", navHome: "Главная", navGen: "Генератор", navGallery: "Галерея", navFaq: "FAQ и Руководство", navSub: "Подписка", statusFree: "Бесплатный аккаунт", btnManageSub: "Управление подпиской", bannerOffer: "🔥 Скидка 30% в честь запуска! Код:", bannerTimerText: "До конца:", btnClaimOffer: "Получить", searchPlaceholder: "Поиск...", dropStatusLabel: "Статус подписки", dropManage: "Управление подпиской", dropDelete: "Удалить аккаунт", dropLogout: "Выйти", heroPill: "Добро пожаловать в Artify PRO", heroTitle: "Преврати свои идеи в <span>Потрясающие Изображения</span>", heroDesc: "Создавайте профессиональные изображения с помощью ИИ и 100% согласованности лиц.", btnStartNow: "Начать", btnWatchDemo: "Смотреть демо", floatHeader: "Продвинутый ИИ", float1: "100% Согласованность Лиц", float2: "Последовательная генерация", float3: "Кинематографическое качество UHD", toolsTitle: "Ваши Инструменты", toolsSub: "Выберите инструмент", lockText: "Подпишитесь, чтобы разблокировать", tagPopular: "Популярное", tagGuide: "Руководство", tool1Title: "Canvas Pro", tool1Desc: "Интегрированная студия для генерации и блокировки лиц.", btnOpenTool: "Открыть", tool2Title: "FAQ и Документация", tool2Desc: "Ответы на вопросы о подписке.", btnReadFaq: "Читать FAQ", inspTitle: "Вдохновение", inspSub: "Наведите, чтобы скопировать промпт", plansTitle: "Выберите план", luckyTitle: "Вам очень повезло!", luckyDesc1: "Вы один из первых. Ваш ранг", luckyDesc2: "из 15 БЕСПЛАТНЫХ мест!", secretCodeLbl: "Секретный код:", btnApplySecret: "Получить место ⚡", plan1Mo: "1 Месяц", plan3Mo: "3 Месяца", plan6Mo: "6 Месяцев", plan1Yr: "1 Год", planBestVal: "ЛУЧШИЙ ВЫБОР", plan1Desc: "Гибкое продление", plan3Desc: "Популярный выбор", plan6Desc: "Идеально для криэйторов", plan1YrDesc: "Максимальная экономия", btnSubMonth: "Подписка на месяц", btnSub3Mo: "Подписка на 3 месяца", btnSub6Mo: "Подписка на 6 месяцев", btnSubYr: "Подписка на год", mod18Title: "Условия подписки", mod18Text: "🔞 Ваш аккаунт Google должен быть зарегистрирован для пользователей <strong>старше 18 лет</strong>.", modCodeLbl: "Код на скидку:", modCodeBtn: "Копировать код 📋", modCodeDesc: "Вставьте код в поле <strong>Add promo code</strong> при оплате для скидки 30%.", btnConfirm18: "Мне есть 18+, к оплате ↗", btnCancel: "Отмена", btnRenew: "Продлить план", checkoutWarnEmail: "Используйте ваш email Google.", modEarlyTitle: "Получить бесплатное место", modEarlyDesc: "Лимитированная подписка. Активация без оплаты.", btnConfirm18Early: "Мне 18+, Активировать ⚡", modSubTitle: "Детали подписки", lblCurPlan: "Ваш план", lblStartDate: "Дата начала", lblEndDate: "Дата окончания", lblTimeLeft: "Осталось времени", couponTitle: "Есть промокод?", btnApply: "Применить", modFaqTitle: "FAQ и Руководство", modDelTitle: "Удалить аккаунт", modDelText: "Ваш аккаунт и данные будут безвозвратно удалены.", btnPermDelete: "Удалить навсегда", modWarnTitle: "Важное замечание", modWarnText: 'Google может показать сообщение <em>"Это приложение не проверено"</em>. Нажмите <strong>"Дополнительные настройки"</strong>, затем <strong>"Перейти на страницу приложения"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Совет:</span> Нажмите <kbd>F11</kbd> для полноэкранного режима!', btnUnderstand: "Понятно, открыть инструмент", toastCopy: "Промпт скопирован", toastCopyCode: "Код скопирован!", toastLoginReq: "Пожалуйста, войдите через Google", toastSubReq: "Требуется подписка PRO", toastLogout: "Выход выполнен", toastDeleted: "Аккаунт удален", toastDemo: "Демо скоро появится!", btnCopy: "Копировать", toastEnterCode: "Введите код", toastInvalidCode: "Неверно", toastConnError: "Ошибка.", toastPromoSuccess: "Активировано!", noSearchResults: "Нет результатов.",
                 faqs: [
                     { q:"Любой аккаунт?", a:"Только 18+." },
                     { q:"Скрытые комиссии?", a:"Нет." },
@@ -758,7 +1243,7 @@
                 ]
             },
             zh: {
-                logoSub: "创造 • 编辑", navHome: "主页", navGen: "生成器", navGallery: "画廊", navFaq: "常见问题", navSub: "订阅", statusFree: "免费", btnManageSub: "管理订阅", bannerOffer: "🔥 30%折扣！代码：", bannerTimerText: "结束：", btnClaimOffer: "获取", searchPlaceholder: "搜索...", dropStatusLabel: "状态", dropManage: "管理", dropDelete: "删除", dropLogout: "退出", heroPill: "欢迎", heroTitle: "惊艳的 <span>图像</span>", heroDesc: "AI 图像生成。", btnStartNow: "开始", btnWatchDemo: "演示", floatHeader: "高级 AI", float1: "100% 一致性", float2: "连续生成", float3: "UHD", toolsTitle: "工具", toolsSub: "选择", lockText: "订阅解锁", tagPopular: "热门", tagGuide: "指南", tool1Title: "Canvas Pro", tool1Desc: "综合工作室。", btnOpenTool: "打开", tool2Title: "FAQ", tool2Desc: "解答。", btnReadFaq: "阅读", inspTitle: "灵感", inspSub: "复制", plansTitle: "计划", luckyTitle: "幸运！", luckyDesc1: "排名", luckyDesc2: "/ 15!", secretCodeLbl: "代码：", btnApplySecret: "应用 ⚡", plan1Mo: "1 个月", plan3Mo: "3 个月", plan6Mo: "6 个月", plan1Yr: "1 年", planBestVal: "最超值", plan1Desc: "灵活", plan3Desc: "热门", plan6Desc: "超值", plan1YrDesc: "节省", btnSubMonth: "订阅", btnSub3Mo: "订阅", btnSub6Mo: "订阅", btnSubYr: "订阅", mod18Title: "条款", mod18Text: "🔞 需要 <strong>18 岁以上</strong>.", modCodeLbl: "折扣码：", modCodeBtn: "复制", modCodeDesc: "付款时粘贴。", btnConfirm18: "我已满18，付款 ↗", btnCancel: "取消", btnRenew: "续订", checkoutWarnEmail: "请使用当前的 Google 邮箱。", modSubTitle: "详情", lblCurPlan: "计划", lblStartDate: "开始", lblEndDate: "结束", lblTimeLeft: "剩余", couponTitle: "有代码？", btnApply: "应用", modFaqTitle: "FAQ", modDelTitle: "删除账户", modDelText: "永久删除。", btnPermDelete: "删除", modWarnTitle: "提示", modWarnText: '点击 <strong>"高级"</strong>。', btnUnderstand: "明白", toastCopy: "已复制", toastCopyCode: "代码已复制！", toastLoginReq: "请登录", toastSubReq: "需要 PRO", toastLogout: "已登出", toastDeleted: "已删除", toastDemo: "即将推出！", btnCopy: "复制", toastEnterCode: "请输入代码", toastInvalidCode: "无效代码", toastConnError: "连接错误", toastPromoSuccess: "已激活！", noSearchResults: "无结果。",
+                logoSub: "创造 • 编辑 • 启发", navHome: "主页", navGen: "图像生成器", navGallery: "画廊", navFaq: "常见问题", navSub: "订阅", statusFree: "免费账户", btnManageSub: "管理订阅", bannerOffer: "🔥 首发优惠：全场七折！复制折扣码：", bannerTimerText: "结束于：", btnClaimOffer: "获取优惠", searchPlaceholder: "搜索...", dropStatusLabel: "订阅状态", dropManage: "管理订阅", dropDelete: "删除账户", dropLogout: "退出", heroPill: "欢迎来到 Artify PRO", heroTitle: "将您的想法转化为 <span>惊艳的图像</span>", heroDesc: "使用高级 AI 创建 100% 脸部一致性的高质量图像。", btnStartNow: "立即开始", btnWatchDemo: "观看演示", floatHeader: "高级 AI", float1: "100% 脸部一致性", float2: "连续生成", float3: "电影级 UHD 画质", toolsTitle: "您的工具", toolsSub: "选择工具开始", lockText: "点击订阅以解锁", tagPopular: "最受欢迎", tagGuide: "全面指南", tool1Title: "Canvas Pro", tool1Desc: "图像生成和角色面部锁定综合工作室。", btnOpenTool: "打开工具", tool2Title: "常见问题与文档", tool2Desc: "有关订阅和使用政策的完整解答。", btnReadFaq: "阅读 FAQ", inspTitle: "灵感", inspSub: "悬停以复制提示词", plansTitle: "选择您的计划", luckyTitle: "您非常幸运！", luckyDesc1: "您是早期测试者。您的排名是", luckyDesc2: "/ 15 个免费账户！", secretCodeLbl: "秘密代码：", btnApplySecret: "免费领取 ⚡", plan1Mo: "1 个月", plan3Mo: "3 个月", plan6Mo: "6 个月", plan1Yr: "1 年", planBestVal: "最超值", plan1Desc: "灵活的月度续订", plan3Desc: "最受欢迎的选择", plan6Desc: "创作者的超值选择", plan1YrDesc: "最大节省", btnSubMonth: "包月", btnSub3Mo: "包季", btnSub6Mo: "包半年", btnSubYr: "包年", mod18Title: "重要订阅条款", mod18Text: "🔞 <strong>核心要求：</strong><br>您的 Google 账户必须注册为 <strong>18 岁或以上</strong>。", modCodeLbl: "折扣码：", modCodeBtn: "复制代码 📋", modCodeDesc: "结账时将代码粘贴在 <strong>Add promo code</strong> 以获取 30% 折扣。", btnConfirm18: "我确认已满 18 岁，前往付款 ↗", btnCancel: "取消", btnRenew: "续订或升级", checkoutWarnEmail: "请使用当前的 Google 邮箱。", modEarlyTitle: "领取免费名额", modEarlyDesc: "这是有限的免费订阅。您的账户将立即激活，无需付款。", btnConfirm18Early: "已满18岁，立即激活 ⚡", modSubTitle: "订阅详情", lblCurPlan: "当前计划", lblStartDate: "开始日期", lblEndDate: "结束日期", lblTimeLeft: "剩余时间", couponTitle: "有促销代码？", btnApply: "应用", modFaqTitle: "常见问题与文档", modDelTitle: "删除账户", modDelText: "您的账户和所有数据将被永久删除。", btnPermDelete: "永久删除", modWarnTitle: "开始前的重要提示", modWarnText: 'Google 可能会提示 <em>"Google 未验证此应用"</em>。这是标准程序。点击 <strong>"高级"</strong>，然后 <strong>"前往应用"</strong>。<br><br>💡 <span style="color:var(--primary); font-weight:bold;">提示：</span> 按 <kbd>F11</kbd> 全屏！', btnUnderstand: "我明白，打开工具", toastCopy: "提示词已复制", toastCopyCode: "折扣码已复制！", toastLoginReq: "请先登录 Google", toastSubReq: "需要 PRO 订阅", toastLogout: "已登出", toastDeleted: "账户已永久删除", toastDemo: "演示视频即将推出！", btnCopy: "复制", toastEnterCode: "请输入代码", toastInvalidCode: "无效代码", toastConnError: "连接错误", toastPromoSuccess: "已激活！", noSearchResults: "无结果。",
                 faqs: [
                     { q:"所有Google账号都可以？", a:"必须年满18岁。" },
                     { q:"有额外费用吗？", a:"没有。" },
@@ -771,7 +1256,7 @@
                 ]
             },
             ja: {
-                logoSub: "作成 • 編集", navHome: "ホーム", navGen: "生成", navGallery: "ギャラリー", navFaq: "FAQ", navSub: "サブスク", statusFree: "無料", btnManageSub: "管理", bannerOffer: "🔥 30%オフ！コード：", bannerTimerText: "終了まで:", btnClaimOffer: "取得", searchPlaceholder: "検索...", dropStatusLabel: "ステータス", dropManage: "管理", dropDelete: "削除", dropLogout: "ログアウト", heroPill: "ようこそ", heroTitle: "素晴らしい <span>画像</span>", heroDesc: "高品質AI画像。", btnStartNow: "開始", btnWatchDemo: "デモ", floatHeader: "高度なAI", float1: "100% 一貫性", float2: "連続生成", float3: "UHD", toolsTitle: "ツール", toolsSub: "選択", lockText: "登録して解除", tagPopular: "人気", tagGuide: "ガイド", tool1Title: "Canvas Pro", tool1Desc: "統合スタジオ。", btnOpenTool: "開く", tool2Title: "FAQ", tool2Desc: "回答。", btnReadFaq: "読む", inspTitle: "インスピレーション", inspSub: "コピー", plansTitle: "プラン", luckyTitle: "幸運！", luckyDesc1: "順位は", luckyDesc2: "/ 15!", secretCodeLbl: "コード：", btnApplySecret: "適用 ⚡", plan1Mo: "1ヶ月", plan3Mo: "3ヶ月", plan6Mo: "6ヶ月", plan1Yr: "1年", planBestVal: "ベスト", plan1Desc: "柔軟", plan3Desc: "人気", plan6Desc: "お得", plan1YrDesc: "節約", btnSubMonth: "登録", btnSub3Mo: "登録", btnSub6Mo: "登録", btnSubYr: "登録", mod18Title: "条件", mod18Text: "🔞 <strong>18歳以上</strong> のみ。", modCodeLbl: "割引コード：", modCodeBtn: "コピー", modCodeDesc: "決済時に貼り付け。", btnConfirm18: "18歳以上です、決済へ ↗", btnCancel: "キャンセル", btnRenew: "更新", checkoutWarnEmail: "現在のGoogleメールを使用してください。", modSubTitle: "詳細", lblCurPlan: "プラン", lblStartDate: "開始", lblEndDate: "終了", lblTimeLeft: "残り", couponTitle: "コードがありますか？", btnApply: "適用", modFaqTitle: "FAQ", modDelTitle: "削除", modDelText: "完全に削除されます。", btnPermDelete: "削除", modWarnTitle: "注意", modWarnText: '<strong>「詳細」</strong> から進んでください。', btnUnderstand: "理解した", toastCopy: "コピーしました", toastCopyCode: "コードをコピー！", toastLoginReq: "ログインして", toastSubReq: "PROが必要です", toastLogout: "ログアウト", toastDeleted: "削除完了", toastDemo: "近日！", btnCopy: "コピー", toastEnterCode: "コードを入力", toastInvalidCode: "無効", toastConnError: "エラー", toastPromoSuccess: "有効化！", noSearchResults: "結果なし。",
+                logoSub: "作成 • 編集 • インスパイア", navHome: "ホーム", navGen: "画像生成", navGallery: "ギャラリー", navFaq: "FAQとガイド", navSub: "サブスクリプション", statusFree: "無料アカウント", btnManageSub: "サブスクリプション管理", bannerOffer: "🔥 リリース記念: 30%オフ！コード:", bannerTimerText: "終了まで:", btnClaimOffer: "特典を取得", searchPlaceholder: "検索...", dropStatusLabel: "ステータス", dropManage: "管理", dropDelete: "アカウント削除", dropLogout: "ログアウト", heroPill: "Artify PRO へようこそ", heroTitle: "アイデアを <span>素晴らしい画像</span> に", heroDesc: "顔の一貫性が100%の高品質なAI画像を生成します。", btnStartNow: "始める", btnWatchDemo: "デモを見る", floatHeader: "高度なAI", float1: "顔の一貫性 100%", float2: "連続画像生成", float3: "シネマティックUHD", toolsTitle: "ツール", toolsSub: "ツールを選択", lockText: "登録してロック解除", tagPopular: "人気", tagGuide: "包括的なガイド", tool1Title: "Canvas Pro", tool1Desc: "画像生成と顔固定のための統合スタジオ。", btnOpenTool: "開く", tool2Title: "FAQとドキュメント", tool2Desc: "サブスクリプションとポリシーの完全な回答。", btnReadFaq: "FAQを読む", inspTitle: "インスピレーション", inspSub: "ホバーしてプロンプトをコピー", plansTitle: "プランを選択", luckyTitle: "あなたはとても幸運です！", luckyDesc1: "あなたは初期テスターです。順位は", luckyDesc2: "/ 15 無料アカウント中！", secretCodeLbl: "秘密のコード:", btnApplySecret: "無料枠を取得 ⚡", plan1Mo: "1ヶ月", plan3Mo: "3ヶ月", plan6Mo: "6ヶ月", plan1Yr: "1年", planBestVal: "ベストバリュー", plan1Desc: "柔軟な月次更新", plan3Desc: "最も人気の選択肢", plan6Desc: "クリエイターに最適", plan1YrDesc: "最大の節約", btnSubMonth: "月額登録", btnSub3Mo: "3ヶ月登録", btnSub6Mo: "6ヶ月登録", btnSubYr: "年額登録", mod18Title: "重要事項", mod18Text: "🔞 <strong>要件:</strong><br>Googleアカウントは <strong>18歳以上</strong> である必要があります。", modCodeLbl: "割引コード:", modCodeBtn: "コードをコピー 📋", modCodeDesc: "決済時に <strong>Add promo code</strong> に貼り付けて30%オフ。", btnConfirm18: "18歳以上です。決済へ進む ↗", btnCancel: "キャンセル", btnRenew: "プランを更新", checkoutWarnEmail: "現在のGoogleメールを使用してください。", modEarlyTitle: "無料枠を取得", modEarlyDesc: "限定無料サブスクリプションです。支払なしで即時有効化されます。", btnConfirm18Early: "18歳以上です、有効化 ⚡", modSubTitle: "サブスクリプション詳細", lblCurPlan: "現在のプラン", lblStartDate: "開始日", lblEndDate: "終了日", lblTimeLeft: "残り時間", couponTitle: "プロモコードがありますか？", btnApply: "適用", modFaqTitle: "FAQとドキュメント", modDelTitle: "アカウント削除", modDelText: "アカウントとすべてのデータは完全に削除されます。", btnPermDelete: "完全に削除", modWarnTitle: "開始前の重要な通知", modWarnText: 'Google が <em>"このアプリは確認されていません"</em> と表示する場合があります。<strong>「詳細」</strong> から <strong>「アプリへ移動」</strong> をクリックしてください。<br><br>💡 <span style="color:var(--primary); font-weight:bold;">ヒント:</span> <kbd>F11</kbd> キーで全画面表示に！', btnUnderstand: "理解しました", toastCopy: "コピーしました", toastCopyCode: "コードをコピーしました！", toastLoginReq: "Googleでログインしてください", toastSubReq: "PROサブスクリプションが必要です", toastLogout: "ログアウトしました", toastDeleted: "削除しました", toastDemo: "デモは近日公開！", btnCopy: "コピー", toastEnterCode: "コードを入力", toastInvalidCode: "無効", toastConnError: "エラー", toastPromoSuccess: "有効化！", noSearchResults: "結果なし。",
                 faqs: [
                     { q:"どのアカウントでも？", a:"18歳以上のみ。" },
                     { q:"追加料金は？", a:"ありません。" },
@@ -785,7 +1270,6 @@
             }
         };
 
-        // --- Fix for Google Button Language ---
         function renderGoogleButton(lang) {
             const googleLangMap = { 'en': 'en', 'ar': 'ar', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it', 'pt': 'pt', 'ru': 'ru', 'zh': 'zh-CN', 'ja': 'ja' };
             if(window.google) {
@@ -829,7 +1313,6 @@
             renderGoogleButton(lang); 
             initMarquee(); 
             
-            // Re-trigger search to update messages if search is active
             triggerSearch(document.getElementById('globalSearchInput').value);
         }
 
@@ -839,7 +1322,7 @@
         function toggleLangDropdown() { document.getElementById('langDropdown').classList.toggle('show'); document.getElementById('userDropdown').classList.remove('show');}
         function toggleUserDropdown() { document.getElementById('userDropdown').classList.toggle('show'); document.getElementById('langDropdown').classList.remove('show');}
         
-        // --- Search Bar Implementation (Issue 3 Fix) ---
+        // --- Search Bar Implementation ---
         document.getElementById('globalSearchInput').addEventListener('input', function(e) {
             triggerSearch(this.value);
         });
@@ -851,7 +1334,6 @@
             const noResultsMsg = document.getElementById('noResultsMsg');
             let hasVisibleItem = false;
             
-            // Filter Tools
             tools.forEach(tool => {
                 const text = tool.textContent.toLowerCase();
                 if(text.includes(query) || query === "") {
@@ -862,7 +1344,6 @@
                 }
             });
             
-            // Filter FAQs
             faqs.forEach(faq => {
                 const text = faq.textContent.toLowerCase();
                 if(text.includes(query) || query === "") {
@@ -873,9 +1354,11 @@
                 }
             });
 
-            // Show 'No Results' if nothing matches and query is not empty
             if (!hasVisibleItem && query !== "") {
-                if(noResultsMsg) noResultsMsg.style.display = 'block';
+                if(noResultsMsg) {
+                    noResultsMsg.innerText = translations[currentLang]?.noSearchResults || translations['en'].noSearchResults;
+                    noResultsMsg.style.display = 'block';
+                }
             } else {
                 if(noResultsMsg) noResultsMsg.style.display = 'none';
             }
@@ -902,7 +1385,6 @@
         });
 
         function startGlobalTimer() {
-            // Fixed Timer to exactly 2 weeks from Sep 11, 2026 (Sep 25, 2026 23:59:59)
             const countDownDate = new Date("Sep 25, 2026 23:59:59").getTime();
             
             const timerInterval = setInterval(function() {
@@ -928,7 +1410,6 @@
             showToast(translations[currentLang]?.toastCopyCode || translations['en'].toastCopyCode, 'success');
         }
 
-        // --- Fetch Promo Stats (Issue 1 Fix part 2) ---
         async function fetchPromoStats() {
             const earlyBox = document.getElementById("earlyBirdBox");
             const rankEl = document.getElementById("userRankNumber");
@@ -943,7 +1424,6 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                // Show to ALL users (logged in or not) based on real remaining seats
                 if (data.active && data.remaining > 0) {
                     if (earlyBox) earlyBox.style.display = 'block';
                     if (rankEl) rankEl.innerText = `#${data.currentRank}`; 
@@ -953,39 +1433,38 @@
             } catch (e) { console.log('Promo stats error'); }
         }
 
-        // --- Handle Direct Claim Button without exposing code (Issue 1 Fix part 1) ---
-        function claimEarlyBirdSpot() {
+        // --- Handle Direct Claim Button via Modal (Issue 3 Fix) ---
+        function promptEarlyBirdClaim() {
             if (!currentUser) { 
                 showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); 
                 return; 
             }
-            // Obfuscated code injection for backend via logic, not HTML
-            const magicSequence = ['M','O','A','Z','A','2','F','R','E','E'].join('');
-            
-            // Programmatically apply it directly
-            const msgEl = document.getElementById('couponMsg'); 
-            openPricingModal();
-            msgEl.style.color = 'var(--text-muted)';
-            msgEl.innerText = 'Verifying...';
+            closeModals();
+            document.getElementById('ageConfirmEarlyBirdModal').classList.add('show');
+        }
 
-            fetch('/api/apply-coupon', { 
+        function claimEarlyBirdSpot() {
+            closeModals();
+            showToast('Verifying...', 'warning');
+
+            fetch('/api/claim-early-bird', { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
-                credentials: 'include', 
-                body: JSON.stringify({ couponCode: magicSequence }) 
+                credentials: 'include'
             })
             .then(res => res.json().then(data => ({ok: res.ok, data})))
             .then(({ok, data}) => {
-                if (ok && data.type === 'free') {
-                    msgEl.style.color = 'var(--success)'; msgEl.innerText = translations[currentLang]?.toastPromoSuccess || 'PRO Activated successfully!'; 
+                if (ok && data.success) {
                     showToast(translations[currentLang]?.toastPromoSuccess || 'PRO Activated successfully!', 'success');
-                    fetchPromoStats(); setTimeout(() => { closeModals(); checkSession(); }, 1200);
+                    fetchPromoStats(); 
+                    setTimeout(() => { checkSession(); }, 1200);
                 } else { 
-                    msgEl.style.color = 'var(--danger)'; msgEl.innerText = data.error || translations[currentLang]?.toastInvalidCode || 'Invalid code'; 
+                    showToast(data.error || translations[currentLang]?.toastInvalidCode || 'Invalid request', 'danger'); 
                 }
             })
-            .catch(e => { msgEl.innerText = translations[currentLang]?.toastConnError || 'Connection error'; });
+            .catch(e => { showToast(translations[currentLang]?.toastConnError || 'Connection error', 'danger'); });
         }
+
 
         const showcaseItems = [
             { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light." },
@@ -1020,7 +1499,6 @@
             showToast(translations[currentLang]?.toastCopy || translations['en'].toastCopy, 'success');
         }
 
-        // --- Render FAQs from Translations (Issue 2 Fix) ---
         function renderFaq() {
             const wrap = document.getElementById('faqList');
             const faqData = (translations[currentLang] && translations[currentLang].faqs) ? translations[currentLang].faqs : translations['en'].faqs;
@@ -1128,11 +1606,13 @@
         function updateDashboardUI(user) {
             const gBtn = document.getElementById('g_id_signin_container'); const uMenu = document.getElementById('userMenuArea');
             const lock = document.getElementById('canvasLock'); const dropSubStatus = document.getElementById('dropSubStatus');
+            const purchaseSection = document.getElementById('purchase-section'); // Get purchase section
 
             if (!user) {
                 gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex';
                 document.getElementById('sidebarSubStatus').innerText = translations[currentLang]?.statusFree || translations['en'].statusFree; 
                 document.getElementById('quotaCount').innerText = '0 / 10';
+                purchaseSection.style.display = 'block'; // Show if not logged in
                 fetchPromoStats(); return;
             }
 
@@ -1145,15 +1625,18 @@
                 const dateStr = new Date(Number(user.expiresAt)).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
                 document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
                 dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
+                
+                purchaseSection.style.display = 'none'; // Hide if PRO (Issue 1 Fix)
             } else {
                 lock.style.display = 'flex';
                 document.getElementById('sidebarSubStatus').innerText = translations[currentLang]?.statusFree || translations['en'].statusFree;
                 dropSubStatus.innerText = translations[currentLang]?.dropLogout ? 'Inactive' : 'Inactive';
+                
+                purchaseSection.style.display = 'block'; // Show if free user
             }
             fetchPromoStats(); 
         }
 
-        // --- Standard Apply Coupon Logic (From user input) ---
         async function applyCoupon() {
             if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
             let code = document.getElementById('couponInput').value.trim();
@@ -1189,3 +1672,4 @@
     </script>
 </body>
 </html>
+```eof
