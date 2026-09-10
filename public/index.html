@@ -221,6 +221,13 @@
         .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
         .sub-info-item .value { font-size: 14px; font-weight: 700; color: #fff;}
 
+        /* Telegram Floating Button */
+        .telegram-btn { position: fixed; bottom: 30px; right: 30px; width: 55px; height: 55px; background: #0088cc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0, 136, 204, 0.5); cursor: pointer; z-index: 99; transition: transform 0.3s; text-decoration: none; }
+        html[dir="rtl"] .telegram-btn { right: auto; left: 30px; }
+        .telegram-btn:hover { transform: scale(1.1); }
+        .telegram-btn svg { width: 30px; height: 30px; fill: #fff; margin-right: 4px; }
+        html[dir="rtl"] .telegram-btn svg { margin-right: 0; margin-left: 4px; }
+
         #toast-container { position: fixed; bottom: 25px; left: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
         html[dir="rtl"] #toast-container { left: auto; right: 25px; }
         .toast { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); border-inline-start: 4px solid var(--success); color: var(--text-main); font-size: 13px; opacity: 0; transform: translateY(15px); transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -235,12 +242,22 @@
             .sidebar { display: none; }
             .banner-float-card { display: none; }
             .search-container { width: 180px; }
+            .telegram-btn { bottom: 20px; right: 20px; width: 45px; height: 45px; }
+            html[dir="rtl"] .telegram-btn { left: 20px; }
+            .telegram-btn svg { width: 24px; height: 24px; }
         }
     </style>
 </head>
 <body>
 
     <div id="toast-container"></div>
+
+    <!-- زر تليجرام العائم -->
+    <a href="https://t.me/artifypro" target="_blank" class="telegram-btn" title="تواصل مع الدعم الفني">
+        <svg viewBox="0 0 24 24">
+            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z"/>
+        </svg>
+    </a>
 
     <div class="app-layout">
         <aside class="sidebar">
@@ -253,10 +270,9 @@
                 <ul class="nav-links">
                     <li class="nav-item active" onclick="scrollToTop()"><span class="icon">🏠</span> <span>الرئيسية</span></li>
                     <li class="nav-item" onclick="handleToolAction()"><span class="icon">🎨</span> <span>مولد الصور</span></li>
-                    <li class="nav-item" onclick="showSoonToast()"><span class="icon">📁</span> <span>المشاريع</span></li>
                     <li class="nav-item" onclick="scrollToSection('inspirationSection')"><span class="icon">🖼️</span> <span>المعرض</span></li>
                     <li class="nav-item" onclick="openFaqModal()"><span class="icon">📖</span> <span>الأسئلة الشائعة</span></li>
-                    <li class="nav-item" onclick="openPricingModal()"><span class="icon">⚙️</span> <span>الاشتراك</span></li>
+                    <li class="nav-item" onclick="manageSubscriptionFlow()"><span class="icon">⚙️</span> <span>الاشتراك</span></li>
                 </ul>
             </div>
 
@@ -286,8 +302,7 @@
             <header class="topbar">
                 <div class="search-container">
                     <span style="color:var(--text-muted);">🔍</span>
-                    <input type="text" id="globalSearchInput" placeholder="ابحث عن أدوات أو مشاريع...">
-                    <span class="search-shortcut">Ctrl + K</span>
+                    <input type="text" id="globalSearchInput" placeholder="ابحث عن أدوات أو أسئلة شائعة...">
                 </div>
 
                 <div class="topbar-actions">
@@ -295,7 +310,10 @@
                         <button class="lang-switch" onclick="toggleLangDropdown()" type="button">
                             🌐 <span id="langCurrentLabel">العربية</span> <span style="font-size:10px;">▼</span>
                         </button>
-                        <div class="lang-dropdown" id="langDropdown"></div>
+                        <div class="lang-dropdown" id="langDropdown">
+                            <div class="lang-option active" onclick="changeLanguage('ar')">العربية <span style="font-size:10px; color:#38bdf8;">✓</span></div>
+                            <div class="lang-option" onclick="changeLanguage('en')">English</div>
+                        </div>
                     </div>
 
                     <div id="g_id_signin_container"></div>
@@ -369,25 +387,13 @@
                         <div class="tool-card">
                             <div class="tool-top">
                                 <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
-                                <span class="tool-tag tag-soon">دليل تفاعلي</span>
+                                <span class="tool-tag tag-soon">دليل شامل</span>
                             </div>
                             <div class="tool-content">
-                                <h3>الوثائق والدليل</h3>
-                                <p>دليل شامل لكيفية الحصول على أفضل نتائج وتوليد برومبتات احترافية.</p>
+                                <h3>الأسئلة الشائعة والدليل</h3>
+                                <p>إجابات كاملة لكل تفاصيل الاشتراك وسياسات الاستخدام وطريقة العمل.</p>
                             </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span>عرض الدليل والأسئلة</span> <span class="dir-arrow">←</span></button>
-                        </div>
-
-                        <div class="tool-card" style="opacity:0.7;">
-                            <div class="tool-top">
-                                <div class="tool-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">☁️</div>
-                                <span class="tool-tag tag-soon">قريباً</span>
-                            </div>
-                            <div class="tool-content">
-                                <h3>Google Drive Sync</h3>
-                                <p>مزامنة تلقائية لمشاريعك ومجلدات الصور إلى حسابك السحابي.</p>
-                            </div>
-                            <button class="tool-btn btn-secondary-tool" disabled style="cursor:not-allowed;"><span>قريباً</span></button>
+                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span>عرض الأسئلة والإجابات</span> <span class="dir-arrow">←</span></button>
                         </div>
                     </div>
                 </section>
@@ -407,6 +413,7 @@
                         <span>اختر باقتك</span>
                     </div>
 
+                    <!-- تم إخفاء الصندوق برمجياً، سيظهر فقط للمستخدمين المسجلين غير المشتركين -->
                     <div id="earlyBirdBox" style="display:none; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid var(--accent); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: center;">
                         <div style="font-size: 20px; margin-bottom: 6px;">🎉 <strong>أنت محظوظ جداً!</strong></div>
                         <p style="font-size: 14px; color: #f8fafc; margin-bottom: 12px;">
@@ -532,10 +539,11 @@
         </div>
     </div>
 
+    <!-- نافذة الأسئلة الشائعة -->
     <div class="modal-overlay" id="faqModal">
         <div class="modal-box large">
             <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title">الأسئلة الشائعة</div>
+            <div class="modal-title">الأسئلة الشائعة والدليل</div>
             <div class="faq-wrap" id="faqList"></div>
         </div>
     </div>
@@ -576,6 +584,21 @@
 
         function toggleLangDropdown() { document.getElementById('langDropdown').classList.toggle('show'); document.getElementById('userDropdown').classList.remove('show');}
         function toggleUserDropdown() { document.getElementById('userDropdown').classList.toggle('show'); document.getElementById('langDropdown').classList.remove('show');}
+        
+        function changeLanguage(lang) {
+            toggleLangDropdown();
+            showToast('جاري العمل على ترجمة المنصة، ستتوفر الإنجليزية قريباً', 'warning');
+        }
+
+        // تفاعل شريط البحث
+        document.getElementById('globalSearchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const query = this.value.trim();
+                if (query) {
+                    showToast(`لا توجد نتائج بحث حالياً عن "${query}"`, 'warning');
+                }
+            }
+        });
 
         function showToast(msg, type='success') {
             const container = document.getElementById('toast-container');
@@ -586,7 +609,6 @@
             setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
         }
-        function showSoonToast() { showToast('هذه الميزة ستتوفر قريباً', 'warning'); }
         function playPromoVideo() { showToast('سيتم إضافة الفيديو التوضيحي قريباً!', 'success'); } 
 
         function scrollToSection(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
@@ -633,15 +655,21 @@
         }
 
         async function fetchPromoStats() {
+            const earlyBox = document.getElementById("earlyBirdBox");
+            const rankEl = document.getElementById("userRankNumber");
+
+            // الزائر مش مسجل دخول أو مشترك بالفعل -> إخفاء الكارت
+            if (!currentUser || currentUser.subscriptionActive) {
+                if (earlyBox) earlyBox.style.display = 'none';
+                return;
+            }
+
             try {
-                const res = await fetch('/api/promo-stats');
+                const res = await fetch('/api/promo-stats', { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                const earlyBox = document.getElementById("earlyBirdBox");
-                const rankEl = document.getElementById("userRankNumber");
-
-                if ((currentUser && currentUser.subscriptionActive) || !data.active || data.remaining <= 0) {
+                if (!data.active || data.remaining <= 0) {
                     if (earlyBox) earlyBox.style.display = 'none';
                     return;
                 }
@@ -689,11 +717,15 @@
             navigator.clipboard.writeText(text); showToast('تم نسخ البرومبت بنجاح', 'success');
         }
 
+        // الأسئلة الشائعة كاملة (8 أسئلة)
         const faqs = [
-            { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية لن تتمكن من توليد الصور." },
+            { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. الحسابات الخاضعة للرقابة الأبوية (Family Link) لن تتمكن من توليد الصور." },
             { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية الخاصة بـ Artify PRO." },
-            { q:"هل هناك حد أقصى لعدد الصور التي يمكنني توليدها؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك." },
-            { q:"هل الصور الناتجة مملوكة لي بالكامل ويمكن استخدامها تجارياً؟", a:"نعم، جميع الصور التي تولّدها عبر حسابك مملوكة لك بالكامل ويمكنك استخدامها في مشاريعك التجارية دون قيود." },
+            { q:"هل هناك حد أقصى لعدد الصور التي يمكنني توليدها؟", a:"يحصل مشتركو PRO على توليد غير محدود طوال فترة الاشتراك وبأعلى جودة متاحة." },
+            { q:"كيف تعمل ميزة ثبات ملامح الشخصيات؟", a:"الأداة تستخدم خوارزميات ذكية لتثبيت نفس الملامح والوجه عبر مشاهد مختلفة، كل ما عليك هو تفعيل خيار Character Consistency داخل الأداة." },
+            { q:"هل الصور الناتجة مملوكة لي بالكامل ويمكن استخدامها تجارياً؟", a:"نعم، جميع الصور التي تولّدها عبر حسابك مملوكة لك بالكامل ويمكنك استخدامها في أعمالك التجارية وعلى يوتيوب دون قيود." },
+            { q:"هل يمكنني إلغاء اشتراكي في أي وقت؟", a:"نعم، يمكنك إدارة اشتراكك وإلغاء التجديد التلقائي في أي وقت من خلال لوحة تحكم Whop بكل سهولة." },
+            { q:"هل تعمل الأداة على الهاتف أم الكمبيوتر فقط؟", a:"الأداة تعمل على جميع الأجهزة (الهاتف، التابلت، والكمبيوتر) من خلال المتصفح، لكن يفضل استخدامها على الكمبيوتر (شاشة كاملة) لتجربة تصميم أفضل." },
             { q:"ما هي طرق الدفع المتاحة وسياسة الاسترجاع؟", a:"ندعم الدفع بأمان عبر Whop (بطاقات ائتمان و Apple Pay و Google Pay)، مع ضمان استرجاع 7 أيام للمشاكل التقنية." }
         ];
 
@@ -715,7 +747,7 @@
         function openDeleteModal() { document.getElementById('userDropdown').classList.remove('show'); closeModals(); document.getElementById('deleteModal').classList.add('show'); }
 
         // ============================================================
-        // دالة إدارة الاشتراك المحسوبة بدقة (الأيام والساعات وتصحيح 1970)
+        // إدارة تفاصيل الاشتراك - تفتح شاشة التفاصيل لو المشترك PRO
         // ============================================================
         function manageSubscriptionFlow() {
             document.getElementById('userDropdown').classList.remove('show');
@@ -724,7 +756,6 @@
                 closeModals();
                 document.getElementById('modalPlanName').innerText = "Artify PRO";
                 
-                // تصحيح تاريخ البدء (إذا كان 0 يُعرض تاريخ اليوم أو قبل شهر من الانتهاء)
                 let startDateObj;
                 if (currentUser.startedAt && Number(currentUser.startedAt) > 0) {
                     startDateObj = new Date(Number(currentUser.startedAt));
@@ -733,11 +764,9 @@
                 }
                 document.getElementById('modalStartDate').innerText = startDateObj.toLocaleDateString('ar-EG');
                 
-                // تاريخ الانتهاء
                 const expiryDateObj = new Date(Number(currentUser.expiresAt));
                 document.getElementById('modalExpiryDate').innerText = expiryDateObj.toLocaleDateString('ar-EG');
                 
-                // حساب الوقت المتبقي بالساعات والأيام بدقة بدلاً من التقريب الصامت
                 const diffMs = expiryDateObj.getTime() - Date.now();
                 if (diffMs <= 0) {
                     document.getElementById('modalDaysLeft').innerText = "انتهى الاشتراك";
