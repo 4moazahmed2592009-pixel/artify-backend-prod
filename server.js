@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. حماية CORS: السماح لموقعك فقط بالاتصال بالسيرفر
+// 1. حماية CORS
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
   'http://localhost:3000'
@@ -46,7 +46,10 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1054667161687-q2gipaht
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET;
 const MONGODB_URI = process.env.MONGODB_URI;
-const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET; // الرمز السري الذي نسخته
+const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
+
+// التحقق من بيئة العمل لضبط إعدادات الـ Cookies (عشان تشتغل في اللوكال هوست والإنتاج)
+const isProd = process.env.NODE_ENV === 'production';
 
 // تأمين: إيقاف السيرفر لو المتغيرات الأساسية غير موجودة
 if (!JWT_SECRET || !MONGODB_URI) {
@@ -54,6 +57,7 @@ if (!JWT_SECRET || !MONGODB_URI) {
   process.exit(1);
 }
 
+// تحسين الاتصال بقاعدة البيانات لبيئة Serverless
 let dbClient = null;
 async function getDb() {
   if (!dbClient) {
@@ -101,10 +105,11 @@ app.post('/api/auth/google', async (req, res) => {
 
     const token = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: '7d' });
 
+    // إعدادات الـ Cookie تتغير ديناميكياً حسب بيئة العمل لتجنب الأخطاء
     res.cookie('token', token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProd, 
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -145,31 +150,30 @@ app.get('/api/me', async (req, res) => {
 });
 
 // ==========================================
-// Webhook الدفع المؤمن + المدد الدقيقة
+// Webhook الدفع المؤمن
 // ==========================================
 app.post('/api/whop-webhook', async (req, res) => {
   try {
-    // 1. فحص التوقيع السري لضمان أن الطلب من Whop فعلاً
+    // 1. فحص التوقيع السري الصارم (تم حذف الثغرة التي كانت تسمح بالتخطي)
     if (WHOP_WEBHOOK_SECRET) {
-      const signature = req.headers['webhook-signature'] || req.headers['x-whop-signature'];
+      let signature = req.headers['webhook-signature'] || req.headers['x-whop-signature'];
       if (!signature) {
         console.warn('Webhook rejected: Missing signature header');
         return res.status(401).json({ error: 'Missing signature' });
       }
 
-      // إذا كان التوقيع بنظام Standard Webhooks (يحتوي على v1,...)
-      let isValid = false;
+      // إذا كان التوقيع يحتوي على إصدار (مثل v1,...) نقوم بفرزه
       if (signature.includes('v1,')) {
-        // تجاوز الفحص المعقد حالياً والاعتماد على الـ Secret مباشرة للمرونة
-        isValid = true; 
-      } else {
-        // فحص الـ HMAC العادي
-        const expectedSignature = crypto
-          .createHmac('sha256', WHOP_WEBHOOK_SECRET)
-          .update(req.rawBody || JSON.stringify(req.body))
-          .digest('hex');
-        isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+        signature = signature.split('v1,')[1];
       }
+
+      // فحص الـ HMAC العادي بأمان
+      const expectedSignature = crypto
+        .createHmac('sha256', WHOP_WEBHOOK_SECRET)
+        .update(req.rawBody || JSON.stringify(req.body))
+        .digest('hex');
+      
+      const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
 
       if (!isValid) {
         console.warn('Webhook rejected: Invalid signature');
@@ -184,8 +188,6 @@ app.post('/api/whop-webhook', async (req, res) => {
     if (!data) return res.status(200).json({ received: true });
 
     const email = (data.user?.email || data.member?.email || data.email || '').toLowerCase();
-    
-    // استخراج Plan ID لتحديد الباقة
     const planId = data.plan_id || (data.plan && data.plan.id) || (data.line_items && data.line_items[0]?.plan_id) || '';
 
     if (!email) return res.status(200).json({ received: true, note: 'No email found' });
@@ -196,15 +198,10 @@ app.post('/api/whop-webhook', async (req, res) => {
 
     // 2. ربط الـ Plan ID بمدته الفعلية
     let durationDays = 30; // افتراضي شهر
-    if (planId === 'plan_hhPYAFHhQnZ2p') {
-      durationDays = 90; // 3 شهور
-    } else if (planId === 'plan_SFcazKZDf63GC') {
-      durationDays = 180; // 6 شهور
-    } else if (planId === 'plan_PJeLIwlopBsLV') {
-      durationDays = 365; // سنة كاملة
-    } else if (planId === 'plan_1AFMWzPSMlWF7') {
-      durationDays = 30; // شهر
-    }
+    if (planId === 'plan_hhPYAFHhQnZ2p') durationDays = 90;
+    else if (planId === 'plan_SFcazKZDf63GC') durationDays = 180;
+    else if (planId === 'plan_PJeLIwlopBsLV') durationDays = 365;
+    else if (planId === 'plan_1AFMWzPSMlWF7') durationDays = 30;
 
     const durationMs = durationDays * 24 * 60 * 60 * 1000;
 
@@ -212,7 +209,6 @@ app.post('/api/whop-webhook', async (req, res) => {
     if (action === 'membership.activated' || action === 'payment.succeeded') {
       const existingUser = await users.findOne({ email });
       
-      // 3. التجديد الإضافي: إذا كان لديه رصيد أيام متبقية، تضاف المدة الجديدة فوقه
       let newExpiry = now + durationMs;
       if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
         newExpiry = existingUser.expires_at + durationMs;
@@ -251,7 +247,6 @@ app.post('/api/whop-webhook', async (req, res) => {
     res.status(200).json({ success: true });
   } catch (err) {
     console.error('Webhook processing error:', err);
-    // الرد بـ 200 لتجنب إعادة إرسال Whop المتكررة
     res.status(200).json({ error: 'Webhook error handled' });
   }
 });
@@ -275,14 +270,25 @@ app.post('/api/apply-coupon', async (req, res) => {
     const coupons = db.collection('coupons');
     const users = db.collection('users');
 
+    // 1. جلب الكوبون للتحقق الأولي
     const coupon = await coupons.findOne({ code: cleanCode });
     if (!coupon) return res.status(404).json({ error: 'كود التفعيل غير صحيح' });
 
-    const now = Date.now();
     if (coupon.used_count >= coupon.max_uses) {
       return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة لهذا الكود' });
     }
 
+    // 2. تحديث آمن (Atomic Operation) لمنع الـ Race Condition
+    const updateResult = await coupons.updateOne(
+      { code: cleanCode, used_count: { $lt: coupon.max_uses } },
+      { $inc: { used_count: 1 } }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة لهذا الكود' });
+    }
+
+    const now = Date.now();
     const durationMs = (coupon.duration_days || 30) * 24 * 60 * 60 * 1000;
     const existingUser = await users.findOne({ email });
     let newExpiry = now + durationMs;
@@ -304,8 +310,6 @@ app.post('/api/apply-coupon', async (req, res) => {
         }
       }
     );
-
-    await coupons.updateOne({ code: cleanCode }, { $inc: { used_count: 1 } });
 
     res.json({ success: true, type: 'free', message: 'تم تفعيل حساب PRO بنجاح!' });
   } catch (err) {
@@ -333,7 +337,7 @@ app.get('/api/promo-stats', async (req, res) => {
 });
 
 // ==========================================
-// تشغيل الأداة (Fail-Closed: حظر الدخول عند عدم التحقق)
+// تشغيل الأداة
 // ==========================================
 app.get('/api/launch-app', async (req, res) => {
   try {
@@ -344,12 +348,10 @@ app.get('/api/launch-app', async (req, res) => {
     const db = await getDb();
     const user = await db.collection('users').findOne({ email: decoded.email.toLowerCase() });
 
-    // الفحص الحاسم: إذا لم يجد المستخدم أو لم يكن مفعلاً أو وقته منتهي، يرفض فوراً
     if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
       return res.redirect('/?error=subscription_required');
     }
 
-    // السماح بالمرور
     res.redirect('https://script.google.com/macros/s/AKfycby9D8zK3a2uM_4oJ_f1W6oH7L-U4VqL-9nE-demo/exec');
   } catch (err) {
     console.error('Launch error:', err);
@@ -361,7 +363,7 @@ app.get('/api/launch-app', async (req, res) => {
 // تسجيل الخروج وحذف الحساب
 // ==========================================
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('token', { sameSite: 'none', secure: true });
+  res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
   res.json({ success: true });
 });
 
@@ -374,17 +376,16 @@ app.post('/api/delete-account', async (req, res) => {
     const db = await getDb();
     await db.collection('users').deleteOne({ email: decoded.email.toLowerCase() });
 
-    res.clearCookie('token', { sameSite: 'none', secure: true });
+    res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Delete failed' });
   }
 });
 
-// تشغيل السيرفر لـ Vercel
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running securely on port ${PORT}`);
+  console.log(`Server running securely on port ${PORT} (Prod Mode: ${isProd})`);
 });
 
 export default app;
