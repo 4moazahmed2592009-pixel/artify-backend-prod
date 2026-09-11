@@ -268,12 +268,15 @@ app.post('/api/whop-webhook', async (req, res) => {
       );
       console.log(`PRO activated for ${email} for ${durationDays} days`);
 
-    } else if (action === 'membership.terminated' || action === 'membership.cancelled' || action === 'subscription.canceled') {
+    } else if (action === 'membership.deactivated') {
+      // هذا هو الحدث الحقيقي الذي ترسله Whop فعلياً عند إلغاء العضوية أو استرداد فوري
+      // (تم تصحيحه بعد اختبار حقيقي؛ الأسماء القديمة membership.terminated/cancelled
+      // و subscription.canceled لم تكن موجودة أصلاً في نظام أحداث Whop)
       await users.updateOne(
         { email },
         { $set: { subscription_active: false, plan: 'free', updated_at: now } }
       );
-      console.log(`Subscription deactivated for ${email}`);
+      console.log(`Subscription deactivated for ${email} (membership.deactivated)`);
     }
 
     res.status(200).json({ success: true });
