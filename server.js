@@ -187,13 +187,11 @@ function verifyWhopSignature(req) {
     return { valid: false, reason: 'Timestamp out of tolerance' };
   }
 
-  const secretBytes = WHOP_WEBHOOK_SECRET.startsWith('ws_')
-    ? Buffer.from(WHOP_WEBHOOK_SECRET.slice(3), 'base64')
-    : Buffer.from(WHOP_WEBHOOK_SECRET, 'base64');
-
+  // هام: توثيق Whop الرسمي يوضح صراحة استخدام السلسلة "ws_..." بالكامل كما هي
+  // كمفتاح HMAC مباشرة - بدون إزالة البادئة وبدون أي فك base64 لها.
   const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
   const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
-  const expectedSignature = crypto.createHmac('sha256', secretBytes).update(signedContent).digest('base64');
+  const expectedSignature = crypto.createHmac('sha256', WHOP_WEBHOOK_SECRET).update(signedContent).digest('base64');
 
   // الهيدر قد يحتوي أكثر من توقيع مفصولة بمسافة: "v1,sigA v1,sigB"
   const candidates = signatureHeader.split(' ').map(part => part.split(',')[1]).filter(Boolean);
