@@ -1,13 +1,33 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artify PRO | Creator Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link href="https://fonts.googleapis.com/أكيد يا معاذ، عشان تريح دماغك من أي لغبطة في النسخ واللصق، أنا جهزتلك **ملف `index.html` بالكامل** بعد التعديل.
+
+كل اللي عليك تعمله:
+1. افتح ملف `index.html` في الـ GitHub.
+2. امسح كل الكود اللي جواه (حدد الكل واعمل Delete).
+3. انسخ الكود اللي تحت ده كله، والزقه هناك، واعمل **Commit changes**.
+
+ده الكود النهائي جاهز:
+
+```html
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artify PRO | Creator Dashboard</title>
+    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+    <link href="[https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap](https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap)" rel="stylesheet">
+    <script src="[https://accounts.google.com/gsi/client](https://accounts.google.com/gsi/client)" async defer></script>
 
     <style>
         :root {
@@ -256,7 +276,7 @@
     <div id="toast-container"></div>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <a href="https://t.me/ArtifyHelp_bot" target="_blank" class="telegram-btn" title="Support">
+    <a href="[https://t.me/ArtifyHelp_bot](https://t.me/ArtifyHelp_bot)" target="_blank" class="telegram-btn" title="Support">
         <svg viewBox="0 0 24 24">
             <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z"/>
         </svg>
@@ -266,7 +286,9 @@
         <aside class="sidebar" id="sidebar">
             <div>
                 <div class="sidebar-logo">
-                    <div class="logo-icon">A</div>
+                    <div class="logo-icon" style="background: none; padding: 0;">
+                        <img src="/logo-256.png" alt="Artify PRO" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
+                    </div>
                     <div class="logo-text"><h2>Artify PRO</h2><p data-i18n="logoSub">Create • Edit • Inspire</p></div>
                 </div>
 
@@ -1083,7 +1105,7 @@
 
         function promptPlan(plan) {
             if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            const whopLinks = { 'month1': 'https://whop.com/checkout/plan_1AFMWzPSMlWF7', 'month3': 'https://whop.com/checkout/plan_hhPYAFHhQnZ2p', 'month6': 'https://whop.com/checkout/plan_SFcazKZDf63GC', 'year1': 'https://whop.com/checkout/plan_PJeLIwlopBsLV' };
+            const whopLinks = { 'month1': '[https://whop.com/checkout/plan_1AFMWzPSMlWF7](https://whop.com/checkout/plan_1AFMWzPSMlWF7)', 'month3': '[https://whop.com/checkout/plan_hhPYAFHhQnZ2p](https://whop.com/checkout/plan_hhPYAFHhQnZ2p)', 'month6': '[https://whop.com/checkout/plan_SFcazKZDf63GC](https://whop.com/checkout/plan_SFcazKZDf63GC)', 'year1': '[https://whop.com/checkout/plan_PJeLIwlopBsLV](https://whop.com/checkout/plan_PJeLIwlopBsLV)' };
             pendingCheckoutUrl = whopLinks[plan];
             if (pendingCheckoutUrl) { closeModals(); document.getElementById('preCheckoutModal').classList.add('show'); }
         }
@@ -1206,4 +1228,3 @@
     </script>
 </body>
 </html>
-```eof
