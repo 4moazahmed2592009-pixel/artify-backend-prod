@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. حماية CORS
+// 1. حماية CORS (تأكد من تعديل الدومين إذا اختلف في الإنتاج)
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
   'http://localhost:3000'
@@ -32,7 +32,7 @@ app.use(cors({
 
 app.use(cookieParser());
 
-// 2. التقاط الـ raw body لتمكين التحقق من توقيع الويب هوك بدقة
+// التقاط الـ raw body بدقة
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf;
@@ -41,14 +41,14 @@ app.use(express.json({
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// متغيرات البيئة الأساسية - بدون أي قيمة احتياطية خطيرة
+// متغيرات البيئة الأساسية (بدون قيم احتياطية خطيرة)
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MONGODB_URI = process.env.MONGODB_URI;
 const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
+const TOOL_URL = process.env.TOOL_URL; // تم جعله إلزامياً
 
-// تأمين: إيقاف السيرفر لو أي متغير أساسي غير موجود
-const REQUIRED = { GOOGLE_CLIENT_ID, JWT_SECRET, MONGODB_URI, WHOP_WEBHOOK_SECRET };
+const REQUIRED = { GOOGLE_CLIENT_ID, JWT_SECRET, MONGODB_URI, WHOP_WEBHOOK_SECRET, TOOL_URL };
 const missing = Object.entries(REQUIRED).filter(([, v]) => !v).map(([k]) => k);
 if (missing.length) {
   console.error(`FATAL ERROR: Missing required environment variables: ${missing.join(', ')}`);
@@ -58,24 +58,22 @@ if (missing.length) {
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
 
-// اسم كوبون المكافأة المجانية (أول 15 مستخدم) - داخلي بالكامل، لا يُرسل أو يُعرض للعميل أبداً
 const EARLY_BIRD_CODE = 'EARLY_BIRD_INTERNAL';
 const EARLY_BIRD_MAX_SEATS = 15;
 const EARLY_BIRD_DURATION_DAYS = 30;
 
-// تحسين الاتصال بقاعدة البيانات لبيئة Serverless
-let dbClient = null;
+// تحسين الاتصال بقاعدة البيانات لبيئة Serverless (حفظ الـ Promise)
+let dbClientPromise = null;
 async function getDb() {
-  if (!dbClient) {
-    dbClient = new MongoClient(MONGODB_URI);
-    await dbClient.connect();
+  if (!dbClientPromise) {
+    const client = new MongoClient(MONGODB_URI);
+    dbClientPromise = client.connect();
   }
-  return dbClient.db('artify');
+  const client = await dbClientPromise;
+  return client.db('artify');
 }
 
-// ==========================================
-// Middleware مصادقة موحّد يُعاد استخدامه في كل مسار محمي
-// ==========================================
+// Middleware
 function requireAuth(req, res, next) {
   try {
     const token = req.cookies.token;
@@ -88,9 +86,7 @@ function requireAuth(req, res, next) {
   }
 }
 
-// ==========================================
-// تسجيل الدخول (Google Auth)
-// ==========================================
+// Google Auth
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
@@ -135,21 +131,16 @@ app.post('/api/auth/google', async (req, res) => {
 
     res.json({ success: true, email, name });
   } catch (err) {
-    console.error('Google Auth Error:', err);
     res.status(500).json({ error: 'Authentication failed' });
   }
 });
 
-// ==========================================
-// التحقق من جلسة المستخدم
-// ==========================================
 app.get('/api/me', requireAuth, async (req, res) => {
   try {
     const db = await getDb();
     const user = await db.collection('users').findOne({ email: req.userEmail });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
-
     const isSubscribed = user.subscription_active && (user.expires_at > Date.now());
 
     res.json({
@@ -165,58 +156,53 @@ app.get('/api/me', requireAuth, async (req, res) => {
   }
 });
 
-// ==========================================
-// التحقق من توقيع Whop (Standard Webhooks spec)
-// التوقيع = base64(HMAC-SHA256("{webhook-id}.{webhook-timestamp}.{raw-body}", secret))
-// الهيدر: webhook-signature: v1,<signature> (قد يحتوي أكثر من توقيع مفصولة بمسافة عند دوران المفتاح)
-// السرّ بصيغة ws_... يُشتق منه المفتاح الخام بفك base64 للجزء الذي بعد البادئة
-// ==========================================
+// Whop Signature Verification
 function verifyWhopSignature(req) {
   const webhookId = req.headers['webhook-id'];
   const webhookTimestamp = req.headers['webhook-timestamp'];
   const signatureHeader = req.headers['webhook-signature'];
 
-  if (!webhookId || !webhookTimestamp || !signatureHeader) {
-    return { valid: false, reason: 'Missing signature headers' };
-  }
+  if (!webhookId || !webhookTimestamp || !signatureHeader) return { valid: false };
 
-  // رفض أي طلب عمره أكثر من 5 دقائق لمنع إعادة إرسال الطلبات القديمة (replay attacks)
   const tsSeconds = parseInt(webhookTimestamp, 10);
   const nowSeconds = Math.floor(Date.now() / 1000);
-  if (!tsSeconds || Math.abs(nowSeconds - tsSeconds) > 5 * 60) {
-    return { valid: false, reason: 'Timestamp out of tolerance' };
-  }
+  if (!tsSeconds || Math.abs(nowSeconds - tsSeconds) > 5 * 60) return { valid: false };
 
-  // هام: توثيق Whop الرسمي يوضح صراحة استخدام السلسلة "ws_..." بالكامل كما هي
-  // كمفتاح HMAC مباشرة - بدون إزالة البادئة وبدون أي فك base64 لها.
   const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
   const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
   const expectedSignature = crypto.createHmac('sha256', WHOP_WEBHOOK_SECRET).update(signedContent).digest('base64');
 
-  // الهيدر قد يحتوي أكثر من توقيع مفصولة بمسافة: "v1,sigA v1,sigB"
   const candidates = signatureHeader.split(' ').map(part => part.split(',')[1]).filter(Boolean);
-
   const isValid = candidates.some(sig => {
     try {
       return crypto.timingSafeEqual(Buffer.from(sig, 'base64'), Buffer.from(expectedSignature, 'base64'));
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   });
 
-  return { valid: isValid, reason: isValid ? null : 'Signature mismatch' };
+  return { valid: isValid };
 }
 
-// ==========================================
 // Webhook الدفع المؤمن
-// ==========================================
 app.post('/api/whop-webhook', async (req, res) => {
   try {
-    // لا يوجد أي تخطي: WHOP_WEBHOOK_SECRET مضمون وجوده بفضل الفحص عند إقلاع السيرفر
     const verification = verifyWhopSignature(req);
-    if (!verification.valid) {
-      console.warn('Webhook rejected:', verification.reason);
-      return res.status(401).json({ error: 'Invalid signature' });
+    if (!verification.valid) return res.status(401).json({ error: 'Invalid signature' });
+
+    const webhookId = req.headers['webhook-id'];
+    if (!webhookId) return res.status(400).json({ error: 'Missing webhook ID' });
+
+    const db = await getDb();
+    const processedWebhooks = db.collection('processed_webhooks');
+
+    // 1. Idempotency: التأكد من عدم معالجة الـ Webhook مرتين ذرّياً
+    try {
+      await processedWebhooks.insertOne({ _id: webhookId, created_at: new Date() });
+    } catch (dbErr) {
+      if (dbErr.code === 11000) {
+        console.warn(`Webhook ${webhookId} already processed (Idempotency skip).`);
+        return res.status(200).json({ success: true, note: 'Already processed' });
+      }
+      throw dbErr;
     }
 
     const event = req.body;
@@ -230,17 +216,14 @@ app.post('/api/whop-webhook', async (req, res) => {
 
     if (!email) return res.status(200).json({ received: true, note: 'No email found' });
 
-    const db = await getDb();
     const users = db.collection('users');
     const now = Date.now();
 
-    // ربط الـ Plan ID بمدته الفعلية
-    let durationDays = 30; // افتراضي شهر لو لم يُعرف الـ Plan ID (يُسجَّل تحذير أدناه)
+    let durationDays = 30;
     if (planId === 'plan_hhPYAFHhQnZ2p') durationDays = 90;
     else if (planId === 'plan_SFcazKZDf63GC') durationDays = 180;
     else if (planId === 'plan_PJeLIwlopBsLV') durationDays = 365;
     else if (planId === 'plan_1AFMWzPSMlWF7') durationDays = 30;
-    else if (planId) console.warn(`Unknown Whop plan_id: ${planId}, defaulting to 30 days`);
 
     const durationMs = durationDays * 24 * 60 * 60 * 1000;
 
@@ -266,44 +249,114 @@ app.post('/api/whop-webhook', async (req, res) => {
         },
         { upsert: true }
       );
-      console.log(`PRO activated for ${email} for ${durationDays} days`);
-
     } else if (action === 'membership.deactivated') {
-      // هذا هو الحدث الحقيقي الذي ترسله Whop فعلياً عند إلغاء العضوية أو استرداد فوري
-      // (تم تصحيحه بعد اختبار حقيقي؛ الأسماء القديمة membership.terminated/cancelled
-      // و subscription.canceled لم تكن موجودة أصلاً في نظام أحداث Whop)
       await users.updateOne(
         { email },
         { $set: { subscription_active: false, plan: 'free', updated_at: now } }
       );
-      console.log(`Subscription deactivated for ${email} (membership.deactivated)`);
     }
 
     res.status(200).json({ success: true });
   } catch (err) {
     console.error('Webhook processing error:', err);
-    // نرد 200 بعد التحقق الناجح من التوقيع حتى لا يعيد Whop إرسال نفس الحدث لأسباب داخلية لدينا
-    res.status(200).json({ error: 'Webhook error handled' });
+    // 2. إرجاع 500 ليقوم مزود الدفع بإعادة المحاولة عند الفشل
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ==========================================
-// تطبيق كود تفعيل يدوي (يبقى متاحاً كما كان لأكواد الشركاء/الحملات الأخرى)
-// ==========================================
-app.post('/api/apply-coupon', requireAuth, async (req, res) => {
+// Early Bird 
+app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
   try {
+    const { ageConfirmed } = req.body;
+    
+    // 4. فحص الأهلية برمجياً في السيرفر (Server-side constraint)
+    if (!ageConfirmed) {
+      return res.status(403).json({ error: 'يجب تأكيد أن عمرك 18 عاماً أو أكثر للمتابعة' });
+    }
+
+    const email = req.userEmail;
+    const db = await getDb();
+    const coupons = db.collection('coupons');
+    const users = db.collection('users');
+
+    // تهيئة الكوبون بشكل آمن إذا لم يكن موجوداً
+    await coupons.updateOne(
+      { code: EARLY_BIRD_CODE },
+      { 
+        $setOnInsert: { 
+          max_uses: EARLY_BIRD_MAX_SEATS, 
+          used_count: 0, 
+          duration_days: EARLY_BIRD_DURATION_DAYS, 
+          type: 'free', 
+          created_at: Date.now(),
+          claimed_by: []
+        } 
+      },
+      { upsert: true }
+    );
+
+    // 3. تحديث ذرّي (Atomic) يمنع Race Condition بشكل كامل
+    // نضمن عدم تجاوز العدد، وعدم السماح لنفس المستخدم بأخذ مقعدين
+    const updateResult = await coupons.updateOne(
+      { 
+        code: EARLY_BIRD_CODE, 
+        used_count: { $lt: EARLY_BIRD_MAX_SEATS },
+        claimed_by: { $ne: email }
+      },
+      { 
+        $inc: { used_count: 1 },
+        $push: { claimed_by: email }
+      }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      const coupon = await coupons.findOne({ code: EARLY_BIRD_CODE });
+      if (coupon && coupon.claimed_by && coupon.claimed_by.includes(email)) {
+        return res.status(400).json({ error: 'لقد استخدمت مكافأة أول 15 مستخدم من قبل' });
+      }
+      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة' });
+    }
+
+    // تحديث اشتراك المستخدم
+    const now = Date.now();
+    const durationMs = EARLY_BIRD_DURATION_DAYS * 24 * 60 * 60 * 1000;
+    const existingUser = await users.findOne({ email });
+    let newExpiry = now + durationMs;
+
+    if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+      newExpiry = existingUser.expires_at + durationMs;
+    }
+
+    await users.updateOne(
+      { email },
+      {
+        $set: {
+          subscription_active: true,
+          plan: 'VIP_PRO',
+          started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+          expires_at: newExpiry,
+          early_bird_claimed: true,
+          updated_at: now
+        }
+      }
+    );
+
+    res.json({ success: true, message: 'تم تفعيل حساب PRO بنجاح!' });
+  } catch (err) {
+    console.error('Claim early bird error:', err);
+    res.status(500).json({ error: 'حدث خطأ أثناء التفعيل' });
+  }
+});
+
+// بقية المسارات تعمل كالمعتاد ...
+app.post('/api/apply-coupon', requireAuth, async (req, res) => {
+   // ... الكود كما هو بالملف الأصلي ...
+   try {
     const email = req.userEmail;
     const { couponCode } = req.body;
-
     if (!couponCode) return res.status(400).json({ error: 'يرجى إدخال الكود' });
-
     const cleanCode = couponCode.trim().toUpperCase();
-
-    // منع استخدام كود المكافأة الداخلي (أول 15 مستخدم) عبر هذا المسار العام
-    // - يجب أن يمر فقط عبر /api/claim-early-bird الذي لا يحتاج العميل لمعرفة اسم الكود
-    if (cleanCode === EARLY_BIRD_CODE) {
-      return res.status(400).json({ error: 'كود التفعيل غير صحيح' });
-    }
+    if (cleanCode === EARLY_BIRD_CODE) return res.status(400).json({ error: 'كود التفعيل غير صحيح' });
 
     const db = await getDb();
     const coupons = db.collection('coupons');
@@ -321,9 +374,7 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
       { $inc: { used_count: 1 } }
     );
 
-    if (updateResult.modifiedCount === 0) {
-      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة لهذا الكود' });
-    }
+    if (updateResult.modifiedCount === 0) return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة لهذا الكود' });
 
     const now = Date.now();
     const durationMs = (coupon.duration_days || 30) * 24 * 60 * 60 * 1000;
@@ -347,91 +398,10 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
         }
       }
     );
-
     res.json({ success: true, type: 'free', message: 'تم تفعيل حساب PRO بنجاح!' });
-  } catch (err) {
-    res.status(500).json({ error: 'فشل تطبيق الكود' });
-  }
+  } catch (err) { res.status(500).json({ error: 'فشل تطبيق الكود' }); }
 });
 
-// ==========================================
-// مطالبة "أول 15 مستخدم" - بدون أي كود يُرسل من العميل إطلاقاً
-// السيرفر هو المصدر الوحيد للحقيقة: يتحقق داخلياً من عدد المقاعد المتبقية
-// ==========================================
-app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
-  try {
-    const email = req.userEmail;
-    const db = await getDb();
-    const coupons = db.collection('coupons');
-    const users = db.collection('users');
-
-    // إنشاء الكوبون الداخلي تلقائياً أول مرة لو لم يكن موجوداً
-    let coupon = await coupons.findOne({ code: EARLY_BIRD_CODE });
-    if (!coupon) {
-      await coupons.insertOne({
-        code: EARLY_BIRD_CODE,
-        max_uses: EARLY_BIRD_MAX_SEATS,
-        used_count: 0,
-        duration_days: EARLY_BIRD_DURATION_DAYS,
-        type: 'free',
-        created_at: Date.now()
-      });
-      coupon = await coupons.findOne({ code: EARLY_BIRD_CODE });
-    }
-
-    // منع نفس المستخدم من المطالبة أكثر من مرة
-    const existingUser = await users.findOne({ email });
-    if (existingUser?.early_bird_claimed) {
-      return res.status(400).json({ error: 'لقد استخدمت مكافأة أول 15 مستخدم من قبل' });
-    }
-
-    if (coupon.used_count >= coupon.max_uses) {
-      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة' });
-    }
-
-    // تحديث ذرّي (Atomic) لمنع Race Condition عند التزاحم على آخر مقعد
-    const updateResult = await coupons.updateOne(
-      { code: EARLY_BIRD_CODE, used_count: { $lt: EARLY_BIRD_MAX_SEATS } },
-      { $inc: { used_count: 1 } }
-    );
-
-    if (updateResult.modifiedCount === 0) {
-      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة' });
-    }
-
-    const now = Date.now();
-    const durationMs = EARLY_BIRD_DURATION_DAYS * 24 * 60 * 60 * 1000;
-    let newExpiry = now + durationMs;
-
-    if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
-      newExpiry = existingUser.expires_at + durationMs;
-    }
-
-    await users.updateOne(
-      { email },
-      {
-        $set: {
-          subscription_active: true,
-          plan: 'VIP_PRO',
-          started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
-          expires_at: newExpiry,
-          early_bird_claimed: true,
-          updated_at: now
-        }
-      },
-      { upsert: true }
-    );
-
-    res.json({ success: true, message: 'تم تفعيل حساب PRO بنجاح!' });
-  } catch (err) {
-    console.error('Claim early bird error:', err);
-    res.status(500).json({ error: 'حدث خطأ أثناء التفعيل' });
-  }
-});
-
-// ==========================================
-// إحصائيات المقاعد المجانية (اسم الكود لا يُعرض هنا أبداً)
-// ==========================================
 app.get('/api/promo-stats', async (req, res) => {
   try {
     const db = await getDb();
@@ -448,9 +418,6 @@ app.get('/api/promo-stats', async (req, res) => {
   }
 });
 
-// ==========================================
-// تشغيل الأداة
-// ==========================================
 app.get('/api/launch-app', async (req, res) => {
   try {
     const token = req.cookies.token;
@@ -464,16 +431,14 @@ app.get('/api/launch-app', async (req, res) => {
       return res.redirect('/?error=subscription_required');
     }
 
-    res.redirect(process.env.TOOL_URL || 'https://script.google.com/macros/s/AKfycby9D8zK3a2uM_4oJ_f1W6oH7L-U4VqL-9nE-demo/exec');
+    // تم إزالة الرابط الاحتياطي لضمان الأمان، سيستخدمTOOL_URL الإجباري
+    res.redirect(TOOL_URL);
   } catch (err) {
     console.error('Launch error:', err);
     res.redirect('/?error=access_denied');
   }
 });
 
-// ==========================================
-// تسجيل الخروج وحذف الحساب
-// ==========================================
 app.post('/api/logout', (req, res) => {
   res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
   res.json({ success: true });
