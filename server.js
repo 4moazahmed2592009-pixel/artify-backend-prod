@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. حماية CORS (تأكد من تعديل الدومين إذا اختلف في الإنتاج)
+// 1. حماية CORS
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
   'http://localhost:3000'
@@ -32,7 +32,7 @@ app.use(cors({
 
 app.use(cookieParser());
 
-// التقاط الـ raw body بدقة
+// التقاط الـ raw body بدقة للويب هوك
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf;
@@ -41,12 +41,12 @@ app.use(express.json({
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// متغيرات البيئة الأساسية (بدون قيم احتياطية خطيرة)
+// متغيرات البيئة الأساسية
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MONGODB_URI = process.env.MONGODB_URI;
 const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
-const TOOL_URL = process.env.TOOL_URL; // تم جعله إلزامياً
+const TOOL_URL = process.env.TOOL_URL;
 
 const REQUIRED = { GOOGLE_CLIENT_ID, JWT_SECRET, MONGODB_URI, WHOP_WEBHOOK_SECRET, TOOL_URL };
 const missing = Object.entries(REQUIRED).filter(([, v]) => !v).map(([k]) => k);
@@ -62,7 +62,7 @@ const EARLY_BIRD_CODE = 'EARLY_BIRD_INTERNAL';
 const EARLY_BIRD_MAX_SEATS = 15;
 const EARLY_BIRD_DURATION_DAYS = 30;
 
-// تحسين الاتصال بقاعدة البيانات لبيئة Serverless (حفظ الـ Promise)
+// تحسين الاتصال بقاعدة البيانات لبيئة Serverless
 let dbClientPromise = null;
 async function getDb() {
   if (!dbClientPromise) {
@@ -73,7 +73,20 @@ async function getDb() {
   return client.db('artify');
 }
 
-// Middleware
+// ==========================================
+// Middlewares: Authentication & Anti-CSRF
+// ==========================================
+
+// 1. حماية CSRF الصارمة
+function csrfCheck(req, res, next) {
+  const csrfHeader = req.headers['x-artify-csrf'];
+  if (!csrfHeader || csrfHeader !== '1') {
+    return res.status(403).json({ error: 'CSRF token missing or invalid' });
+  }
+  next();
+}
+
+// 2. التحقق من جلسة المستخدم
 function requireAuth(req, res, next) {
   try {
     const token = req.cookies.token;
@@ -86,8 +99,10 @@ function requireAuth(req, res, next) {
   }
 }
 
-// Google Auth
-app.post('/api/auth/google', async (req, res) => {
+// ==========================================
+// مسارات المصادقة
+// ==========================================
+app.post('/api/auth/google', csrfCheck, async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'Missing credential' });
@@ -156,7 +171,9 @@ app.get('/api/me', requireAuth, async (req, res) => {
   }
 });
 
-// Whop Signature Verification
+// ==========================================
+// Webhook الدفع المؤمن (بدون csrfCheck لأنه قادم من خوادم Whop)
+// ==========================================
 function verifyWhopSignature(req) {
   const webhookId = req.headers['webhook-id'];
   const webhookTimestamp = req.headers['webhook-timestamp'];
@@ -182,7 +199,6 @@ function verifyWhopSignature(req) {
   return { valid: isValid };
 }
 
-// Webhook الدفع المؤمن
 app.post('/api/whop-webhook', async (req, res) => {
   try {
     const verification = verifyWhopSignature(req);
@@ -194,7 +210,6 @@ app.post('/api/whop-webhook', async (req, res) => {
     const db = await getDb();
     const processedWebhooks = db.collection('processed_webhooks');
 
-    // 1. Idempotency: التأكد من عدم معالجة الـ Webhook مرتين ذرّياً
     try {
       await processedWebhooks.insertOne({ _id: webhookId, created_at: new Date() });
     } catch (dbErr) {
@@ -259,17 +274,18 @@ app.post('/api/whop-webhook', async (req, res) => {
     res.status(200).json({ success: true });
   } catch (err) {
     console.error('Webhook processing error:', err);
-    // 2. إرجاع 500 ليقوم مزود الدفع بإعادة المحاولة عند الفشل
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Early Bird 
-app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
+// ==========================================
+// مسارات تفعيل الاشتراكات (محمية بـ CSRF)
+// ==========================================
+app.post('/api/claim-early-bird', csrfCheck, requireAuth, async (req, res) => {
   try {
     const { ageConfirmed } = req.body;
     
-    // 4. فحص الأهلية برمجياً في السيرفر (Server-side constraint)
+    // إقرار المستخدم بأنه فوق 18 عاماً
     if (!ageConfirmed) {
       return res.status(403).json({ error: 'يجب تأكيد أن عمرك 18 عاماً أو أكثر للمتابعة' });
     }
@@ -279,7 +295,6 @@ app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
     const coupons = db.collection('coupons');
     const users = db.collection('users');
 
-    // تهيئة الكوبون بشكل آمن إذا لم يكن موجوداً
     await coupons.updateOne(
       { code: EARLY_BIRD_CODE },
       { 
@@ -295,8 +310,6 @@ app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
       { upsert: true }
     );
 
-    // 3. تحديث ذرّي (Atomic) يمنع Race Condition بشكل كامل
-    // نضمن عدم تجاوز العدد، وعدم السماح لنفس المستخدم بأخذ مقعدين
     const updateResult = await coupons.updateOne(
       { 
         code: EARLY_BIRD_CODE, 
@@ -317,7 +330,6 @@ app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة' });
     }
 
-    // تحديث اشتراك المستخدم
     const now = Date.now();
     const durationMs = EARLY_BIRD_DURATION_DAYS * 24 * 60 * 60 * 1000;
     const existingUser = await users.findOne({ email });
@@ -343,15 +355,12 @@ app.post('/api/claim-early-bird', requireAuth, async (req, res) => {
 
     res.json({ success: true, message: 'تم تفعيل حساب PRO بنجاح!' });
   } catch (err) {
-    console.error('Claim early bird error:', err);
     res.status(500).json({ error: 'حدث خطأ أثناء التفعيل' });
   }
 });
 
-// بقية المسارات تعمل كالمعتاد ...
-app.post('/api/apply-coupon', requireAuth, async (req, res) => {
-   // ... الكود كما هو بالملف الأصلي ...
-   try {
+app.post('/api/apply-coupon', csrfCheck, requireAuth, async (req, res) => {
+  try {
     const email = req.userEmail;
     const { couponCode } = req.body;
     if (!couponCode) return res.status(400).json({ error: 'يرجى إدخال الكود' });
@@ -402,6 +411,9 @@ app.post('/api/apply-coupon', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'فشل تطبيق الكود' }); }
 });
 
+// ==========================================
+// مسارات عرض البيانات (GET لا تحتاج CSRF)
+// ==========================================
 app.get('/api/promo-stats', async (req, res) => {
   try {
     const db = await getDb();
@@ -431,20 +443,21 @@ app.get('/api/launch-app', async (req, res) => {
       return res.redirect('/?error=subscription_required');
     }
 
-    // تم إزالة الرابط الاحتياطي لضمان الأمان، سيستخدمTOOL_URL الإجباري
     res.redirect(TOOL_URL);
   } catch (err) {
-    console.error('Launch error:', err);
     res.redirect('/?error=access_denied');
   }
 });
 
-app.post('/api/logout', (req, res) => {
+// ==========================================
+// مسارات الحذف وتسجيل الخروج (محمية بـ CSRF)
+// ==========================================
+app.post('/api/logout', csrfCheck, (req, res) => {
   res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
   res.json({ success: true });
 });
 
-app.post('/api/delete-account', requireAuth, async (req, res) => {
+app.post('/api/delete-account', csrfCheck, requireAuth, async (req, res) => {
   try {
     const db = await getDb();
     await db.collection('users').deleteOne({ email: req.userEmail });
