@@ -449,6 +449,21 @@ app.get('/api/launch-app', async (req, res) => {
   }
 });
 
+app.get('/api/get-tool-url', requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const user = await db.collection('users').findOne({ email: req.userEmail });
+
+    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
+      return res.status(403).json({ error: 'Subscription required' });
+    }
+
+    res.json({ url: TOOL_URL });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ==========================================
 // مسارات الحذف وتسجيل الخروج (محمية بـ CSRF)
 // ==========================================
