@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار: هل حجم النافذة هو السبب؟</title>
+    <style>
+        body { font-family: sans-serif; background: #0e1424; color: #fff; margin: 0; padding: 30px; text-align: center; }
+        h2 { color: #38bdf8; }
+        button { display: block; width: 100%; max-width: 500px; margin: 15px auto; padding: 16px; font-size: 16px; font-weight: bold; background: linear-gradient(135deg,#6366f1,#ec4899); color:#fff; border:none; border-radius:10px; cursor:pointer; }
+        button:hover { opacity: 0.9; }
+        .note { max-width: 500px; margin: 20px auto; font-size: 13px; color: #8e9bb5; text-align: right; }
+    </style>
+</head>
+<body>
+    <h2>اختبار حجم النافذة</h2>
+
+    <button onclick="openFullScreen()">1️⃣ افتح بحجم الشاشة الكاملة (زي الموقع الحقيقي دلوقتي)</button>
+    <button onclick="openFixedSmall()">2️⃣ افتح بحجم صغير ثابت (زي الاختبار الناجح الأول)</button>
+    <button onclick="openAlmostFull()">3️⃣ افتح بحجم كبير لكن أصغر من الشاشة بقليل (95%)</button>
+
+    <div class="note">
+        جرب الثلاثة بالترتيب. قارن: في أي واحدة ظهر شريط العنوان كاملاً، وفي أي واحدة اختفى تماماً زي الاختبار الأول؟
+    </div>
+
+    <script>
+        const url = "https://gemini.google.com/share/87226e5bfb49?skid=1874425d-6c39-4e67-8f81-1d43583b80bd";
+
+        function openFullScreen() {
+            const features = `width=${window.screen.availWidth},height=${window.screen.availHeight},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+            window.open(url, 'TestFull_' + Date.now(), features);
+        }
+
+        function openFixedSmall() {
+            const features = `width=1100,height=750,top=50,left=50,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+            window.open(url, 'TestSmall_' + Date.now(), features);
+        }
+
+        function openAlmostFull() {
+            const w = Math.floor(window.screen.availWidth * 0.95);
+            const h = Math.floor(window.screen.availHeight * 0.95);
+            const features = `width=${w},height=${h},top=20,left=20,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+            window.open(url, 'TestAlmostFull_' + Date.now(), features);
+        }
+    </script>
+</body>
+</html>
