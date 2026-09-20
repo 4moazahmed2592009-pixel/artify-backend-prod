@@ -1114,7 +1114,20 @@
         }
 
         function executeLaunchTool() { localStorage.setItem('artify_warning_shown', 'true'); closeModals(); launchToolDirectly(); }
-        function launchToolDirectly() { window.open('/api/launch-app', 'ArtifyWorkspace', `width=${window.screen.availWidth},height=${window.screen.availHeight},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`); }
+        async function launchToolDirectly() {
+            try {
+                const res = await fetch('/api/get-tool-url', { credentials: 'include' });
+                const data = await res.json();
+                if (res.ok && data.url) {
+                    window.open(data.url, 'ArtifyWorkspace',
+                        `width=${window.screen.availWidth},height=${window.screen.availHeight},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`);
+                } else {
+                    showToast(data.error || (translations[currentLang]?.toastSubReq || translations['en'].toastSubReq), 'danger');
+                }
+            } catch (e) {
+                showToast(translations[currentLang]?.toastConnError || translations['en'].toastConnError, 'danger');
+            }
+        }
 
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
 
