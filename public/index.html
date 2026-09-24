@@ -15,49 +15,25 @@ const app = express();
 
 app.post('/api/verify-tool-token', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
   try {
-    const { token } = req.body || {};
-    if (!token) {
-      return res.status(400).json({ valid: false, reason: 'missing_token', message: 'لم يصل access_token إلى السيرفر.' });
-    }
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ valid: false, reason: 'missing_token' });
 
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (e) {
-      return res.status(200).json({ valid: false, reason: 'invalid_or_expired', message: 'رمز الدخول منتهي أو توقيعه غير صحيح.' });
-    }
-
-    if (decoded?.purpose === 'artify_test_access') {
-      return res.status(200).json({ valid: true, test: true });
-    }
-
-    if (decoded?.purpose !== 'artify_tool_access') {
-      return res.status(200).json({ valid: false, reason: 'wrong_token_purpose', message: 'رمز الدخول ليس رمز تشغيل Artify PRO.' });
-    }
-
-    const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
-    if (!email) {
-      return res.status(200).json({ valid: false, reason: 'token_missing_email', message: 'رمز الدخول لا يحتوي على بريد المستخدم.' });
+      return res.status(200).json({ valid: false, reason: 'invalid_or_expired' });
     }
 
     const db = await getDb();
-    const user = await db.collection('users').findOne({ email });
-    if (!user) {
-      return res.status(200).json({ valid: false, reason: 'user_not_found', message: 'المستخدم الموجود داخل رمز الدخول غير موجود في قاعدة البيانات.' });
-    }
-
-    if (!user.subscription_active) {
-      return res.status(200).json({ valid: false, reason: 'subscription_inactive', message: 'الاشتراك غير نشط لهذا الحساب.' });
-    }
-
-    if (!Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
-      return res.status(200).json({ valid: false, reason: 'subscription_expired', message: 'اشتراك المستخدم منتهي.' });
+    const user = await db.collection('users').findOne({ email: decoded.email });
+    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
+      return res.status(200).json({ valid: false, reason: 'subscription_inactive' });
     }
 
     return res.status(200).json({ valid: true });
   } catch (err) {
-    console.error('Tool token verification error:', err);
-    return res.status(500).json({ valid: false, reason: 'server_error', message: 'حدث خطأ داخلي أثناء التحقق.' });
+    return res.status(200).json({ valid: false, reason: 'server_error' });
   }
 });
 
@@ -478,38 +454,22 @@ app.get('/api/promo-stats', async (req, res) => {
   }
 });
 
-function buildToolUrl(accessToken) {
-  const url = new URL(TOOL_URL);
-  url.searchParams.set('access_token', accessToken);
-  return url.toString();
-}
-
 app.get('/api/launch-app', async (req, res) => {
   try {
     const token = req.cookies.token;
     if (!token) return res.redirect('/?error=unauthorized');
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
-    if (!email) return res.redirect('/?error=access_denied');
-
     const db = await getDb();
-    const user = await db.collection('users').findOne({ email });
+    const user = await db.collection('users').findOne({ email: decoded.email.toLowerCase() });
 
-    if (!user || !user.subscription_active || !Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
+    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
       return res.redirect('/?error=subscription_required');
     }
 
-    const accessToken = jwt.sign(
-      { email, purpose: 'artify_tool_access' },
-      JWT_SECRET,
-      { expiresIn: '4h' }
-    );
-
-    return res.redirect(buildToolUrl(accessToken));
+    res.redirect(TOOL_URL);
   } catch (err) {
-    console.error('Launch app error:', err);
-    return res.redirect('/?error=access_denied');
+    res.redirect('/?error=access_denied');
   }
 });
 
@@ -518,48 +478,17 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
     const db = await getDb();
     const user = await db.collection('users').findOne({ email: req.userEmail });
 
-    if (!user || !user.subscription_active || !Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
+    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
       return res.status(403).json({ error: 'Subscription required' });
     }
 
-    const accessToken = jwt.sign(
-      { email: req.userEmail, purpose: 'artify_tool_access' },
-      JWT_SECRET,
-      { expiresIn: '4h' }
-    );
+    const accessToken = jwt.sign({ email: req.userEmail }, JWT_SECRET, { expiresIn: '4h' });
+    const separator = TOOL_URL.includes('?') ? '&' : '?';
+    const urlWithToken = `${TOOL_URL}${separator}access_token=${accessToken}`;
 
-    res.json({ url: buildToolUrl(accessToken) });
+    res.json({ url: urlWithToken });
   } catch (err) {
-    console.error('Get tool URL error:', err);
     res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Temporary diagnostic access. Change ARTIFY_TEST_ACCESS_CODE after testing,
-// or remove/disable this endpoint when the access flow is confirmed.
-const ARTIFY_TEST_ACCESS_CODE = process.env.ARTIFY_TEST_ACCESS_CODE || 'MoazA2';
-
-app.post('/api/test-access-code', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
-  try {
-    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
-    if (!code) {
-      return res.status(400).json({ valid: false, reason: 'missing_test_code', message: 'اكتب كود الدعوة.' });
-    }
-
-    if (code !== ARTIFY_TEST_ACCESS_CODE) {
-      return res.status(401).json({ valid: false, reason: 'invalid_test_code', message: 'كود الدعوة غير صحيح.' });
-    }
-
-    const testToken = jwt.sign(
-      { email: 'diagnostic@test.local', purpose: 'artify_test_access' },
-      JWT_SECRET,
-      { expiresIn: '30m' }
-    );
-
-    return res.json({ valid: true, url: buildToolUrl(testToken), expiresInMinutes: 30 });
-  } catch (err) {
-    console.error('Test access code error:', err);
-    return res.status(500).json({ valid: false, reason: 'server_error', message: 'تعذر تشغيل اختبار كود الدعوة.' });
   }
 });
 
