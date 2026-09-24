@@ -13,40 +13,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.post('/api/verify-tool-token', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ valid: false, reason: 'missing_token' });
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (e) {
-      return res.status(200).json({ valid: false, reason: 'invalid_or_expired' });
-    }
-
-    if (!decoded.email || decoded.purpose !== 'artify_tool_access') {
-      return res.status(200).json({ valid: false, reason: 'invalid_token_payload' });
-    }
-
-    const email = String(decoded.email).trim().toLowerCase();
-    const db = await getDb();
-    const user = await db.collection('users').findOne({ email });
-    if (
-      !user ||
-      user.subscription_active !== true ||
-      !Number.isFinite(Number(user.expires_at)) ||
-      Number(user.expires_at) <= Date.now()
-    ) {
-      return res.status(200).json({ valid: false, reason: 'subscription_inactive' });
-    }
-
-    return res.status(200).json({ valid: true });
-  } catch (err) {
-    return res.status(200).json({ valid: false, reason: 'server_error' });
-  }
-});
-
 // 1. حماية CORS
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
@@ -492,19 +458,7 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Subscription required' });
     }
 
-    const accessToken = jwt.sign(
-      { email: req.userEmail.toLowerCase(), purpose: 'artify_tool_access' },
-      JWT_SECRET,
-      { expiresIn: '4h' }
-    );
-
-    // URL() correctly places the query before any #hash fragment.
-    // String concatenation would accidentally append the token inside the hash,
-    // where window.location.search cannot read it.
-    const toolUrl = new URL(TOOL_URL);
-    toolUrl.searchParams.set('access_token', accessToken);
-
-    res.json({ url: toolUrl.toString() });
+    res.json({ url: TOOL_URL });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
