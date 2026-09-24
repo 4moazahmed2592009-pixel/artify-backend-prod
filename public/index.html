@@ -1,1275 +1,847 @@
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import { MongoClient } from 'mongodb';
+import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+
+// 1. حماية CORS
+// The tool may run on a different origin or inside a sandboxed browsing context.
+// We allow the configured TOOL_URL origin plus opaque/null origins for the
+// non-cookie tool endpoints. Cookie-authenticated endpoints still require the
+// normal browser session and CSRF header.
+const configuredToolOrigin = (() => {
+  try { return new URL(process.env.TOOL_URL || '').origin; } catch { return ''; }
+})();
+const allowedOrigins = [
+  'https://artify-backend-prod.vercel.app',
+  'http://localhost:3000',
+  configuredToolOrigin
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS'));
+    }
+  },
+  credentials: true
+}));
+
+app.use(cookieParser());
+
+// التقاط الـ raw body بدقة للويب هوك
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// متغيرات البيئة الأساسية
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const JWT_SECRET = process.env.JWT_SECRET;
+const MONGODB_URI = process.env.MONGODB_URI;
+const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
+const TOOL_URL = process.env.TOOL_URL;
+const SITE_URL = 'https://artify-backend-prod.vercel.app';
+
+const REQUIRED = { GOOGLE_CLIENT_ID, JWT_SECRET, MONGODB_URI, WHOP_WEBHOOK_SECRET, TOOL_URL };
+const missing = Object.entries(REQUIRED).filter(([, v]) => !v).map(([k]) => k);
+if (missing.length) {
+  console.error(`FATAL ERROR: Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const isProd = process.env.NODE_ENV === 'production';
+
+const EARLY_BIRD_CODE = 'EARLY_BIRD_INTERNAL';
+const EARLY_BIRD_MAX_SEATS = 15;
+const EARLY_BIRD_DURATION_DAYS = 30;
+
+// تحسين الاتصال بقاعدة البيانات لبيئة Serverless
+let dbClientPromise = null;
+async function getDb() {
+  if (!dbClientPromise) {
+    const client = new MongoClient(MONGODB_URI);
+    dbClientPromise = client.connect();
+  }
+  const client = await dbClientPromise;
+  return client.db('artify');
+}
+
+// ==========================================
+// Middlewares: Authentication & Anti-CSRF
+// ==========================================
+
+// 1. حماية CSRF الصارمة
+function csrfCheck(req, res, next) {
+  const csrfHeader = req.headers['x-artify-csrf'];
+  if (!csrfHeader || csrfHeader !== '1') {
+    return res.status(403).json({ error: 'CSRF token missing or invalid' });
+  }
+  next();
+}
+
+// 2. التحقق من جلسة المستخدم
+function requireAuth(req, res, next) {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userEmail = decoded.email.toLowerCase();
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+}
+
+// ==========================================
+// مسارات المصادقة
+// ==========================================
+app.post('/api/auth/google', csrfCheck, async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing credential' });
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload.email.toLowerCase();
+    const name = payload.name;
+
+    const db = await getDb();
+    const users = db.collection('users');
+
+    let user = await users.findOne({ email });
+    const now = Date.now();
+
+    if (!user) {
+      user = {
+        email,
+        name,
+        created_at: now,
+        started_at: 0,
+        expires_at: 0,
+        subscription_active: false,
+        plan: 'free',
+        whop_id: null
+      };
+      await users.insertOne(user);
+    }
+
+    const token = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ success: true, email, name });
+  } catch (err) {
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+app.get('/api/me', requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const user = await db.collection('users').findOne({ email: req.userEmail });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const isSubscribed = user.subscription_active && (user.expires_at > Date.now());
+
+    res.json({
+      email: user.email,
+      name: user.name,
+      subscriptionActive: isSubscribed,
+      plan: user.plan || 'free',
+      startedAt: user.started_at || 0,
+      expiresAt: user.expires_at || 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch session' });
+  }
+});
+
+// ==========================================
+// Webhook الدفع المؤمن (بدون csrfCheck لأنه قادم من خوادم Whop)
+// ==========================================
+function verifyWhopSignature(req) {
+  const webhookId = req.headers['webhook-id'];
+  const webhookTimestamp = req.headers['webhook-timestamp'];
+  const signatureHeader = req.headers['webhook-signature'];
+
+  if (!webhookId || !webhookTimestamp || !signatureHeader) return { valid: false };
+
+  const tsSeconds = parseInt(webhookTimestamp, 10);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (!tsSeconds || Math.abs(nowSeconds - tsSeconds) > 5 * 60) return { valid: false };
+
+  const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
+  const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
+  const expectedSignature = crypto.createHmac('sha256', WHOP_WEBHOOK_SECRET).update(signedContent).digest('base64');
+
+  const candidates = signatureHeader.split(' ').map(part => part.split(',')[1]).filter(Boolean);
+  const isValid = candidates.some(sig => {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(sig, 'base64'), Buffer.from(expectedSignature, 'base64'));
+    } catch { return false; }
+  });
+
+  return { valid: isValid };
+}
+
+app.post('/api/whop-webhook', async (req, res) => {
+  try {
+    const verification = verifyWhopSignature(req);
+    if (!verification.valid) return res.status(401).json({ error: 'Invalid signature' });
+
+    const webhookId = req.headers['webhook-id'];
+    if (!webhookId) return res.status(400).json({ error: 'Missing webhook ID' });
+
+    const db = await getDb();
+    const processedWebhooks = db.collection('processed_webhooks');
+
+    try {
+      await processedWebhooks.insertOne({ _id: webhookId, created_at: new Date() });
+    } catch (dbErr) {
+      if (dbErr.code === 11000) {
+        console.warn(`Webhook ${webhookId} already processed (Idempotency skip).`);
+        return res.status(200).json({ success: true, note: 'Already processed' });
+      }
+      throw dbErr;
+    }
+
+    const event = req.body;
+    const action = event.action || event.type;
+    const data = event.data || event;
+
+    if (!data) return res.status(200).json({ received: true });
+
+    const email = (data.user?.email || data.member?.email || data.email || '').toLowerCase();
+    const planId = data.plan_id || (data.plan && data.plan.id) || (data.line_items && data.line_items[0]?.plan_id) || '';
+
+    if (!email) return res.status(200).json({ received: true, note: 'No email found' });
+
+    const users = db.collection('users');
+    const now = Date.now();
+
+    let durationDays = 30;
+    if (planId === 'plan_hhPYAFHhQnZ2p') durationDays = 90;
+    else if (planId === 'plan_SFcazKZDf63GC') durationDays = 180;
+    else if (planId === 'plan_PJeLIwlopBsLV') durationDays = 365;
+    else if (planId === 'plan_1AFMWzPSMlWF7') durationDays = 30;
+
+    const durationMs = durationDays * 24 * 60 * 60 * 1000;
+
+    if (action === 'membership.activated' || action === 'payment.succeeded') {
+      const existingUser = await users.findOne({ email });
+
+      let newExpiry = now + durationMs;
+      if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+        newExpiry = existingUser.expires_at + durationMs;
+      }
+
+      await users.updateOne(
+        { email },
+        {
+          $set: {
+            subscription_active: true,
+            plan: 'PRO',
+            started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+            expires_at: newExpiry,
+            whop_id: data.user?.id || data.id || null,
+            updated_at: now
+          }
+        },
+        { upsert: true }
+      );
+    } else if (action === 'membership.deactivated') {
+      await users.updateOne(
+        { email },
+        { $set: { subscription_active: false, plan: 'free', updated_at: now } }
+      );
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('Webhook processing error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==========================================
+// مسارات تفعيل الاشتراكات (محمية بـ CSRF)
+// ==========================================
+app.post('/api/claim-early-bird', csrfCheck, requireAuth, async (req, res) => {
+  try {
+    const { ageConfirmed } = req.body;
+    
+    // إقرار المستخدم بأنه فوق 18 عاماً
+    if (!ageConfirmed) {
+      return res.status(403).json({ error: 'يجب تأكيد أن عمرك 18 عاماً أو أكثر للمتابعة' });
+    }
+
+    const email = req.userEmail;
+    const db = await getDb();
+    const coupons = db.collection('coupons');
+    const users = db.collection('users');
+
+    await coupons.updateOne(
+      { code: EARLY_BIRD_CODE },
+      { 
+        $setOnInsert: { 
+          max_uses: EARLY_BIRD_MAX_SEATS, 
+          used_count: 0, 
+          duration_days: EARLY_BIRD_DURATION_DAYS, 
+          type: 'free', 
+          created_at: Date.now(),
+          claimed_by: []
+        } 
+      },
+      { upsert: true }
+    );
+
+    const updateResult = await coupons.updateOne(
+      { 
+        code: EARLY_BIRD_CODE, 
+        used_count: { $lt: EARLY_BIRD_MAX_SEATS },
+        claimed_by: { $ne: email }
+      },
+      { 
+        $inc: { used_count: 1 },
+        $push: { claimed_by: email }
+      }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      const coupon = await coupons.findOne({ code: EARLY_BIRD_CODE });
+      if (coupon && coupon.claimed_by && coupon.claimed_by.includes(email)) {
+        return res.status(400).json({ error: 'لقد استخدمت مكافأة أول 15 مستخدم من قبل' });
+      }
+      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة' });
+    }
+
+    const now = Date.now();
+    const durationMs = EARLY_BIRD_DURATION_DAYS * 24 * 60 * 60 * 1000;
+    const existingUser = await users.findOne({ email });
+    let newExpiry = now + durationMs;
+
+    if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+      newExpiry = existingUser.expires_at + durationMs;
+    }
+
+    await users.updateOne(
+      { email },
+      {
+        $set: {
+          subscription_active: true,
+          plan: 'VIP_PRO',
+          started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+          expires_at: newExpiry,
+          early_bird_claimed: true,
+          updated_at: now
+        }
+      }
+    );
+
+    res.json({ success: true, message: 'تم تفعيل حساب PRO بنجاح!' });
+  } catch (err) {
+    res.status(500).json({ error: 'حدث خطأ أثناء التفعيل' });
+  }
+});
+
+app.post('/api/apply-coupon', csrfCheck, requireAuth, async (req, res) => {
+  try {
+    const email = req.userEmail;
+    const { couponCode } = req.body;
+    if (!couponCode) return res.status(400).json({ error: 'يرجى إدخال الكود' });
+    const cleanCode = couponCode.trim().toUpperCase();
+    if (cleanCode === EARLY_BIRD_CODE) return res.status(400).json({ error: 'كود التفعيل غير صحيح' });
+
+    const db = await getDb();
+    const coupons = db.collection('coupons');
+    const users = db.collection('users');
+
+    const coupon = await coupons.findOne({ code: cleanCode });
+    if (!coupon) return res.status(404).json({ error: 'كود التفعيل غير صحيح' });
+
+    if (coupon.used_count >= coupon.max_uses) {
+      return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة لهذا الكود' });
+    }
+
+    const updateResult = await coupons.updateOne(
+      { code: cleanCode, used_count: { $lt: coupon.max_uses } },
+      { $inc: { used_count: 1 } }
+    );
+
+    if (updateResult.modifiedCount === 0) return res.status(400).json({ error: 'عذراً، نفدت المقاعد المجانية المتاحة لهذا الكود' });
+
+    const now = Date.now();
+    const durationMs = (coupon.duration_days || 30) * 24 * 60 * 60 * 1000;
+    const existingUser = await users.findOne({ email });
+    let newExpiry = now + durationMs;
+
+    if (existingUser && existingUser.subscription_active && existingUser.expires_at > now) {
+      newExpiry = existingUser.expires_at + durationMs;
+    }
+
+    await users.updateOne(
+      { email },
+      {
+        $set: {
+          subscription_active: true,
+          plan: 'VIP_PRO',
+          started_at: existingUser?.started_at && existingUser.started_at > 0 ? existingUser.started_at : now,
+          expires_at: newExpiry,
+          coupon_used: cleanCode,
+          updated_at: now
+        }
+      }
+    );
+    res.json({ success: true, type: 'free', message: 'تم تفعيل حساب PRO بنجاح!' });
+  } catch (err) { res.status(500).json({ error: 'فشل تطبيق الكود' }); }
+});
+
+// ==========================================
+// مسارات عرض البيانات (GET لا تحتاج CSRF)
+// ==========================================
+app.get('/api/promo-stats', async (req, res) => {
+  try {
+    const db = await getDb();
+    const coupon = await db.collection('coupons').findOne({ code: EARLY_BIRD_CODE });
+    if (!coupon) return res.json({ active: true, remaining: EARLY_BIRD_MAX_SEATS, currentRank: 1 });
+
+    res.json({
+      active: true,
+      remaining: Math.max(0, coupon.max_uses - coupon.used_count),
+      currentRank: coupon.used_count + 1
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch promo stats' });
+  }
+});
+
+// ==========================================================
+// Tool access — temporary 6-digit code + device-bound session
+// ==========================================================
+const TOOL_CODE_TTL_MS = 10 * 60 * 1000;          // code valid for 10 minutes
+const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // session valid for 30 days, subject to subscription
+const MAX_TOOL_DEVICES = 2;
+const TOOL_CODE_LENGTH = 6;
+const TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW = 30;
+const TOOL_CODE_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
+
+const hashAccessSecret = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
+
+function normalizeDeviceId(value) {
+  const id = typeof value === 'string' ? value.trim() : '';
+  return /^[a-zA-Z0-9_-]{20,120}$/.test(id) ? id : null;
+}
+
+function createSixDigitCode() {
+  return crypto.randomInt(0, 1000000).toString().padStart(TOOL_CODE_LENGTH, '0');
+}
+
+function getClientAddress(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+async function enforceToolCodeRateLimit(req) {
+  const db = await getDb();
+  const now = Date.now();
+  const key = hashAccessSecret(getClientAddress(req));
+  const existing = await db.collection('tool_code_rate_limits').findOne({ key });
+
+  if (!existing || Number(existing.reset_at) <= now) {
+    await db.collection('tool_code_rate_limits').updateOne(
+      { key },
+      { $set: { key, attempts: 1, reset_at: now + TOOL_CODE_ATTEMPT_WINDOW_MS } },
+      { upsert: true }
+    );
+    return true;
+  }
+
+  if (Number(existing.attempts) >= TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW) return false;
+
+  await db.collection('tool_code_rate_limits').updateOne(
+    { key, reset_at: existing.reset_at },
+    { $inc: { attempts: 1 } }
+  );
+  return true;
+}
+
+async function createToolLinkCode(email) {
+  const db = await getDb();
+  const now = Date.now();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  // Remove old unused codes for this account.
+  await db.collection('tool_link_codes').deleteMany({
+    email: normalizedEmail,
+    used_at: null,
+  });
+
+  let code = '';
+  let codeHash = '';
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    code = createSixDigitCode();
+    codeHash = hashAccessSecret(code);
+    const existing = await db.collection('tool_link_codes').findOne({ code_hash: codeHash });
+    if (!existing) break;
+    code = '';
+    codeHash = '';
+  }
+
+  if (!code) throw new Error('Could not generate a unique tool access code');
+
+  const expiresAt = now + TOOL_CODE_TTL_MS;
+  await db.collection('tool_link_codes').insertOne({
+    email: normalizedEmail,
+    code_hash: codeHash,
+    created_at: now,
+    expires_at: expiresAt,
+    used_at: null,
+  });
+
+  return { code, expiresAt };
+}
+
+async function validateSubscribedUser(email) {
+  const db = await getDb();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const user = await db.collection('users').findOne({ email: normalizedEmail });
+
+  if (!user) return { user: null, reason: 'user_not_found' };
+  if (!user.subscription_active) return { user: null, reason: 'subscription_inactive' };
+  if (!Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
+    return { user: null, reason: 'subscription_expired' };
+  }
+
+  return { user, reason: null };
+}
+
+function encryptLaunchCode(code) {
+  const key = crypto.createHash('sha256').update(String(JWT_SECRET)).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(String(code), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, ciphertext]).toString('base64url');
+}
+
+function decryptLaunchCode(payload) {
+  const key = crypto.createHash('sha256').update(String(JWT_SECRET)).digest();
+  const raw = Buffer.from(String(payload), 'base64url');
+  if (raw.length < 29) throw new Error('Invalid launch ticket payload');
+  const iv = raw.subarray(0, 12);
+  const tag = raw.subarray(12, 28);
+  const ciphertext = raw.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
+
+async function createToolLaunchTicket(email, code, expiresAt) {
+  const db = await getDb();
+  const ticket = crypto.randomBytes(24).toString('hex');
+  await db.collection('tool_launch_tickets').insertOne({
+    ticket_hash: hashAccessSecret(ticket),
+    email: String(email || '').trim().toLowerCase(),
+    code_encrypted: encryptLaunchCode(code),
+    expires_at: expiresAt,
+    created_at: Date.now(),
+    used_at: null,
+  });
+  return ticket;
+}
+
+// This endpoint is intended to be opened by the existing "Open Artify PRO"
+// button on the main site. It creates the code and displays it without
+// putting the code in the tool URL. An optional opaque launch ticket is
+// supported for main-site code that already expects /api/get-tool-url.
+app.get('/api/launch-app', async (req, res) => {
+  try {
+    const authToken = req.cookies.token;
+    if (!authToken) return res.redirect('/?error=unauthorized');
+
+    const decoded = jwt.verify(authToken, JWT_SECRET);
+    const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+    if (!email) return res.redirect('/?error=access_denied');
+
+    const { user } = await validateSubscribedUser(email);
+    if (!user) return res.redirect('/?error=subscription_required');
+
+    let code = '';
+    let expiresAt = 0;
+    const requestedTicket = typeof req.query.ticket === 'string' ? req.query.ticket.trim() : '';
+
+    if (requestedTicket) {
+      const db = await getDb();
+      const ticketDoc = await db.collection('tool_launch_tickets').findOne({
+        ticket_hash: hashAccessSecret(requestedTicket),
+        email,
+        used_at: null,
+      });
+      if (!ticketDoc || Number(ticketDoc.expires_at) <= Date.now()) {
+        return res.redirect('/?error=access_denied');
+      }
+
+      await db.collection('tool_launch_tickets').updateOne(
+        { _id: ticketDoc._id, used_at: null },
+        { $set: { used_at: Date.now() } }
+      );
+
+      code = decryptLaunchCode(ticketDoc.code_encrypted);
+      expiresAt = Number(ticketDoc.expires_at);
+    } else {
+      const created = await createToolLinkCode(email);
+      code = created.code;
+      expiresAt = created.expiresAt;
+    }
+
+    const safeToolUrl = String(TOOL_URL).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const minutes = Math.max(1, Math.ceil((expiresAt - Date.now()) / 60000));
+
+    res.status(200).send(`<!doctype html>
+<html lang="ar" dir="rtl">
 <head>
-    <link rel="icon" type="image/png" href="/logo-256.png?v=2">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Artify PRO | Creator Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-    <style>
-        :root {
-            --bg-dark: #070a13;
-            --bg-card: #0e1424;
-            --bg-sidebar: #0a0e1a;
-            --primary: #6366f1;
-            --accent: #ec4899;
-            --text-main: #f8fafc;
-            --text-muted: #8e9bb5;
-            --border: rgba(255, 255, 255, 0.08);
-            --border-hover: rgba(99, 102, 241, 0.4);
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, 'Cairo', sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; min-height: 100vh; }
-        
-        [dir="rtl"] body { font-family: 'Cairo', sans-serif; letter-spacing: 0; }
-
-        .app-layout { display: flex; min-height: 100vh; position: relative; }
-
-        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 45; backdrop-filter: blur(2px); }
-
-        .sidebar {
-            width: 250px; background: var(--bg-sidebar); border-inline-end: 1px solid var(--border);
-            display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px;
-            position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 50;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 10px 25px; border-bottom: 1px solid var(--border); }
-        .logo-icon { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
-        .logo-text h2 { font-size: 19px; font-weight: 900; letter-spacing: -0.5px; }
-        .logo-text p { font-size: 11px; color: var(--text-muted); }
-
-        .nav-links { list-style: none; margin-top: 25px; display: flex; flex-direction: column; gap: 6px; }
-        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 14px; transition: 0.2s; cursor: pointer; border: 1px solid transparent; }
-        .nav-item:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.04); }
-        .nav-item.active { background: #1a233a; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
-        .nav-item span.icon { font-size: 18px; width: 20px; text-align: center; }
-
-        .sidebar-bottom-card { background: rgba(20, 29, 51, 0.6); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
-        .sub-quota { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-        .sub-quota strong { color: var(--text-main); font-weight: 700; }
-        .btn-upgrade-sidebar { width: 100%; padding: 10px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 13px; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .btn-upgrade-sidebar:hover { transform: scale(1.02); }
-
-        .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-
-        .global-launch-banner {
-            background: linear-gradient(90deg, #ec4899, #6366f1);
-            color: #fff; text-align: center; padding: 10px 20px; font-weight: bold; font-size: 13px;
-            display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;
-            border-bottom: 1px solid rgba(0,0,0,0.2); z-index: 45; position: relative;
-        }
-        .banner-code-badge {
-            background: rgba(0,0,0,0.35); padding: 4px 10px; border-radius: 6px; font-family: monospace;
-            font-size: 14px; letter-spacing: 1px; color: #38bdf8; border: 1px dashed rgba(255,255,255,0.4);
-            cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-        }
-        .banner-code-badge:hover { background: rgba(0,0,0,0.5); }
-        .timer-badge { background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 6px; font-family: monospace; font-size: 14px; letter-spacing: 1px; backdrop-filter: blur(4px); }
-        .btn-launch-free { background: #fff; color: #6366f1; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 12px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .btn-launch-free:hover { transform: scale(1.05); background: #f8fafc; }
-
-        .topbar {
-            height: 70px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 30px; border-bottom: 1px solid var(--border); background: rgba(7, 10, 19, 0.85);
-            backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; gap: 16px;
-        }
-        
-        .mobile-menu-btn { display: none; background: none; border: none; color: var(--text-main); font-size: 24px; cursor: pointer; }
-
-        .search-container { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; width: 360px; transition: 0.2s; }
-        .search-container:focus-within { border-color: var(--primary); }
-        .search-container input { background: transparent; border: none; outline: none; color: var(--text-main); font-size: 13px; width: 100%; }
-
-        .topbar-actions { display: flex; align-items: center; gap: 12px; }
-        
-        .lang-menu-rel { position: relative; }
-        .lang-switch { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .lang-switch:hover { border-color: var(--primary); }
-        .lang-dropdown { position: absolute; top: 48px; inset-inline-end: 0; width: 180px; max-height: 320px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); display: none; flex-direction: column; padding: 6px; z-index: 100; }
-        .lang-dropdown.show { display: flex; }
-        .lang-option { padding: 9px 12px; font-size: 13px; color: var(--text-muted); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: 0.15s; }
-        .lang-option:hover { color: #fff; background: rgba(255,255,255,0.06); }
-        .lang-option.active { color: #38bdf8; background: rgba(56,189,248,0.08); font-weight: 700; }
-
-        .user-menu-rel { position: relative; }
-        .user-badge { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 12px; border-radius: 25px; cursor: pointer; }
-        .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0; }
-        .user-dropdown { position: absolute; top: 48px; inset-inline-end: 0; width: 220px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); display: none; flex-direction: column; padding: 8px; z-index: 100; }
-        .user-dropdown.show { display: flex; }
-        .dropdown-link { padding: 10px 12px; font-size: 13px; color: var(--text-muted); border-radius: 6px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: 0.2s; background: none; border: none; width: 100%; text-align: inherit; font-family: inherit; }
-        .dropdown-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
-        .dropdown-link.danger { color: var(--danger); }
-        .dropdown-link.danger:hover { background: rgba(239, 68, 68, 0.1); }
-        .dropdown-status { padding: 8px 12px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-        .dropdown-status .label { font-size: 10px; color: var(--text-muted); text-transform: none; }
-        .dropdown-status .value { font-size: 13px; color: var(--primary); font-weight: 700; margin-top: 2px; }
-
-        .content-scroll { padding: 30px; display: flex; flex-direction: column; gap: 35px; scroll-behavior: smooth; }
-
-        .hero-banner {
-            border-radius: 22px; overflow: hidden; position: relative; background-color: var(--bg-card); 
-            background-image: url('/hero-bg.jpg'); background-position: center left; background-size: cover; background-repeat: no-repeat;
-            min-height: 270px; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
-        [dir="rtl"] .hero-banner { background-position: center right; }
-
-        .banner-mask { position: absolute; inset: 0; background: linear-gradient(to right, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); z-index: 1; pointer-events: none; }
-        [dir="rtl"] .banner-mask { background: linear-gradient(to left, var(--bg-card) 0%, rgba(14, 20, 36, 0.8) 45%, transparent 100%); }
-
-        .banner-text { position: relative; z-index: 2; max-width: 580px; }
-        .welcome-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 5px 14px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; font-weight: bold; }
-        .banner-title { font-size: 34px; font-weight: 900; line-height: 1.25; margin-bottom: 12px; }
-        .banner-title span { color: #38bdf8; }
-        .banner-desc { font-size: 14px; color: #cbd5e1; margin-bottom: 25px; max-width: 480px; }
-
-        .banner-buttons { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
-        .btn-banner-primary { padding: 12px 28px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; border-radius: 10px; color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-banner-primary:hover { transform: scale(1.03); }
-        .btn-banner-ghost { padding: 12px 24px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-banner-ghost:hover { background: rgba(255, 255, 255, 0.12); }
-
-        .banner-float-card { position: relative; z-index: 2; background: rgba(14, 20, 36, 0.7); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 20px 24px; width: 260px; box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
-        .float-header { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; margin-bottom: 12px; color: #fff; }
-        .float-list { list-style: none; font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; }
-        .float-list li { display: flex; align-items: center; gap: 6px; }
-        .float-list li span.check { color: var(--success); font-weight: bold; }
-
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        .section-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .section-subtitle { font-size: 12px; color: var(--text-muted); font-weight: normal; }
-
-        .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 24px; position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 190px; transition: all 0.3s ease; }
-        .tool-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
-        .tool-card.primary-tool { border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, #11182c 0%, #0e1424 100%); }
-
-        .tool-top { display: flex; justify-content: space-between; align-items: flex-start; }
-        .tool-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-        .tool-tag { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: bold; white-space: nowrap; height: fit-content; }
-        .tag-popular { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
-        .tag-soon { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
-
-        .tool-content { margin-top: 15px; }
-        .tool-content h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-        .tool-content p { font-size: 13px; color: var(--text-muted); }
-
-        .tool-btn { margin-top: 20px; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
-        .btn-active-tool { background: var(--primary); color: #fff; }
-        .btn-active-tool:hover { background: #4f46e5; }
-        .btn-secondary-tool { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--border); }
-        .tool-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        .lock-overlay { position: absolute; inset: 0; background: rgba(14, 20, 36, 0.65); backdrop-filter: blur(2px); border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; cursor: pointer; text-align: center; padding: 10px; }
-        .lock-icon { font-size: 24px; }
-        .lock-text { font-size: 12px; font-weight: bold; color: #cbd5e1; }
-
-        .inspiration-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px 20px; overflow: hidden; }
-        .marquee-viewport { overflow: hidden; }
-        .marquee-track { display: flex; gap: 16px; width: max-content; animation: scrollShowcase 40s linear infinite; will-change: transform; }
-        .marquee-track:hover { animation-play-state: paused; }
-        @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        [dir="rtl"] @keyframes scrollShowcase { from { transform: translateX(0); } to { transform: translateX(50%); } }
-
-        .inspiration-card { width: 260px; height: 160px; border-radius: 14px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; }
-        .inspiration-card img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; display: block; background: #0e1424; }
-        .inspiration-card:hover img { transform: scale(1.08); filter: brightness(0.3); }
-        .insp-overlay { position: absolute; inset: 0; background: rgba(7, 10, 19, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 15px; opacity: 0; transition: 0.3s; text-align: center; }
-        .inspiration-card:hover .insp-overlay { opacity: 1; }
-        .insp-prompt { font-size: 11px; color: #f1f5f9; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
-        .insp-copy-btn { padding: 6px 12px; background: var(--primary); border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; }
-
-        .modal-overlay { position: fixed; inset: 0; background: rgba(4,6,12,0.8); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
-        .modal-overlay.show { display: flex; }
-        .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; max-width: 460px; width: 100%; padding: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; max-height: 90vh; overflow-y: auto;}
-        .modal-box.large { max-width: 850px; }
-        
-        .modal-close-btn { position: absolute; top: 15px; inset-inline-end: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
-        .modal-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-
-        .modal-title { font-size: 22px; font-weight: 800; margin-bottom: 20px; text-align: center; }
-        .modal-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; text-align: center;}
-        .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px;}
-        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; }
-        .modal-btn-cancel { background: rgba(255,255,255,0.06); color: var(--text-main); border: 1px solid var(--border);}
-        .modal-btn-danger { background: var(--danger); color: #fff; }
-        .modal-btn-primary { background: var(--primary); color: #fff; }
-        
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 15px; }
-        .pricing-card { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 25px 20px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; position: relative; }
-        .pricing-card.featured { border-color: var(--primary); box-shadow: 0 0 25px rgba(99, 102, 241, 0.2); }
-        .price-num { font-size: 32px; font-weight: 900; color: #38bdf8; margin: 8px 0 4px; }
-        .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 14px; }
-
-        .faq-wrap { width: 100%; text-align: left; }
-        [dir="rtl"] .faq-wrap { text-align: right; }
-        
-        .faq-item { background: rgba(7,10,19,0.5); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: 0.3s; }
-        .faq-question { padding: 14px 18px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; background: none; border: none; width: 100%; text-align: inherit; color: inherit; font-family: inherit; }
-        .faq-question .plus { transition: transform 0.2s; color: var(--text-muted); flex-shrink: 0; }
-        .faq-item.active .faq-question .plus { transform: rotate(45deg); }
-        .faq-answer { padding: 0 18px; max-height: 0; overflow: hidden; transition: 0.3s; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
-        .faq-item.active .faq-answer { padding: 12px 18px 16px; max-height: 300px; border-top: 1px solid var(--border); }
-
-        .sub-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: center; margin-bottom: 20px;}
-        .sub-info-item { background: rgba(7,10,19,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-        .sub-info-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .sub-info-item .value { font-size: 14px; font-weight: 700; color: #fff;}
-
-        .telegram-btn { position: fixed; bottom: 30px; inset-inline-end: 30px; width: 55px; height: 55px; background: #0088cc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0, 136, 204, 0.5); cursor: pointer; z-index: 99; transition: transform 0.3s; text-decoration: none; }
-        .telegram-btn:hover { transform: scale(1.1); }
-        .telegram-btn svg { width: 30px; height: 30px; fill: #fff; margin-inline-end: 4px; }
-
-        #toast-container { position: fixed; bottom: 25px; inset-inline-start: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
-        .toast { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); border-inline-start: 4px solid var(--success); color: var(--text-main); font-size: 13px; opacity: 0; transform: translateY(15px); transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .toast.show { opacity: 1; transform: translateY(0); }
-        .toast.danger { border-inline-start-color: var(--danger); }
-        .toast.warning { border-inline-start-color: var(--warning); }
-        .toast.success { border-inline-start-color: var(--success); }
-        .toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-        .toast-text { font-weight: 600; }
-
-        @media (max-width: 900px) {
-            .mobile-menu-btn { display: block; }
-            .sidebar {
-                position: fixed; left: -250px; transition: 0.3s; z-index: 55;
-            }
-            [dir="rtl"] .sidebar { left: auto; right: -250px; }
-            .sidebar.active { left: 0; }
-            [dir="rtl"] .sidebar.active { right: 0; }
-            .banner-float-card { display: none; }
-            .search-container { width: 180px; }
-            .telegram-btn { bottom: 20px; inset-inline-end: 20px; width: 45px; height: 45px; }
-            .telegram-btn svg { width: 24px; height: 24px; }
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ربط Artify PRO</title>
+<style>
+body{margin:0;background:#030712;color:#fff;font-family:Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+.card{width:min(520px,100%);background:#111827;border:1px solid #374151;border-radius:20px;padding:32px;box-sizing:border-box;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+h1{margin:0 0 12px;font-size:28px}.muted{color:#9ca3af;line-height:1.8}.code{font-size:48px;letter-spacing:.28em;font-weight:900;background:#030712;border:1px solid #4f46e5;border-radius:16px;padding:18px 12px;margin:24px 0;direction:ltr}.btn{display:block;text-decoration:none;background:#4f46e5;color:#fff;padding:14px 18px;border-radius:12px;font-weight:800;margin-top:14px}.small{font-size:13px;color:#6b7280;margin-top:16px;line-height:1.7}
+</style>
 </head>
 <body>
-
-    <div id="toast-container"></div>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-    <a href="https://t.me/ArtifyHelp_bot" target="_blank" class="telegram-btn" title="Support">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z"/>
-        </svg>
-    </a>
-
-    <div class="app-layout">
-        <aside class="sidebar" id="sidebar">
-            <div>
-                <div class="sidebar-logo">
-                    <div class="logo-icon" style="background: none; padding: 0;">
-                        <img src="/logo-256.png" alt="Artify PRO" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
-                    </div>
-                    <div class="logo-text"><h2>Artify PRO</h2><p data-i18n="logoSub">Create • Edit • Inspire</p></div>
-                </div>
-
-                <ul class="nav-links">
-                    <li class="nav-item active" onclick="scrollToTop(); toggleSidebar()"><span class="icon">🏠</span> <span data-i18n="navHome">Home</span></li>
-                    <li class="nav-item" onclick="handleToolAction(); toggleSidebar()"><span class="icon">🎨</span> <span data-i18n="navGen">Image Generator</span></li>
-                    <li class="nav-item" onclick="scrollToSection('inspirationSection'); toggleSidebar()"><span class="icon">🖼️</span> <span data-i18n="navGallery">Gallery</span></li>
-                    <li class="nav-item" onclick="openFaqModal(); toggleSidebar()"><span class="icon">📖</span> <span data-i18n="navFaq">FAQ & Guide</span></li>
-                    <li class="nav-item" onclick="manageSubscriptionFlow(); toggleSidebar()"><span class="icon">⚙️</span> <span data-i18n="navSub">Subscription</span></li>
-                </ul>
-            </div>
-
-            <div class="sidebar-bottom-card">
-                <div class="sub-quota">
-                    <span id="sidebarSubStatus" data-i18n="statusFree">Free Account</span>
-                    <strong id="quotaCount">0 / 10</strong>
-                </div>
-                <button class="btn-upgrade-sidebar" onclick="manageSubscriptionFlow(); toggleSidebar()">
-                    👑 <span id="sidebarBtnLabel" data-i18n="btnManageSub">Manage Subscription</span>
-                </button>
-            </div>
-        </aside>
-
-        <main class="main-wrapper">
-            
-            <div class="global-launch-banner" id="globalBanner">
-                <span data-i18n="bannerOffer">🔥 Launch Week Offer: 30% OFF all plans! Copy code:</span>
-                <span class="banner-code-badge" onclick="copyLaunchCoupon()" title="Copy Code">
-                    <strong>LAUNCH30</strong> 📋
-                </span>
-                <span data-i18n="bannerTimerText">Ends in:</span>
-                <span class="timer-badge" id="countdownTimer">[ 00 : 00 : 00 : 00 ]</span>
-                <button class="btn-launch-free" onclick="scrollToPricing()" data-i18n="btnClaimOffer">Claim Offer</button>
-            </div>
-
-            <header class="topbar">
-                <div style="display:flex; align-items:center; gap: 10px;">
-                    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
-                    
-                    <div class="search-container">
-                        <span style="color:var(--text-muted);">🔍</span>
-                        <input type="text" id="globalSearchInput" data-i18n="searchPlaceholder" placeholder="Search for tools or FAQs...">
-                    </div>
-                </div>
-
-                <div class="topbar-actions">
-                    <div class="lang-menu-rel" id="langMenuArea">
-                        <button class="lang-switch" onclick="toggleLangDropdown()" type="button">
-                            🌐 <span id="langCurrentLabel">English</span> <span style="font-size:10px;">▼</span>
-                        </button>
-                        <div class="lang-dropdown" id="langDropdown">
-                            <div class="lang-option active" onclick="changeLanguage('en')">English <span style="font-size:10px; color:#38bdf8;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('ar')">العربية <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('es')">Español <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('fr')">Français <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('de')">Deutsch <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('it')">Italiano <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('pt')">Português <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('ru')">Русский <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('zh')">中文 <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                            <div class="lang-option" onclick="changeLanguage('ja')">日本語 <span style="font-size:10px; color:#38bdf8; display:none;" class="check-mark">✓</span></div>
-                        </div>
-                    </div>
-
-                    <div id="g_id_signin_container"></div>
-
-                    <div class="user-menu-rel" id="userMenuArea" style="display:none;">
-                        <div class="user-badge" onclick="toggleUserDropdown()">
-                            <div class="user-avatar" id="avatarLetter">M</div>
-                            <span id="navUserName" style="font-size:13px; font-weight:bold;">User</span>
-                            <span style="font-size:10px; color:var(--text-muted);">▼</span>
-                        </div>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="dropdown-status">
-                                <div class="label" data-i18n="dropStatusLabel">Subscription Status</div>
-                                <div class="value" id="dropSubStatus">PRO Account</div>
-                            </div>
-                            <button class="dropdown-link" onclick="manageSubscriptionFlow()">💳 <span data-i18n="dropManage">Manage Subscription</span></button>
-                            <button class="dropdown-link danger" onclick="openDeleteModal()">🗑️ <span data-i18n="dropDelete">Delete Account</span></button>
-                            <button class="dropdown-link" onclick="logout()">🚪 <span data-i18n="dropLogout">Logout</span></button>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <div class="content-scroll" id="topAnchor">
-                
-                <section class="hero-banner">
-                    <div class="banner-mask"></div>
-                    <div class="banner-text">
-                        <div class="welcome-pill"><span>👑</span><span data-i18n="heroPill">Welcome to Artify PRO</span></div>
-                        <h1 class="banner-title" data-i18n="heroTitle">Turn your ideas into <span>Stunning Images</span></h1>
-                        <p class="banner-desc" data-i18n="heroDesc">Create high-quality professional images using advanced AI engines with 100% character face consistency.</p>
-
-                        <div class="banner-buttons">
-                            <button class="btn-banner-primary" onclick="handleToolAction()"><span data-i18n="btnStartNow">Start Now</span> <span class="dir-arrow">→</span></button>
-                            <button class="btn-banner-ghost" onclick="playPromoVideo()"><span>▶</span> <span data-i18n="btnWatchDemo">Watch Demo</span></button>
-                        </div>
-                    </div>
-
-                    <div class="banner-float-card">
-                        <div class="float-header"><span style="color:#818cf8;">✨</span><span data-i18n="floatHeader">Advanced AI</span></div>
-                        <ul class="float-list">
-                            <li><span class="check">✓</span> <span data-i18n="float1">100% Face Consistency</span></li>
-                            <li><span class="check">✓</span> <span data-i18n="float2">Sequential Generation</span></li>
-                            <li><span class="check">✓</span> <span data-i18n="float3">Cinematic UHD Quality</span></li>
-                        </ul>
-                    </div>
-                </section>
-
-                <section>
-                    <div class="section-header">
-                        <div class="section-title"><span style="color:var(--primary);">🎛️</span><span data-i18n="toolsTitle">Your Tools</span> <span class="section-subtitle" data-i18n="toolsSub">Select a tool to begin</span></div>
-                    </div>
-
-                    <div class="tools-grid" id="toolsGrid">
-                        <div class="tool-card primary-tool">
-                            <div class="lock-overlay" id="canvasLock" onclick="handleToolAction()">
-                                <span class="lock-icon">🔒</span>
-                                <span class="lock-text" data-i18n="lockText">Click to Subscribe & Unlock</span>
-                            </div>
-                            <div class="tool-top">
-                                <div class="tool-icon">🎨</div>
-                                <span class="tool-tag tag-popular" data-i18n="tagPopular">Most Popular</span>
-                            </div>
-                            <div class="tool-content">
-                                <h3 data-i18n="tool1Title">Canvas Pro (Image Gen)</h3>
-                                <p data-i18n="tool1Desc">Integrated studio for generation, editing, and character face locking.</p>
-                            </div>
-                            <button class="tool-btn btn-active-tool" onclick="handleToolAction()"><span data-i18n="btnOpenTool">Open Tool</span> <span>↗</span></button>
-                        </div>
-
-                        <div class="tool-card">
-                            <div class="tool-top">
-                                <div class="tool-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">📖</div>
-                                <span class="tool-tag tag-soon" data-i18n="tagGuide">Comprehensive Guide</span>
-                            </div>
-                            <div class="tool-content">
-                                <h3 data-i18n="tool2Title">FAQ & Documentation</h3>
-                                <p data-i18n="tool2Desc">Full answers for subscription details, usage policies, and workflows.</p>
-                            </div>
-                            <button class="tool-btn btn-secondary-tool" onclick="openFaqModal()"><span data-i18n="btnReadFaq">Read FAQs</span> <span class="dir-arrow">→</span></button>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="inspiration-wrap" id="inspirationSection">
-                    <div class="section-header" style="margin-bottom:15px;">
-                        <div class="section-title"><span style="color:#eab308;">💡</span><span data-i18n="inspTitle">Inspiration</span><span class="section-subtitle" data-i18n="inspSub">Hover to copy prompt</span></div>
-                    </div>
-                    <div class="marquee-viewport">
-                        <div class="marquee-track" id="marqueeTrack"></div>
-                    </div>
-                </section>
-
-                <div id="purchase-section">
-                    <div id="renewPlansAnchor"></div>
-                    <div class="section-title" style="justify-content:center;" id="plansSectionLabel">
-                        <span data-i18n="plansTitle">Choose Your Plan</span>
-                    </div>
-
-                    <div id="earlyBirdBox" style="display:none; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2)); border: 1px solid var(--accent); border-radius: 14px; padding: 18px; margin-bottom: 20px; text-align: center;">
-                        <div style="font-size: 20px; margin-bottom: 6px;">🎉 <strong data-i18n="luckyTitle">You are very lucky!</strong></div>
-                        <p style="font-size: 14px; color: #f8fafc; margin-bottom: 12px;">
-                            <span data-i18n="luckyDesc1">You are one of the early testers. Your current rank is </span> <span id="userRankNumber" style="color: #38bdf8; font-size: 18px; font-weight: 900;">#?</span> <span data-i18n="luckyDesc2">out of 15 FREE accounts!</span>
-                        </p>
-                        <div style="display: inline-flex; align-items: center; justify-content:center; gap: 8px;">
-                            <button onclick="promptEarlyBirdClaim()" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;" data-i18n="btnApplySecret">Claim 1 Month Free ⚡</button>
-                        </div>
-                    </div>
-
-                    <div class="pricing-grid" id="pricingSection">
-                        <div class="pricing-card" data-plan="month1">
-                            <h4 data-i18n="plan1Mo">1 Month</h4><div class="old-price">$15</div><div class="price-num" id="p-val-month1">$10.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan1Desc">Flexible monthly renewal</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="btnSubMonth">Subscribe Monthly</button>
-                        </div>
-                        <div class="pricing-card" data-plan="month3">
-                            <h4 data-i18n="plan3Mo">3 Months</h4><div class="old-price">$38</div><div class="price-num" id="p-val-month3">$26.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan3Desc">Most popular choice</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="btnSub3Mo">Subscribe 3 Months</button>
-                        </div>
-                        <div class="pricing-card featured" data-plan="month6">
-                            <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="planBestVal">BEST VALUE</div>
-                            <h4 data-i18n="plan6Mo">6 Months</h4><div class="old-price">$65</div><div class="price-num" id="p-val-month6">$45.50</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan6Desc">Exceptional value for creators</p>
-                            <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')" data-i18n="btnSub6Mo">Subscribe 6 Months</button>
-                        </div>
-                        <div class="pricing-card" data-plan="year1">
-                            <h4 data-i18n="plan1Yr">1 Year</h4><div class="old-price">$110</div><div class="price-num" id="p-val-year1">$77.00</div>
-                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" data-i18n="plan1YrDesc">Maximum savings</p>
-                            <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="btnSubYr">Subscribe Yearly</button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </main>
-    </div>
-
-    <!-- Modals -->
-    <div class="modal-overlay" id="ageConfirmEarlyBirdModal">
-        <div class="modal-box">
-            <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div style="font-size: 38px; text-align: center; margin-bottom: 8px;">🎁</div>
-            <div class="modal-title" style="margin-bottom: 12px;" data-i18n="modEarlyTitle">Claim 1 Month Free</div>
-            
-            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #fca5a5; line-height: 1.7;" data-i18n="mod18Text">
-                🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google from running the AI engine.
-            </div>
-
-            <div class="modal-text" style="margin-bottom: 20px;" data-i18n="modEarlyDesc">
-                This is a limited free subscription for early testers. By proceeding, your account will be activated immediately without any payment.
-            </div>
-
-            <div class="modal-actions" style="flex-direction: column; gap: 8px;">
-                <button class="modal-btn modal-btn-primary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="claimEarlyBirdSpot()" data-i18n="btnConfirm18Early">I confirm I am 18+, Claim Now ⚡</button>
-                <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="preCheckoutModal">
-        <div class="modal-box">
-            <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div style="font-size: 38px; text-align: center; margin-bottom: 8px;">⚠️</div>
-            <div class="modal-title" style="margin-bottom: 12px;" data-i18n="mod18Title">Important Subscription Terms</div>
-            
-            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #fca5a5; line-height: 1.7;" data-i18n="mod18Text">
-                🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google from running the AI engine.
-            </div>
-
-            <div style="background: rgba(99, 102, 241, 0.1); border: 1px dashed var(--primary); border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 18px;">
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;" data-i18n="modCodeLbl">Launch Discount Code:</div>
-                <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
-                    <code style="font-size: 18px; font-weight: 900; color: #38bdf8; letter-spacing: 1px; background: rgba(0,0,0,0.35); padding: 4px 12px; border-radius: 6px;">LAUNCH30</code>
-                    <button type="button" onclick="copyLaunchCoupon()" style="background: var(--primary); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold;" data-i18n="modCodeBtn">Copy Code 📋</button>
-                </div>
-                <div style="font-size: 11px; color: #cbd5e1; margin-top: 8px;" data-i18n="modCodeDesc">
-                    Please paste this code in the <strong>"Add promo code"</strong> field during checkout for 30% off.
-                </div>
-            </div>
-
-            <div class="modal-actions" style="flex-direction: column; gap: 8px;">
-                <button class="modal-btn modal-btn-primary" style="width: 100%; padding: 12px; font-size: 14px;" onclick="proceedToWhopCheckout()" data-i18n="btnConfirm18">I confirm I am 18+, Proceed to Checkout ↗</button>
-                <div style="font-size: 11px; color: var(--warning); margin-top: 4px; text-align: center;" data-i18n="checkoutWarnEmail">Make sure to use your current Google email during checkout.</div>
-                <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sub Status Modal -->
-    <div class="modal-overlay" id="subStatusModal">
-        <div class="modal-box">
-            <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title" data-i18n="modSubTitle">Your Subscription Details</div>
-            <div class="sub-info-grid">
-                <div class="sub-info-item"><div class="label" data-i18n="lblCurPlan">Current Plan</div><div class="value" id="modalPlanName">PRO</div></div>
-                <div class="sub-info-item"><div class="label" data-i18n="lblStartDate">Start Date</div><div class="value" id="modalStartDate">—</div></div>
-                <div class="sub-info-item"><div class="label" data-i18n="lblEndDate">End Date</div><div class="value" id="modalExpiryDate">—</div></div>
-                <div class="sub-info-item"><div class="label" data-i18n="lblTimeLeft">Time Left</div><div class="value" id="modalDaysLeft" style="color:#38bdf8;">—</div></div>
-            </div>
-            <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-                <button class="modal-btn modal-btn-primary" onclick="openPricingModal()" data-i18n="btnRenew">Renew or Upgrade Plan</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Pricing Modal -->
-    <div class="modal-overlay" id="pricingModal">
-        <div class="modal-box large">
-            <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title" data-i18n="plansTitle">Choose Your Plan</div>
-            
-            <div class="pricing-grid">
-                <div class="pricing-card" data-plan="month1">
-                    <h4 data-i18n="plan1Mo">1 Month</h4><div class="old-price">$15</div><div class="price-num" id="modal-p-month1">$10.50</div>
-                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month1')" data-i18n="btnSubMonth">Subscribe Monthly</button>
-                </div>
-                <div class="pricing-card" data-plan="month3">
-                    <h4 data-i18n="plan3Mo">3 Months</h4><div class="old-price">$38</div><div class="price-num" id="modal-p-month3">$26.50</div>
-                    <button class="tool-btn btn-active-tool" onclick="promptPlan('month3')" data-i18n="btnSub3Mo">Subscribe 3 Months</button>
-                </div>
-                <div class="pricing-card featured" data-plan="month6">
-                    <div style="font-size:11px; color:var(--accent); font-weight:bold;" data-i18n="planBestVal">BEST VALUE</div>
-                    <h4 data-i18n="plan6Mo">6 Months</h4><div class="old-price">$65</div><div class="price-num" id="modal-p-month6">$45.50</div>
-                    <button class="tool-btn btn-active-tool" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none;" onclick="promptPlan('month6')" data-i18n="btnSub6Mo">Subscribe 6 Months</button>
-                </div>
-                <div class="pricing-card" data-plan="year1">
-                    <h4 data-i18n="plan1Yr">1 Year</h4><div class="old-price">$110</div><div class="price-num" id="modal-p-year1">$77.00</div>
-                    <button class="tool-btn btn-active-tool" onclick="promptPlan('year1')" data-i18n="btnSubYr">Subscribe Yearly</button>
-                </div>
-            </div>
-
-            <div class="coupon-box" style="max-width: 400px; margin: 20px auto 0; background: rgba(255,255,255,0.03); border: 1px dashed var(--primary); border-radius: 14px; padding: 15px; text-align: center;">
-                <h4 data-i18n="couponTitle">Have an activation or promo code?</h4>
-                <div class="coupon-input-group" style="display: flex; gap: 8px; margin-top: 10px;">
-                    <input type="text" id="couponInput" placeholder="..." style="flex: 1; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; font-weight: bold; text-transform: uppercase; outline: none;">
-                    <button onclick="applyCoupon()" style="padding: 8px 18px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer;" data-i18n="btnApply">Apply</button>
-                </div>
-                <div id="couponMsg" style="font-size:12px; margin-top:8px; font-weight:bold;"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- FAQ Modal with Search Result Msg -->
-    <div class="modal-overlay" id="faqModal">
-        <div class="modal-box large">
-            <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div class="modal-title" data-i18n="modFaqTitle">FAQ & Documentation</div>
-            <div class="faq-wrap" id="faqList"></div>
-            <div id="noResultsMsg" style="display:none; text-align:center; padding:20px; color:var(--text-muted);" data-i18n="noSearchResults">No items match your search.</div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="deleteModal">
-        <div class="modal-box">
-            <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">⚠️</div>
-            <div class="modal-title" data-i18n="modDelTitle">Delete Account</div>
-            <div class="modal-text" data-i18n="modDelText">Your account, subscription, and all data will be permanently deleted. This action cannot be undone.</div>
-            <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-                <button class="modal-btn modal-btn-danger" onclick="executeDeleteAccount()" data-i18n="btnPermDelete">Delete Permanently</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="launchWarningModal">
-        <div class="modal-box">
-            <button class="modal-close-btn" onclick="closeModals()">✕</button>
-            <div style="font-size: 40px; margin-bottom: 10px; text-align:center;">🛡️</div>
-            <div class="modal-title" style="text-align: center;" data-i18n="modWarnTitle">Important Notice Before Starting</div>
-            <div class="modal-text" style="line-height: 1.8;" data-i18n="modWarnText">
-                When you launch the tool, Google might show a message saying <em>"Google hasn't verified this app"</em>.<br><br>
-                This is a standard security procedure. Please click on <strong>"Advanced"</strong> then <strong>"Go to App"</strong>, and approve the connection.<br><br>
-                💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> For the best workspace experience, press <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> to enter full screen mode!
-            </div>
-            <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModals()" data-i18n="btnCancel">Cancel</button>
-                <button class="modal-btn modal-btn-primary" onclick="executeLaunchTool()" data-i18n="btnUnderstand">I understand, open tool</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            sidebar.classList.toggle('active');
-            if(sidebar.classList.contains('active')) {
-                overlay.style.display = 'block';
-            } else {
-                overlay.style.display = 'none';
-            }
-        }
-
-        // ==========================================
-        // 1. Full 10 Languages Dictionary with 8 FAQs & Modal Translations
-        // ==========================================
-        const langNames = { en: "English", ar: "العربية", es: "Español", fr: "Français", de: "Deutsch", it: "Italiano", pt: "Português", ru: "Русский", zh: "中文", ja: "日本語" };
-        let currentLang = 'en';
-        
-        const translations = {
-            en: {
-                logoSub: "Create • Edit • Inspire", navHome: "Home", navGen: "Image Generator", navGallery: "Gallery", navFaq: "FAQ & Guide", navSub: "Subscription",
-                statusFree: "Free Account", btnManageSub: "Manage Subscription", bannerOffer: "🔥 Launch Week Offer: 30% OFF all plans! Copy code:", bannerTimerText: "Ends in:", btnClaimOffer: "Claim Offer", searchPlaceholder: "Search for tools or FAQs...",
-                dropStatusLabel: "Subscription Status", dropManage: "Manage Subscription", dropDelete: "Delete Account", dropLogout: "Logout",
-                heroPill: "Welcome to Artify PRO", heroTitle: "Turn your ideas into <span>Stunning Images</span>", heroDesc: "Create high-quality professional images using advanced AI engines with 100% character face consistency.",
-                btnStartNow: "Start Now", btnWatchDemo: "Watch Demo", floatHeader: "Advanced AI", float1: "100% Face Consistency", float2: "Sequential Generation", float3: "Cinematic UHD Quality",
-                toolsTitle: "Your Tools", toolsSub: "Select a tool to begin", lockText: "Click to Subscribe & Unlock", tagPopular: "Most Popular", tagGuide: "Comprehensive Guide",
-                tool1Title: "Canvas Pro (Image Gen)", tool1Desc: "Integrated studio for generation, editing, and character face locking.", btnOpenTool: "Open Tool",
-                tool2Title: "FAQ & Documentation", tool2Desc: "Full answers for subscription details, usage policies, and workflows.", btnReadFaq: "Read FAQs",
-                inspTitle: "Inspiration", inspSub: "Hover to copy prompt", plansTitle: "Choose Your Plan", luckyTitle: "You are very lucky!", luckyDesc1: "You are one of the early testers. Your rank is", luckyDesc2: "out of 15 FREE accounts!", secretCodeLbl: "Secret Code:", btnApplySecret: "Claim 1 Month Free ⚡",
-                plan1Mo: "1 Month", plan3Mo: "3 Months", plan6Mo: "6 Months", plan1Yr: "1 Year", planBestVal: "BEST VALUE",
-                plan1Desc: "Flexible monthly renewal", plan3Desc: "Most popular choice", plan6Desc: "Exceptional value for creators", plan1YrDesc: "Maximum savings",
-                btnSubMonth: "Subscribe Monthly", btnSub3Mo: "Subscribe 3 Months", btnSub6Mo: "Subscribe 6 Months", btnSubYr: "Subscribe Yearly",
-                mod18Title: "Important Subscription Terms", mod18Text: "🔞 <strong>Core Requirement:</strong><br>Your linked Google account must be registered as <strong>18 years or older</strong>. Accounts under Family Link or under 18 are automatically blocked by Google.",
-                modCodeLbl: "Launch Discount Code:", modCodeBtn: "Copy Code 📋", modCodeDesc: "Please paste this code in the <strong>Add promo code</strong> field during checkout for 30% off.",
-                btnConfirm18: "I confirm I am 18+, Proceed to Checkout ↗", btnCancel: "Cancel", btnRenew: "Renew or Upgrade Plan", checkoutWarnEmail: "Make sure to use your current Google email during checkout.",
-                modEarlyTitle: "Claim 1 Month Free", modEarlyDesc: "This is a limited free subscription for early testers. By proceeding, your account will be activated immediately without any payment.", btnConfirm18Early: "I confirm I am 18+, Claim Now ⚡",
-                modSubTitle: "Your Subscription Details", lblCurPlan: "Current Plan", lblStartDate: "Start Date", lblEndDate: "End Date", lblTimeLeft: "Time Left",
-                couponTitle: "Have an activation or promo code?", btnApply: "Apply",
-                modFaqTitle: "FAQ & Documentation", modDelTitle: "Delete Account", modDelText: "Your account, subscription, and all data will be permanently deleted. This action cannot be undone.", btnPermDelete: "Delete Permanently",
-                modWarnTitle: "Important Notice Before Starting", modWarnText: 'When you launch the tool, Google might show a message saying <em>"Google hasn\'t verified this app"</em>.<br><br>This is a standard procedure. Click <strong>"Advanced"</strong> then <strong>"Go to App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro Tip:</span> Press <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> for full screen!', btnUnderstand: "I understand, open tool",
-                toastCopy: "Prompt copied successfully", toastCopyCode: "LAUNCH30 code copied successfully!", toastLoginReq: "Please login with Google first", toastSubReq: "PRO subscription required to open the tool", toastLogout: "Logged out successfully", toastDeleted: "Account deleted permanently", toastDemo: "Demo video coming soon!", btnCopy: "Copy",
-                toastEnterCode: "Please enter a code", toastInvalidCode: "Invalid or expired code", toastConnError: "Connection error. Try again.", toastPromoSuccess: "PRO Activated successfully!", noSearchResults: "No items match your search.",
-                faqs: [
-                    { q:"Does any Google account work?", a:"To generate professional images, the linked Google account must be registered as 18 years or older. Family Link accounts cannot use the tool." },
-                    { q:"Are there any additional Google fees?", a:"No, the tool utilizes your free Google quota. The subscription covers all Artify PRO software features." },
-                    { q:"Is there a limit to image generation?", a:"PRO subscribers get unlimited generations during their subscription period at the highest quality." },
-                    { q:"How does face consistency work?", a:"The tool uses smart algorithms to lock the same features and face across different scenes. Just enable Character Consistency in the studio." },
-                    { q:"Do I own the generated images?", a:"Yes, all images generated via your account are fully owned by you and can be used commercially without restrictions." },
-                    { q:"Can I cancel or get a refund?", a:"You can cancel your subscription anytime to prevent future charges. We do not offer refunds for partially used months." },
-                    { q:"Can I use my account on multiple devices?", a:"Yes, your PRO account is linked to your Google email, allowing you to access it from any device or browser." },
-                    { q:"How do I get technical support?", a:"You can reach out directly to our support team by clicking the Telegram floating icon at the bottom corner of the screen." }
-                ]
-            },
-            ar: {
-                logoSub: "أنشئ • عدّل • ألهم", navHome: "الرئيسية", navGen: "مولد الصور", navGallery: "المعرض", navFaq: "الأسئلة الشائعة", navSub: "الاشتراك",
-                statusFree: "حساب مجاني", btnManageSub: "إدارة الاشتراك", bannerOffer: "🔥 عرض الإطلاق: خصم 30%! الكود:", bannerTimerText: "ينتهي خلال:", btnClaimOffer: "احجز باقتك", searchPlaceholder: "ابحث عن أدوات أو أسئلة...",
-                dropStatusLabel: "حالة الاشتراك", dropManage: "إدارة الاشتراك", dropDelete: "حذف الحساب", dropLogout: "تسجيل الخروج",
-                heroPill: "مرحباً بك في Artify PRO", heroTitle: "حوّل أفكارك إلى <span>صور مذهلة</span>", heroDesc: "أنشئ صوراً احترافية عالية الجودة باستخدام أحدث محركات الذكاء الاصطناعي مع ثبات تام للشخصيات.",
-                btnStartNow: "ابدأ الآن", btnWatchDemo: "شاهد فيديو", floatHeader: "الذكاء الاصطناعي", float1: "ثبات ملامح الوجه 100%", float2: "توليد المشاهد المتسلسلة", float3: "دقة سينمائية فائقة",
-                toolsTitle: "أدواتك", toolsSub: "اختر الأداة للبدء", lockText: "اضغط للاشتراك وفتح الأداة", tagPopular: "الأكثر استخداماً", tagGuide: "دليل شامل",
-                tool1Title: "Canvas Pro (مولد الصور)", tool1Desc: "استوديو التوليد المتكامل والمونتاج وتثبيت ملامح الشخصيات.", btnOpenTool: "فتح الأداة",
-                tool2Title: "الأسئلة الشائعة والدليل", tool2Desc: "إجابات كاملة لكل تفاصيل الاشتراك وسياسات الاستخدام.", btnReadFaq: "عرض الأسئلة",
-                inspTitle: "إلهام", inspSub: "مرر الماوس لنسخ البرومبت", plansTitle: "اختر باقتك", luckyTitle: "أنت محظوظ جداً!", luckyDesc1: "أنت من أوائل المجربين. رقمك هو", luckyDesc2: "من أصل 15 حساباً مجانياً!", secretCodeLbl: "الكود السري:", btnApplySecret: "احجز مقعدك المجاني ⚡",
-                plan1Mo: "شهر واحد", plan3Mo: "3 شهور", plan6Mo: "6 شهور", plan1Yr: "سنة كاملة", planBestVal: "الأكثر توفيراً",
-                plan1Desc: "تجديد شهري مرن للأفراد", plan3Desc: "الخيار الأكثر طلباً", plan6Desc: "قيمة استثنائية لصناع المحتوى", plan1YrDesc: "أقصى توفير مع دعم دائم",
-                btnSubMonth: "اشتراك شهري", btnSub3Mo: "اشتراك 3 شهور", btnSub6Mo: "اشتراك 6 شهور", btnSubYr: "اشتراك سنوي",
-                mod18Title: "شروط الاشتراك المهمة", mod18Text: "🔞 <strong>شرط أساسي:</strong><br>يجب أن يكون حساب Google المرتبط مسجلاً بعمر <strong>18 سنة أو أكبر</strong>. الحسابات الأقل من 18 تمنعها Google من تشغيل الأداة.",
-                modCodeLbl: "كود خصم الإطلاق:", modCodeBtn: "نسخ الكود 📋", modCodeDesc: "يرجى لصق الكود في خانة <strong>Add promo code</strong> داخل صفحة الدفع لتخفيض السعر.",
-                btnConfirm18: "أؤكد أن حسابي +18، متابعة للدفع ↗", btnCancel: "إلغاء", btnRenew: "تجديد أو ترقية الباقة", checkoutWarnEmail: "تأكد من استخدام نفس حساب جوجل الحالي أثناء الدفع.",
-                modEarlyTitle: "احجز مقعدك المجاني", modEarlyDesc: "هذا اشتراك مجاني محدود للمجربين الأوائل. بالمتابعة سيتم تفعيل حسابك فوراً بدون أي عملية دفع.", btnConfirm18Early: "أؤكد أن عمري +18 - فعّل الآن ⚡",
-                modSubTitle: "تفاصيل اشتراكك", lblCurPlan: "الباقة الحالية", lblStartDate: "تاريخ البدء", lblEndDate: "تاريخ الانتهاء", lblTimeLeft: "الوقت المتبقي",
-                couponTitle: "هل تمتلك كود تفعيل أو خصم؟", btnApply: "تطبيق",
-                modFaqTitle: "الأسئلة الشائعة والدليل", modDelTitle: "حذف الحساب نهائياً", modDelText: "سيتم حذف حسابك وإلغاء اشتراكك وجميع بياناتك فوراً، ولا يمكن التراجع.", btnPermDelete: "حذف نهائي",
-                modWarnTitle: "تنبيه هام قبل البدء", modWarnText: 'بمجرد انتقالك للأداة، قد تظهر رسالة <em>"Google hasn\'t verified this app"</em>.<br><br>هذا إجراء أمني روتيني. اضغط <strong>"Advanced"</strong> ثم <strong>"Go to App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">نصيحة:</span> لتكبير الشاشة اضغط <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd>!', btnUnderstand: "فهمت ذلك، افتح الأداة",
-                toastCopy: "تم نسخ البرومبت بنجاح", toastCopyCode: "تم نسخ كود LAUNCH30 بنجاح!", toastLoginReq: "يرجى تسجيل الدخول بحساب Google أولاً", toastSubReq: "يلزم تفعيل اشتراك PRO لفتح الأداة", toastLogout: "تم تسجيل الخروج", toastDeleted: "تم حذف الحساب نهائياً", toastDemo: "سيتم إضافة الفيديو التوضيحي قريباً!", btnCopy: "نسخ",
-                toastEnterCode: "يرجى إدخال الكود", toastInvalidCode: "الكود غير صحيح أو منتهي", toastConnError: "خطأ في الاتصال. حاول مجدداً.", toastPromoSuccess: "تم تفعيل اشتراك PRO بنجاح!", noSearchResults: "لا توجد نتائج مطابقة لبحثك.",
-                faqs: [
-                    { q:"هل أي حساب جوجل يعمل مع الأداة؟", a:"لتوليد الصور الاحترافية يجب أن يكون حساب جوجل مسجلاً بعمر 18 سنة أو أكثر. حسابات Family Link لن تعمل." },
-                    { q:"هل أحتاج لدفع أي رسوم إضافية لجوجل؟", a:"لا، الأداة تعمل بالحصة المجانية المتاحة لحسابك من جوجل، والاشتراك يغطي كافة المزايا البرمجية لـ Artify PRO." },
-                    { q:"هل هناك حد أقصى للتوليد؟", a:"يحصل مشتركو PRO على توليد غير محدود ط طوال فترة الاشتراك بأعلى جودة." },
-                    { q:"كيف تعمل ميزة ثبات ملامح الشخصيات؟", a:"تستخدم الأداة خوارزميات ذكية لتثبيت نفس الملامح عبر مشاهد مختلفة بتفعيل خيار Character Consistency." },
-                    { q:"هل الصور الناتجة مملوكة لي تجارياً؟", a:"نعم، جميع الصور مملوكة لك بالكامل ويمكنك استخدامها تجارياً دون قيود." },
-                    { q:"هل يمكنني الإلغاء أو استرداد الأموال؟", a:"يمكنك إلغاء التجديد التلقائي في أي وقت لتجنب الرسوم المستقبلية. نحن لا نقدم استرداداً للأموال عن الشهور المستخدمة جزئياً." },
-                    { q:"هل يمكنني استخدام الحساب على أكثر من جهاز؟", a:"نعم، اشتراكك مرتبط بحساب جوجل، مما يسمح لك بالدخول لأدواتك من أي جهاز أو متصفح." },
-                    { q:"كيف أحصل على الدعم الفني؟", a:"يمكنك التواصل مع فريق الدعم مباشرة عبر الضغط على أيقونة تليجرام العائمة أسفل الشاشة." }
-                ]
-            },
-            es: {
-                logoSub: "Crear • Editar • Inspirar", navHome: "Inicio", navGen: "Generador de Imágenes", navGallery: "Galería", navFaq: "FAQ y Guía", navSub: "Suscripción", statusFree: "Cuenta Gratis", btnManageSub: "Gestionar Suscripción", bannerOffer: "🔥 ¡Oferta de Lanzamiento: 30% de descuento! Código:", bannerTimerText: "Termina en:", btnClaimOffer: "Reclamar Oferta", searchPlaceholder: "Buscar herramientas o FAQs...", dropStatusLabel: "Estado de Suscripción", dropManage: "Gestionar Suscripción", dropDelete: "Eliminar Cuenta", dropLogout: "Cerrar Sesión", heroPill: "Bienvenido a Artify PRO", heroTitle: "Convierte tus ideas en <span>Imágenes Increíbles</span>", heroDesc: "Crea imágenes profesionales de alta calidad usando motores de IA avanzados con 100% de consistencia facial.", btnStartNow: "Empezar Ahora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistencia Facial", float2: "Generación Secuencial", float3: "Calidad UHD Cinemática", toolsTitle: "Tus Herramientas", toolsSub: "Selecciona una herramienta para empezar", lockText: "Haz clic para suscribirte y desbloquear", tagPopular: "Más Popular", tagGuide: "Guía Completa", tool1Title: "Canvas Pro (Generador)", tool1Desc: "Estudio integrado para generación, edición y bloqueo facial.", btnOpenTool: "Abrir Herramienta", tool2Title: "FAQ y Documentación", tool2Desc: "Respuestas completas para detalles de suscripción y uso.", btnReadFaq: "Leer FAQs", inspTitle: "Inspiration", inspSub: "Pase el ratón para copiar el prompt", plansTitle: "Elige Tu Plan", luckyTitle: "¡Tienes mucha suerte!", luckyDesc1: "Eres de los primeros probadores. Tu rango es", luckyDesc2: "de 15 cuentas GRATIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Reclamar Puesto Gratis ⚡", plan1Mo: "1 Mes", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Año", planBestVal: "MEJOR VALOR", plan1Desc: "Renovación mensual flexible", plan3Desc: "La opción más popular", plan6Desc: "Valor excepcional para creadores", plan1YrDesc: "Máximo ahorro", btnSubMonth: "Suscripción Mensual", btnSub3Mo: "Suscripción 3 Meses", btnSub6Mo: "Suscripción 6 Meses", btnSubYr: "Suscripción Anual", mod18Title: "Términos de Suscripción", mod18Text: "🔞 <strong>Requisito:</strong><br>Tu cuenta de Google debe ser de <strong>18 años o mayor</strong>.", modCodeLbl: "Código de Descuento:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Pega este código en <strong>Add promo code</strong> durante el pago para un 30% de descuento.", btnConfirm18: "Confirmo que soy +18, Ir al Pago ↗", btnCancel: "Cancelar", btnRenew: "Renovar o Mejorar Plan", checkoutWarnEmail: "Asegúrate de usar tu correo actual de Google durante el pago.", modEarlyTitle: "Reclamar Puesto Gratis", modEarlyDesc: "Esta es una suscripción gratuita limitada. Tu cuenta se activará inmediatamente sin ningún pago.", btnConfirm18Early: "Confirmo que soy +18, Activar ⚡", modSubTitle: "Tus Detalles de Suscripción", lblCurPlan: "Plan Actual", lblStartDate: "Fecha Inicio", lblEndDate: "Fecha Fin", lblTimeLeft: "Tiempo Restante", couponTitle: "¿Tienes un código promo?", btnApply: "Aplicar", modFaqTitle: "FAQ y Documentación", modDelTitle: "Eliminar Cuenta", modDelText: "Tu cuenta y datos serán eliminados permanentemente. Esta acción no se puede deshacer.", btnPermDelete: "Eliminar Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'Google puede mostrar <em>"Google no ha verificado esta app"</em>. Haz clic en <strong>"Avanzado"</strong> y luego en <strong>"Ir a la App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Consejo:</span> ¡Presiona <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">F11</kbd> para pantalla completa!', btnUnderstand: "Entiendo, abrir herramienta", toastCopy: "Prompt copiado con éxito", toastCopyCode: "¡Código LAUNCH30 copiado!", toastLoginReq: "Inicia sesión con Google primero", toastSubReq: "Suscripción PRO requerida para abrir", toastLogout: "Sesión cerrada", toastDeleted: "Cuenta eliminada", toastDemo: "¡Demo próximamente!", btnCopy: "Copiar", toastEnterCode: "Introduce un código", toastInvalidCode: "Código inválido o expirado", toastConnError: "Error de conexión.", toastPromoSuccess: "¡PRO Activado!", noSearchResults: "Sin resultados.",
-                faqs: [
-                    { q:"¿Funciona cualquier cuenta de Google?", a:"Tu cuenta debe estar registrada para mayores de 18 años. Family Link no funciona." },
-                    { q:"¿Hay tarifas adicionales de Google?", a:"No, la suscripción cubre todas las funciones." },
-                    { q:"¿Hay límite de generación?", a:"Los usuarios PRO tienen generaciones ilimitadas de alta calidad." },
-                    { q:"¿Cómo funciona la consistencia facial?", a:"Usa nuestra herramienta de bloqueo de personajes en el estudio." },
-                    { q:"¿Soy dueño de las imágenes?", a:"Sí, puedes usarlas comercialmente sin restricciones." },
-                    { q:"¿Puedo cancelar o obtener un reembolso?", a:"Puedes cancelar en cualquier momento para evitar futuros cargos. No ofrecemos reembolsos parciales." },
-                    { q:"¿Puedo usar mi cuenta en varios dispositivos?", a:"Sí, tu cuenta está vinculada a tu correo, permitiendo acceso desde cualquier dispositivo." },
-                    { q:"¿Cómo obtengo soporte técnico?", a:"Contáctanos haciendo clic en el icono flotante de Telegram." }
-                ]
-            },
-            fr: {
-                logoSub: "Créer • Éditer • Inspirar", navHome: "Accueil", navGen: "Générateur d'Images", navGallery: "Galerie", navFaq: "FAQ & Guide", navSub: "Abonnement", statusFree: "Compte Gratuit", btnManageSub: "Gérer l'Abonnement", bannerOffer: "🔥 Offre de Lancement : -30% ! Code :", bannerTimerText: "Se termine dans :", btnClaimOffer: "Profiter de l'offre", searchPlaceholder: "Rechercher des outils ou FAQ...", dropStatusLabel: "Statut de l'Abonnement", dropManage: "Gérer l'Abonnement", dropDelete: "Supprimer le Compte", dropLogout: "Déconnexion", heroPill: "Bienvenue sur Artify PRO", heroTitle: "Transformez vos idées en <span>Images Superbes</span>", heroDesc: "Créez des images professionnelles de haute qualité avec l'IA.", btnStartNow: "Commencer", btnWatchDemo: "Voir la Démo", floatHeader: "IA Avancée", float1: "Cohérence Faciale 100%", float2: "Génération Séquentielle", float3: "Qualité UHD Cinématique", toolsTitle: "Vos Outils", toolsSub: "Sélectionnez un outil pour commencer", lockText: "Cliquez pour vous abonner et débloquer", tagPopular: "Le Plus Populaire", tagGuide: "Guide Complet", tool1Title: "Canvas Pro (Générateur)", tool1Desc: "Studio intégré pour la génération, l'édition et le verrouillage du visage.", btnOpenTool: "Ouvrir l'Outil", tool2Title: "FAQ & Documentation", tool2Desc: "Réponses complètes pour les détails d'abonnement et politiques.", btnReadFaq: "Lire la FAQ", inspTitle: "Inspiration", inspSub: "Survolez pour copier le prompt", plansTitle: "Choisissez Votre Plan", luckyTitle: "Vous êtes très chanceux !", luckyDesc1: "Vous êtes parmi les premiers testeurs. Votre rang est", luckyDesc2: "sur 15 comptes GRATUITS !", secretCodeLbl: "Code Secret :", btnApplySecret: "Réclamer Place Gratuite ⚡", plan1Mo: "1 Mois", plan3Mo: "3 Mois", plan6Mo: "6 Mois", plan1Yr: "1 An", planBestVal: "MEILLEUR CHOIX", plan1Desc: "Renouvellement mensuel flexible", plan3Desc: "Le choix le plus populaire", plan6Desc: "Valeur exceptionnelle pour les créateurs", plan1YrDesc: "Économies maximales", btnSubMonth: "S'abonner (Mensuel)", btnSub3Mo: "S'abonner (3 Mois)", btnSub6Mo: "S'abonner (6 Mois)", btnSubYr: "S'abonner (Annuel)", mod18Title: "Conditions d'Abonnement", mod18Text: "🔞 <strong>Condition requise :</strong><br>Votre compte Google doit être enregistré avec un âge de <strong>18 ans ou plus</strong>.", modCodeLbl: "Code de Réduction :", modCodeBtn: "Copiar le Code 📋", modCodeDesc: "Collez ce code dans <strong>Add promo code</strong> lors du paiement pour -30%.", btnConfirm18: "Je confirme avoir 18+, Payer ↗", btnCancel: "Annuler", btnRenew: "Renouveler le Plan", checkoutWarnEmail: "Utilisez votre e-mail Google actuel lors du paiement.", modEarlyTitle: "Réclamer Place Gratuite", modEarlyDesc: "Ceci est un abonnement gratuit limité. Votre compte sera activé immédiatement sans paiement.", btnConfirm18Early: "Je confirme avoir 18+, Activar ⚡", modSubTitle: "Détails de l'Abonnement", lblCurPlan: "Plan Actuel", lblStartDate: "Date de Début", lblEndDate: "Date de Fin", lblTimeLeft: "Temps Restant", couponTitle: "Avez-vous un code promo ?", btnApply: "Appliquer", modFaqTitle: "FAQ & Documentation", modDelTitle: "Supprimer le Compte", modDelText: "Votre compte et vos données seront définitivement supprimés.", btnPermDelete: "Supprimer Définitivement", modWarnTitle: "Avis Important", modWarnText: 'Google peut afficher <em>"Google n\'a pas vérifié cette application"</em>. Cliquez sur <strong>"Paramètres avancés"</strong> puis <strong>"Aller à l\'application"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Astuce :</span> Appuyez sur <kbd>F11</kbd> pour le plein écran !', btnUnderstand: "Je comprends, ouvrir l'outil", toastCopy: "Prompt copié", toastCopyCode: "Code LAUNCH30 copié !", toastLoginReq: "Veuillez vous connecter avec Google", toastSubReq: "Abonnement PRO requis", toastLogout: "Déconnexion réussie", toastDeleted: "Compte supprimé", toastDemo: "Démo à venir !", btnCopy: "Copier", toastEnterCode: "Entrez un code", toastInvalidCode: "Code invalide", toastConnError: "Erreur de connexion.", toastPromoSuccess: "PRO Activé !", noSearchResults: "Aucun résultat.",
-                faqs: [
-                    { q:"N'importe quel compte Google fonctionne-t-il ?", a:"Il faut avoir 18 ans ou plus. Family Link ne fonctionne pas." },
-                    { q:"Des frais supplémentaires ?", a:"Non, l'abonnement couvre tout." },
-                    { q:"Limite de génération ?", a:"Illimité pour les utilisateurs PRO." },
-                    { q:"Cohérence faciale ?", a:"Activez la fonction dans le studio." },
-                    { q:"Droits d'auteur ?", a:"Vous possédez toutes vos images commercialement." },
-                    { q:"Annulation et remboursement ?", a:"Annulation à tout moment. Aucun remboursement partiel." },
-                    { q:"Plusieurs appareils ?", a:"Oui, lié à votre compte Google." },
-                    { q:"Support technique ?", a:"Cliquez sur l'icône Telegram en bas." }
-                ]
-            },
-            de: {
-                logoSub: "Erstellen • Bearbeiten • Inspirieren", navHome: "Startseite", navGen: "Bildgenerator", navGallery: "Galerie", navFaq: "FAQ & Anleitung", navSub: "Abonnement", statusFree: "Kostenloses Konto", btnManageSub: "Abo verwalten", bannerOffer: "🔥 Einführungsangebot: 30% Rabatt! Code:", bannerTimerText: "Endet in:", btnClaimOffer: "Angebot einlösen", searchPlaceholder: "Suchen Sie nach Tools oder FAQs...", dropStatusLabel: "Abo-Status", dropManage: "Abo verwalten", dropDelete: "Konto löschen", dropLogout: "Abmelden", heroPill: "Willkommen bei Artify PRO", heroTitle: "Verwandle deine Ideen in <span>Atemberaubende Bilder</span>", heroDesc: "Erstellen Sie hochwertige professionelle Bilder mit 100% Gesichtskonsistenz.", btnStartNow: "Jetzt Starten", btnWatchDemo: "Demo ansehen", floatHeader: "Erweiterte KI", float1: "100% Gesichtskonsistenz", float2: "Sequenzielle Generierung", float3: "Kino-UHD-Qualität", toolsTitle: "Deine Tools", toolsSub: "Wähle ein Tool, um zu beginnen", lockText: "Klicken zum Abonnieren & Entsperren", tagPopular: "Beliebtestes", tagGuide: "Umfassender Leitfaden", tool1Title: "Canvas Pro (Generator)", tool1Desc: "Integriertes Studio für Generierung und Gesichtssperre.", btnOpenTool: "Tool öffnen", tool2Title: "FAQ & Dokumentation", tool2Desc: "Vollständige Antworten zu Abos und Richtlinien.", btnReadFaq: "FAQs lesen", inspTitle: "Inspiration", inspSub: "Hovern, um den Prompt zu kopieren", plansTitle: "Wähle deinen Plan", luckyTitle: "Du hast großes Glück!", luckyDesc1: "Du bist einer der ersten Tester. Dein Rang ist", luckyDesc2: "von 15 GRATIS-Konten!", secretCodeLbl: "Geheimcode:", btnApplySecret: "Gratisplatz sichern ⚡", plan1Mo: "1 Monat", plan3Mo: "3 Monate", plan6Mo: "6 Monate", plan1Yr: "1 Jahr", planBestVal: "BESTER WERT", plan1Desc: "Flexible monatliche Verlängerung", plan3Desc: "Die beliebteste Wahl", plan6Desc: "Außergewöhnlicher Wert für Schöpfer", plan1YrDesc: "Maximale Ersparnis", btnSubMonth: "Monatlich abonnieren", btnSub3Mo: "3 Monate abonnieren", btnSub6Mo: "6 Monate abonnieren", btnSubYr: "Jährlich abonnieren", mod18Title: "Wichtige Abo-Bedingungen", mod18Text: "🔞 <strong>Voraussetzung:</strong><br>Dein Google-Konto muss für <strong>18 Jahre oder älter</strong> registriert sein.", modCodeLbl: "Rabattcode:", modCodeBtn: "Code Kopieren 📋", modCodeDesc: "Füge diesen Code beim Bezahlen unter <strong>Add promo code</strong> ein für 30% Rabatt.", btnConfirm18: "Ich bin 18+, zur Kasse ↗", btnCancel: "Abbrechen", btnRenew: "Plan verlängern oder upgraden", checkoutWarnEmail: "Verwende deine Google-E-Mail beim Bezahlen.", modEarlyTitle: "Gratisplatz sichern", modEarlyDesc: "Dies ist ein limitiertes kostenloses Abo. Dein Konto wird sofort ohne Zahlung aktiviert.", btnConfirm18Early: "Ich bin 18+, Aktivieren ⚡", modSubTitle: "Deine Abo-Details", lblCurPlan: "Aktueller Plan", lblStartDate: "Startdatum", lblEndDate: "Enddatum", lblTimeLeft: "Verbleibende Zeit", couponTitle: "Hast du einen Promo-Code?", btnApply: "Anwenden", modFaqTitle: "FAQ & Dokumentation", modDelTitle: "Konto löschen", modDelText: "Dein Konto und alle Daten werden dauerhaft gelöscht.", btnPermDelete: "Dauerhaft Löschen", modWarnTitle: "Wichtiger Hinweis", modWarnText: 'Google zeigt eventuell <em>"Google hat diese App nicht überprüft"</em>. Klicke auf <strong>"Erweitert"</strong> und <strong>"Zur App gehen"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Pro-Tipp:</span> <kbd>F11</kbd> für Vollbildmodus!', btnUnderstand: "Ich verstehe, Tool öffnen", toastCopy: "Prompt kopiert", toastCopyCode: "Code LAUNCH30 kopiert!", toastLoginReq: "Bitte zuerst bei Google anmelden", toastSubReq: "PRO-Abo erforderlich", toastLogout: "Erfolgreich abgemeldet", toastDeleted: "Konto gelöscht", toastDemo: "Demo kommt bald!", btnCopy: "Kopieren", toastEnterCode: "Code eingeben", toastInvalidCode: "Ungültig", toastConnError: "Fehler.", toastPromoSuccess: "Aktiviert!", noSearchResults: "Keine Ergebnisse.",
-                faqs: [
-                    { q:"Welches Konto?", a:"18+ Google Konto erforderlich." },
-                    { q:"Zusatzkosten?", a:"Nein." },
-                    { q:"Limit?", a:"Unbegrenzt für PRO." },
-                    { q:"Gesichtskonsistenz?", a:"Im Studio aktivieren." },
-                    { q:"Bildrechte?", a:"Ja, kommerzielle Nutzung erlaubt." },
-                    { q:"Stornierung?", a:"Jederzeit möglich. Keine Rückerstattung." },
-                    { q:"Mehrere Geräte?", a:"Ja." },
-                    { q:"Support?", a:"Telegram Icon klicken." }
-                ]
-            },
-            it: {
-                logoSub: "Crea • Modifica • Ispira", navHome: "Home", navGen: "Generatore di Immagini", navGallery: "Galleria", navFaq: "FAQ e Guida", navSub: "Abbonamento", statusFree: "Account Gratuito", btnManageSub: "Gestisci Abbonamento", bannerOffer: "🔥 Offerta di Lancio: 30% di sconto! Codice:", bannerTimerText: "Scade in:", btnClaimOffer: "Richiedi Offerta", searchPlaceholder: "Cerca strumenti o FAQ...", dropStatusLabel: "Stato Abbonamento", dropManage: "Gestisci Abbonamento", dropDelete: "Elimina Account", dropLogout: "Esci", heroPill: "Benvenuto su Artify PRO", heroTitle: "Trasforma le tue idee in <span>Immagini Incredibili</span>", heroDesc: "Crea immagini professionali di alta qualità con intelligenza artificiale.", btnStartNow: "Inizia Ora", btnWatchDemo: "Guarda la Demo", floatHeader: "IA Avanzada", float1: "100% Coerenza Facciale", float2: "Generazione Sequenziale", float3: "Qualità UHD Cinematografica", toolsTitle: "I Tuoi Strumenti", toolsSub: "Seleziona uno strumento per iniziare", lockText: "Clicca per abbonarti e sbloccare", tagPopular: "Più Popolare", tagGuide: "Guida Completa", tool1Title: "Canvas Pro (Generatore)", tool1Desc: "Studio integrato per generazione e blocco facciale.", btnOpenTool: "Apri Strumento", tool2Title: "FAQ e Documentazione", tool2Desc: "Risposte complete per abbonamenti e politiche di utilizzo.", btnReadFaq: "Leggi le FAQ", inspTitle: "Ispirazione", inspSub: "Passa il mouse per copiare il prompt", plansTitle: "Scegli Il Tuo Piano", luckyTitle: "Sei molto fortunato!", luckyDesc1: "Sei tra i primi tester. Il tuo posto è", luckyDesc2: "su 15 account GRATUITI!", secretCodeLbl: "Codice Segreto:", btnApplySecret: "Richiedi Posto Gratis ⚡", plan1Mo: "1 Mese", plan3Mo: "3 Mesi", plan6Mo: "6 Mesi", plan1Yr: "1 Anno", planBestVal: "MIGLIOR VALORE", plan1Desc: "Rinnovo mensile flessibile", plan3Desc: "La scelta più popolare", plan6Desc: "Valore eccezionale per i creatori", plan1YrDesc: "Risparmio massimo", btnSubMonth: "Abbonati Mensilmente", btnSub3Mo: "Abbonati a 3 Mesi", btnSub6Mo: "Abbonati a 6 Mesi", btnSubYr: "Abbonati Annualmente", mod18Title: "Termini di Abbonamento", mod18Text: "🔞 <strong>Requisito:</strong><br>Il tuo account Google deve essere registrato per <strong>18 anni o più</strong>.", modCodeLbl: "Codice Sconto:", modCodeBtn: "Copia Codice 📋", modCodeDesc: "Incolla questo codice in <strong>Add promo code</strong> durante il pagamento per il 30% di sconto.", btnConfirm18: "Confermo di avere 18+, Vai al Pagamento ↗", btnCancel: "Annulla", btnRenew: "Rinnova o Migliora", checkoutWarnEmail: "Usa la tua email Google attuale al checkout.", modEarlyTitle: "Richiedi Posto Gratis", modEarlyDesc: "Abbonamento gratuito limitato. Il tuo account sarà attivato subito senza pagamento.", btnConfirm18Early: "Ho 18+, Attiva ⚡", modSubTitle: "Dettagli Abbonamento", lblCurPlan: "Piano Attuale", lblStartDate: "Date di Inizio", lblEndDate: "Data di Fine", lblTimeLeft: "Tempo Rimasto", couponTitle: "Hai un codice promozionale?", btnApply: "Applica", modFaqTitle: "FAQ e Documentazione", modDelTitle: "Elimina Account", modDelText: "Il tuo account e tutti i dati verranno eliminati in modo permanente.", btnPermDelete: "Elimina Definitivamente", modWarnTitle: "Avviso Importante", modWarnText: 'Google potrebbe mostrare <em>"Google non ha verificato questa app"</em>. Clicca su <strong>"Avanzate"</strong> e poi <strong>"Vai all\'app"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Suggerimento:</span> Premi <kbd>F11</kbd> per lo schermo intero!', btnUnderstand: "Capisco, apri lo strumento", toastCopy: "Prompt copiato", toastCopyCode: "Codice copiato!", toastLoginReq: "Accedi con Google prima", toastSubReq: "Abbonamento PRO richiesto", toastLogout: "Scollegato con successo", toastDeleted: "Account eliminato", toastDemo: "Demo in arrivo!", btnCopy: "Copia", toastEnterCode: "Inserisci codice", toastInvalidCode: "Non valido", toastConnError: "Errore.", toastPromoSuccess: "Attivato!", noSearchResults: "Nessun risultato.",
-                faqs: [
-                    { q:"Quale account Google?", a:"Registrato come 18+. Family Link non funziona." },
-                    { q:"Costi extra?", a:"No." },
-                    { q:"Limiti?", a:"Illimitato per PRO." },
-                    { q:"Coerenza facciale?", a:"Attivala nello studio." },
-                    { q:"Diritti d'autore?", a:"Sì, uso commerciale consentito." },
-                    { q:"Cancellazione e rimborsi?", a:"Cancella quando vuoi. Nessun rimborso parziale." },
-                    { q:"Dispositivi multipli?", a:"Sì." },
-                    { q:"Supporto?", a:"Clicca Telegram." }
-                ]
-            },
-            pt: {
-                logoSub: "Criar • Editar • Inspirar", navHome: "Início", navGen: "Gerador de Imagens", navGallery: "Galeria", navFaq: "FAQ e Guida", navSub: "Assinatura", statusFree: "Conta Gratuita", btnManageSub: "Gerenciar Assinatura", bannerOffer: "🔥 Oferta de Lançamento: 30% de desconto! Código:", bannerTimerText: "Termina em:", btnClaimOffer: "Garantir Oferta", searchPlaceholder: "Procurar ferramentas ou FAQs...", dropStatusLabel: "Status da Assinatura", dropManage: "Gerenciar Assinatura", dropDelete: "Excluir Conta", dropLogout: "Sair", heroPill: "Bem-vindo ao Artify PRO", heroTitle: "Transforme suas ideias em <span>Imagens Incríveis</span>", heroDesc: "Crie imagens profissionais com IA avançada e 100% de consistência facial.", btnStartNow: "Começar Agora", btnWatchDemo: "Ver Demo", floatHeader: "IA Avanzada", float1: "100% Consistência Facial", float2: "Geração Sequencial", float3: "Qualidade UHD Cinemática", toolsTitle: "Suas Ferramentas", toolsSub: "Selecione uma ferramenta para começar", lockText: "Clique para assinar e desbloquear", tagPopular: "Mais Popular", tagGuide: "Guia Completo", tool1Title: "Canvas Pro (Gerador)", tool1Desc: "Estúdio integrado para geração e bloqueio facial.", btnOpenTool: "Abrir Ferramenta", tool2Title: "FAQ e Documentação", tool2Desc: "Respostas completas para assinaturas e políticas de uso.", btnReadFaq: "Ler FAQs", inspTitle: "Inspiração", inspSub: "Passe o mouse para copiar", plansTitle: "Escolha Seu Plano", luckyTitle: "Você é muito sortudo!", luckyDesc1: "Você é um dos primeiros testadores. Sua posição é", luckyDesc2: "de 15 contas GRÁTIS!", secretCodeLbl: "Código Secreto:", btnApplySecret: "Garantir Vaga Grátis ⚡", plan1Mo: "1 Mês", plan3Mo: "3 Meses", plan6Mo: "6 Meses", plan1Yr: "1 Ano", planBestVal: "MELHOR VALOR", plan1Desc: "Renovação mensal flexível", plan3Desc: "A escolha mais popular", plan6Desc: "Valor excepcional para criadores", plan1YrDesc: "Economia máxima", btnSubMonth: "Assinar Mensal", btnSub3Mo: "Assinar 3 Meses", btnSub6Mo: "Assinar 6 Meses", btnSubYr: "Assinar Anual", mod18Title: "Termos de Assinatura", mod18Text: "🔞 <strong>Requisito:</strong><br>Sua conta do Google deve ter <strong>18 anos ou mais</strong>.", modCodeLbl: "Código de Desconto:", modCodeBtn: "Copiar Código 📋", modCodeDesc: "Cole este código em <strong>Add promo code</strong> durante o pagamento para 30% off.", btnConfirm18: "Confirmo ter 18+, Ir para Pagamento ↗", btnCancel: "Cancelar", btnRenew: "Renovar ou Melhorar Plano", checkoutWarnEmail: "Use seu e-mail do Google no pagamento.", modEarlyTitle: "Garantir Vaga Grátis", modEarlyDesc: "Esta é uma assinatura gratuita limitada. Sua conta será ativada imediatamente sem pagamento.", btnConfirm18Early: "Tenho 18+, Ativar ⚡", modSubTitle: "Detalhes da Assinatura", lblCurPlan: "Plano Atual", lblStartDate: "Data de Início", lblEndDate: "Data de Fim", lblTimeLeft: "Tempo Restante", couponTitle: "Tem um código promocional?", btnApply: "Aplicar", modFaqTitle: "FAQ e Documentação", modDelTitle: "Excluir Conta", modDelText: "Sua conta e dados serão excluídos permanentemente.", btnPermDelete: "Excluir Permanentemente", modWarnTitle: "Aviso Importante", modWarnText: 'O Google pode mostrar <em>"O Google não verificou este app"</em>. Clique em <strong>"Avançado"</strong> e depois em <strong>"Acessar o App"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Dica:</span> Pressione <kbd>F11</kbd> para tela cheia!', btnUnderstand: "Entendo, abrir ferramenta", toastCopy: "Prompt copiado", toastCopyCode: "Código copiado com sucesso!", toastLoginReq: "Faça login com o Google primeiro", toastSubReq: "Assinatura PRO necessária", toastLogout: "Desconectado", toastDeleted: "Conta excluída", toastDemo: "Demo em breve!", btnCopy: "Copiar", toastEnterCode: "Insira código", toastInvalidCode: "Inválido", toastConnError: "Erro.", toastPromoSuccess: "Ativado!", noSearchResults: "Sem resultados.",
-                faqs: [
-                    { q:"Qual conta Google?", a:"Maiores de 18 anos. Family Link não funciona." },
-                    { q:"Taxas extras?", a:"Não." },
-                    { q:"Limites?", a:"Ilimitado para PRO." },
-                    { q:"Consistência?", a:"Ative no estúdio." },
-                    { q:"Direitos?", a:"Sim, uso comercial livre." },
-                    { q:"Cancelamento?", a:"Cancele a qualquer momento. Sem reembolso." },
-                    { q:"Vários dispositivos?", a:"Sim." },
-                    { q:"Suporte?", a:"Telegram." }
-                ]
-            },
-            ru: {
-                logoSub: "Создавай • Редактируй • Вдохновляй", navHome: "Главная", navGen: "Генератор", navGallery: "Галерея", navFaq: "FAQ и Руководство", navSub: "Подписка", statusFree: "Бесплатный аккаунт", btnManageSub: "Управление подпиской", bannerOffer: "🔥 Скидка 30% в честь запуска! Код:", bannerTimerText: "До конца:", btnClaimOffer: "Получить", searchPlaceholder: "Поиск...", dropStatusLabel: "Статус подписки", dropManage: "Управление подпиской", dropDelete: "Удалить аккаунт", dropLogout: "Выйти", heroPill: "Добро пожаловать в Artify PRO", heroTitle: "Преврати свои идеи в <span>Потрясающие Изображения</span>", heroDesc: "Создавайте профессиональные изображения с помощью ИИ и 100% согласованности лиц.", btnStartNow: "Начать", btnWatchDemo: "Смотреть демо", floatHeader: "Продвинутый ИИ", float1: "100% Согласованность Лиц", float2: "Последовательная генерация", float3: "Кинематографическое качество UHD", toolsTitle: "Ваши Инструменты", toolsSub: "Выберите инструмент", lockText: "Подпишитесь, чтобы разблокировать", tagPopular: "Популярное", tagGuide: "Руководство", tool1Title: "Canvas Pro", tool1Desc: "Интегрированная студия для генерации и блокировки лиц.", btnOpenTool: "Открыть", tool2Title: "FAQ и Документация", tool2Desc: "Ответы на вопросы о подписке.", btnReadFaq: "Читать FAQ", inspTitle: "Вдохновение", inspSub: "Наведите, чтобы скопировать промпт", plansTitle: "Выберите план", luckyTitle: "Вам очень повезло!", luckyDesc1: "Вы один из первых. Ваш ранг", luckyDesc2: "из 15 БЕСПЛАТНЫХ мест!", secretCodeLbl: "Секретный код:", btnApplySecret: "Получить место ⚡", plan1Mo: "1 Месяц", plan3Mo: "3 Месяца", plan6Mo: "6 Месяцев", plan1Yr: "1 Год", planBestVal: "ЛУЧШИЙ ВЫБОР", plan1Desc: "Гибкое продление", plan3Desc: "Популярный выбор", plan6Desc: "Идеально для криэйторов", plan1YrDesc: "Максимальная экономия", btnSubMonth: "Подписка на месяц", btnSub3Mo: "Подписка на 3 месяца", btnSub6Mo: "Подписка на 6 месяцев", btnSubYr: "Подписка на год", mod18Title: "Условия подписки", mod18Text: "🔞 Ваш аккаунт Google должен быть зарегистрирован для пользователей <strong>старше 18 лет</strong>.", modCodeLbl: "Код на скидку:", modCodeBtn: "Копировать код 📋", modCodeDesc: "Вставьте код в поле <strong>Add promo code</strong> при оплате для скидки 30%.", btnConfirm18: "Мне есть 18+, к оплате ↗", btnCancel: "Отмена", btnRenew: "Продлить план", checkoutWarnEmail: "Используйте ваш email Google.", modEarlyTitle: "Получить бесплатное место", modEarlyDesc: "Лимитированная подписка. Активация без оплаты.", btnConfirm18Early: "Мне 18+, Активировать ⚡", modSubTitle: "Детали подписки", lblCurPlan: "Ваш план", lblStartDate: "Дата начала", lblEndDate: "Дата окончания", lblTimeLeft: "Осталось времени", couponTitle: "Есть промокод?", btnApply: "Применить", modFaqTitle: "FAQ и Руководство", modDelTitle: "Удалить аккаунт", modDelText: "Ваш аккаунт и данные будут безвозвратно удалены.", btnPermDelete: "Удалить навсегда", modWarnTitle: "Важное замечание", modWarnText: 'Google может показать сообщение <em>"Это приложение не проверено"</em>. Нажмите <strong>"Дополнительные настройки"</strong>, затем <strong>"Перейти на страницу приложения"</strong>.<br><br>💡 <span style="color:var(--primary); font-weight:bold;">Совет:</span> Нажмите <kbd>F11</kbd> для полноэкранного режима!', btnUnderstand: "Понятно, открыть инструмент", toastCopy: "Промпт скопирован", toastCopyCode: "Код скопирован!", toastLoginReq: "Пожалуйста, войдите через Google", toastSubReq: "Требуется подписка PRO", toastLogout: "Выход выполнен", toastDeleted: "Аккаунт удален", toastDemo: "Демо скоро появится!", btnCopy: "Копировать", toastEnterCode: "Введите код", toastInvalidCode: "Неверно", toastConnError: "Ошибка.", toastPromoSuccess: "Активировано!", noSearchResults: "Нет результатов.",
-                faqs: [
-                    { q:"Любой аккаунт?", a:"Только 18+." },
-                    { q:"Скрытые комиссии?", a:"Нет." },
-                    { q:"Лимиты?", a:"Безлимитно для PRO." },
-                    { q:"Постоянство лиц?", a:"Включите в студии." },
-                    { q:"Авторские права?", a:"Да, полные права." },
-                    { q:"Отмена?", a:"В любое время. Без возврата средств." },
-                    { q:"Несколько устройств?", a:"Да." },
-                    { q:"Поддержка?", a:"Telegram." }
-                ]
-            },
-            zh: {
-                logoSub: "创造 • 编辑 • 启发", navHome: "主页", navGen: "图像生成器", navGallery: "画廊", navFaq: "常见问题", navSub: "订阅", statusFree: "免费账户", btnManageSub: "管理订阅", bannerOffer: "🔥 首发优惠：全场七折！复制折扣码：", bannerTimerText: "结束于：", btnClaimOffer: "获取优惠", searchPlaceholder: "搜索...", dropStatusLabel: "订阅状态", dropManage: "管理订阅", dropDelete: "删除账户", dropLogout: "退出", heroPill: "欢迎来到 Artify PRO", heroTitle: "将您的想法转化为 <span>惊艳的图像</span>", heroDesc: "使用高级 AI 创建 100% 脸部一致性的高质量图像。", btnStartNow: "立即开始", btnWatchDemo: "观看演示", floatHeader: "高级 AI", float1: "100% 脸部一致性", float2: "连续生成", float3: "电影级 UHD 画质", toolsTitle: "您的工具", toolsSub: "选择工具开始", lockText: "点击订阅以解锁", tagPopular: "最受欢迎", tagGuide: "全面指南", tool1Title: "Canvas Pro", tool1Desc: "图像生成和角色面部锁定综合工作室。", btnOpenTool: "打开工具", tool2Title: "常见问题与文档", tool2Desc: "有关订阅和使用政策的完整解答。", btnReadFaq: "阅读 FAQ", inspTitle: "灵感", inspSub: "悬停以复制提示词", plansTitle: "选择您的计划", luckyTitle: "您非常幸运！", luckyDesc1: "您是早期测试者。您的排名是", luckyDesc2: "/ 15 个免费账户！", secretCodeLbl: "秘密代码：", btnApplySecret: "免费领取 ⚡", plan1Mo: "1 个月", plan3Mo: "3 个月", plan6Mo: "6 个月", plan1Yr: "1 年", planBestVal: "最超值", plan1Desc: "灵活的月度续订", plan3Desc: "最受欢迎的选择", plan6Desc: "创作者的超值选择", plan1YrDesc: "最大节省", btnSubMonth: "包月", btnSub3Mo: "包季", btnSub6Mo: "包半年", btnSubYr: "包年", mod18Title: "重要订阅条款", mod18Text: "🔞 <strong>核心要求：</strong><br>您的 Google 账户必须注册为 <strong>18 岁或以上</strong>。", modCodeLbl: "折扣码：", modCodeBtn: "复制代码 📋", modCodeDesc: "结账时将代码粘贴在 <strong>Add promo code</strong> 以获取 30% 折扣。", btnConfirm18: "我确认已满 18 岁，前往付款 ↗", btnCancel: "取消", btnRenew: "续订或升级", checkoutWarnEmail: "请使用当前的 Google 邮箱。", modEarlyTitle: "领取免费名额", modEarlyDesc: "这是有限的免费订阅。您的账户将立即激活，无需付款。", btnConfirm18Early: "已满18岁，立即激活 ⚡", modSubTitle: "订阅详情", lblCurPlan: "当前计划", lblStartDate: "开始日期", lblEndDate: "结束日期", lblTimeLeft: "剩余时间", couponTitle: "有促销代码？", btnApply: "应用", modFaqTitle: "常见问题与文档", modDelTitle: "删除账户", modDelText: "您的账户和所有数据将被永久删除。", btnPermDelete: "永久删除", modWarnTitle: "开始前的重要提示", modWarnText: 'Google 可能会提示 <em>"Google 未验证此应用"</em>。这是标准程序。点击 <strong>"高级"</strong>，然后 <strong>"前往应用"</strong>。<br><br>💡 <span style="color:var(--primary); font-weight:bold;">提示：</span> 按 <kbd>F11</kbd> 全屏！', btnUnderstand: "我明白，打开工具", toastCopy: "提示词已复制", toastCopyCode: "折扣码已复制！", toastLoginReq: "请先登录 Google", toastSubReq: "需要 PRO 订阅", toastLogout: "已登出", toastDeleted: "账户已永久删除", toastDemo: "演示视频即将推出！", btnCopy: "复制", toastEnterCode: "请输入代码", toastInvalidCode: "无效代码", toastConnError: "连接错误", toastPromoSuccess: "已激活！", noSearchResults: "无结果。",
-                faqs: [
-                    { q:"所有Google账号都可以？", a:"必须年满18岁。" },
-                    { q:"有额外费用吗？", a:"没有。" },
-                    { q:"有生成限制吗？", a:"PRO 用户无限制。" },
-                    { q:"如何保持脸部一致？", a:"在工作室开启功能。" },
-                    { q:"版权归谁？", a:"完全属于你，可商用。" },
-                    { q:"可以退款吗？", a:"随时取消。不提供退款。" },
-                    { q:"多设备可用？", a:"是的。" },
-                    { q:"技术支持？", a:"点击Telegram图标。" }
-                ]
-            },
-            ja: {
-                logoSub: "作成 • 編集 • インスパイア", navHome: "ホーム", navGen: "画像生成", navGallery: "ギャラリー", navFaq: "FAQとガイド", navSub: "サブスクリプション", statusFree: "無料アカウント", btnManageSub: "サブスクリプション管理", bannerOffer: "🔥 リリース記念: 30%オフ！コード:", bannerTimerText: "終了まで:", btnClaimOffer: "特典を取得", searchPlaceholder: "検索...", dropStatusLabel: "ステータス", dropManage: "管理", dropDelete: "アカウント削除", dropLogout: "ログアウト", heroPill: "Artify PRO へようこそ", heroTitle: "アイデアを <span>素晴らしい画像</span> に", heroDesc: "顔の一貫性が100%の高品質なAI画像を生成します。", btnStartNow: "始める", btnWatchDemo: "デモを見る", floatHeader: "高度なAI", float1: "顔の一貫性 100%", float2: "連続画像生成", float3: "シネマティックUHD", toolsTitle: "ツール", toolsSub: "ツールを選択", lockText: "登録してロック解除", tagPopular: "人気", tagGuide: "包括的なガイド", tool1Title: "Canvas Pro", tool1Desc: "画像生成と顔固定のための統合スタジオ。", btnOpenTool: "開く", tool2Title: "FAQとドキュメント", tool2Desc: "サブスクリプションとポリシーの完全な回答。", btnReadFaq: "FAQを読む", inspTitle: "インスピレーション", inspSub: "ホバーしてプロンプトをコピー", plansTitle: "プランを選択", luckyTitle: "あなたはとても幸運です！", luckyDesc1: "あなたは初期テスターです。順位は", luckyDesc2: "/ 15 無料アカウント中！", secretCodeLbl: "秘密のコード:", btnApplySecret: "無料枠を取得 ⚡", plan1Mo: "1ヶ月", plan3Mo: "3ヶ月", plan6Mo: "6ヶ月", plan1Yr: "1年", planBestVal: "ベストバリュー", plan1Desc: "柔軟な月次更新", plan3Desc: "最も人気の選択肢", plan6Desc: "クリエイターに最適", plan1YrDesc: "最大の節約", btnSubMonth: "月額登録", btnSub3Mo: "3ヶ月登録", btnSub6Mo: "6ヶ月登録", btnSubYr: "年額登録", mod18Title: "重要事項", mod18Text: "🔞 <strong>要件:</strong><br>Googleアカウントは <strong>18歳以上</strong> である必要があります。", modCodeLbl: "割引コード:", modCodeBtn: "コードをコピー 📋", modCodeDesc: "決済時に <strong>Add promo code</strong> に貼り付けて30%オフ。", btnConfirm18: "18歳以上です。決済へ進む ↗", btnCancel: "キャンセル", btnRenew: "プランを更新", checkoutWarnEmail: "現在のGoogleメールを使用してください。", modEarlyTitle: "無料枠を取得", modEarlyDesc: "限定無料サブスクリプションです。支払なしで即時有効化されます。", btnConfirm18Early: "18歳以上です、有効化 ⚡", modSubTitle: "サブスクリプション詳細", lblCurPlan: "現在のプラン", lblStartDate: "開始日", lblEndDate: "終了日", lblTimeLeft: "残り時間", couponTitle: "プロモコードがありますか？", btnApply: "適用", modFaqTitle: "FAQとドキュメント", modDelTitle: "アカウント削除", modDelText: "アカウントとすべてのデータは完全に削除されます。", btnPermDelete: "完全に削除", modWarnTitle: "開始前の重要な通知", modWarnText: 'Google が <em>"このアプリは確認されていません"</em> と表示する場合があります。<strong>「詳細」</strong> から <strong>「アプリへ移動」</strong> をクリックしてください。<br><br>💡 <span style="color:var(--primary); font-weight:bold;">ヒント:</span> <kbd>F11</kbd> キーで全画面表示に！', btnUnderstand: "理解しました", toastCopy: "コピーしました", toastCopyCode: "コードをコピーしました！", toastLoginReq: "Googleでログインしてください", toastSubReq: "PROサブスクリプションが必要です", toastLogout: "ログアウトしました", toastDeleted: "削除しました", toastDemo: "デモは近日公開！", btnCopy: "コピー", toastEnterCode: "コードを入力", toastInvalidCode: "無効", toastConnError: "エラー", toastPromoSuccess: "有効化！", noSearchResults: "結果なし。",
-                faqs: [
-                    { q:"どのアカウントでも？", a:"18歳以上のみ。" },
-                    { q:"追加料金は？", a:"ありません。" },
-                    { q:"制限は？", a:"無制限です。" },
-                    { q:"顔の一貫性？", a:"スタジオで有効化。" },
-                    { q:"著作権は？", a:"商用利用可能です。" },
-                    { q:"返金は？", a:"いつでもキャンセル可能。返金はありません。" },
-                    { q:"複数端末？", a:"はい。" },
-                    { q:"サポート？", a:"Telegramアイコンから。" }
-                ]
-            }
-        };
-
-        function renderGoogleButton(lang) {
-            const googleLangMap = { 'en': 'en', 'ar': 'ar', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it', 'pt': 'pt', 'ru': 'ru', 'zh': 'zh-CN', 'ja': 'ja' };
-            if(window.google) {
-                const container = document.getElementById("g_id_signin_container");
-                container.innerHTML = ''; 
-                google.accounts.id.renderButton(
-                    container,
-                    { theme: "outline", size: "medium", text: "signin_with", shape: "pill", locale: googleLangMap[lang] || 'en' }
-                );
-            }
-        }
-
-        function changeLanguage(lang) {
-            currentLang = lang;
-            document.documentElement.lang = lang;
-            document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
-            
-            document.getElementById('langCurrentLabel').innerText = langNames[lang];
-            
-            document.querySelectorAll('.lang-option').forEach(opt => {
-                opt.classList.remove('active');
-                opt.querySelector('.check-mark').style.display = 'none';
-            });
-            const activeOpt = document.querySelector(`.lang-option[onclick="changeLanguage('${lang}')"]`);
-            if (activeOpt) {
-                activeOpt.classList.add('active');
-                activeOpt.querySelector('.check-mark').style.display = 'inline';
-            }
-            toggleLangDropdown();
-
-            const dict = translations[lang] || translations['en'];
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (dict[key]) {
-                    if (el.tagName === 'INPUT') el.placeholder = dict[key];
-                    else el.innerHTML = dict[key];
-                }
-            });
-            
-            renderFaq(); 
-            renderGoogleButton(lang); 
-            initMarquee(); 
-            
-            triggerSearch(document.getElementById('globalSearchInput').value);
-        }
-
-        let currentUser = null;
-        let cachedToolUrl = null;
-        let pendingCheckoutUrl = '';
-
-        function toggleLangDropdown() { document.getElementById('langDropdown').classList.toggle('show'); document.getElementById('userDropdown').classList.remove('show');}
-        function toggleUserDropdown() { document.getElementById('userDropdown').classList.toggle('show'); document.getElementById('langDropdown').classList.remove('show');}
-        
-        // --- Search Bar Implementation ---
-        document.getElementById('globalSearchInput').addEventListener('input', function(e) {
-            triggerSearch(this.value);
-        });
-
-        function triggerSearch(queryText) {
-            const query = queryText.toLowerCase().trim();
-            const tools = document.querySelectorAll('#toolsGrid .tool-card');
-            const faqs = document.querySelectorAll('#faqList .faq-item');
-            const noResultsMsg = document.getElementById('noResultsMsg');
-            let hasVisibleItem = false;
-            
-            tools.forEach(tool => {
-                const text = tool.textContent.toLowerCase();
-                if(text.includes(query) || query === "") {
-                    tool.style.display = 'flex';
-                    hasVisibleItem = true;
-                } else {
-                    tool.style.display = 'none';
-                }
-            });
-            
-            faqs.forEach(faq => {
-                const text = faq.textContent.toLowerCase();
-                if(text.includes(query) || query === "") {
-                    faq.style.display = 'block';
-                    hasVisibleItem = true;
-                } else {
-                    faq.style.display = 'none';
-                }
-            });
-
-            if (!hasVisibleItem && query !== "") {
-                if(noResultsMsg) {
-                    noResultsMsg.innerText = translations[currentLang]?.noSearchResults || translations['en'].noSearchResults;
-                    noResultsMsg.style.display = 'block';
-                }
-            } else {
-                if(noResultsMsg) noResultsMsg.style.display = 'none';
-            }
-        }
-
-        function showToast(msg, type='success') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `<span class="toast-icon">${type==='danger'?'⚠️':type==='warning'?'⏳':'✅'}</span><span class="toast-text">${msg}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.add('show'), 10);
-            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
-        }
-        function playPromoVideo() { showToast(translations[currentLang]?.toastDemo || translations['en'].toastDemo, 'success'); } 
-
-        function scrollToSection(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
-        function scrollToPricing() { scrollToSection('renewPlansAnchor'); }
-        function scrollToTop() { document.getElementById('topAnchor').scrollIntoView({ behavior: 'smooth' }); }
-
-        document.addEventListener('click', (e) => {
-            if (!document.getElementById('userMenuArea').contains(e.target)) document.getElementById('userDropdown').classList.remove('show');
-            if (!document.getElementById('langMenuArea').contains(e.target)) document.getElementById('langDropdown').classList.remove('show');
-        });
-
-        function startGlobalTimer() {
-            const countDownDate = new Date("Sep 25, 2026 23:59:59").getTime();
-            
-            const timerInterval = setInterval(function() {
-                const now = new Date().getTime();
-                const distance = countDownDate - now;
-                if (distance < 0) {
-                    clearInterval(timerInterval);
-                    const banner = document.getElementById("globalBanner");
-                    if (banner) banner.style.display = "none";
-                    return;
-                }
-                const d = Math.floor(distance / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
-                const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
-                const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-                const s = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
-                const timerEl = document.getElementById("countdownTimer");
-                if (timerEl) timerEl.innerText = `[ ${d} : ${h} : ${m} : ${s} ]`;
-            }, 1000);
-        }
-
-        async function copyLaunchCoupon() {
-            try {
-                await navigator.clipboard.writeText('LAUNCH30');
-                showToast(translations[currentLang]?.toastCopyCode || translations['en'].toastCopyCode, 'success');
-            } catch (err) {
-                showToast('Failed to copy code', 'danger');
-            }
-        }
-
-        async function copyPrompt(text) {
-            if (!currentUser || !currentUser.subscriptionActive) { 
-                showToast(translations[currentLang]?.toastSubReq || translations['en'].toastSubReq, 'danger'); 
-                openPricingModal(); return; 
-            }
-            try {
-                await navigator.clipboard.writeText(text); 
-                showToast(translations[currentLang]?.toastCopy || translations['en'].toastCopy, 'success');
-            } catch (err) {
-                showToast('Failed to copy prompt', 'danger');
-            }
-        }
-
-        async function fetchPromoStats() {
-            const earlyBox = document.getElementById("earlyBirdBox");
-            const rankEl = document.getElementById("userRankNumber");
-
-            if (currentUser && currentUser.subscriptionActive) {
-                if (earlyBox) earlyBox.style.display = 'none';
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/promo-stats', { credentials: 'include' });
-                if (!res.ok) return;
-                const data = await res.json();
-                
-                if (data.active && data.remaining > 0) {
-                    if (earlyBox) earlyBox.style.display = 'block';
-                    if (rankEl) rankEl.innerText = `#${data.currentRank}`; 
-                } else {
-                    if (earlyBox) earlyBox.style.display = 'none'; 
-                }
-            } catch (e) { console.log('Promo stats error'); }
-        }
-
-        function promptEarlyBirdClaim() {
-            if (!currentUser) { 
-                showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); 
-                return; 
-            }
-            closeModals();
-            document.getElementById('ageConfirmEarlyBirdModal').classList.add('show');
-        }
-
-        // --- تم دمج الهيدر x-artify-csrf: 1 هنا لمنع CSRF ---
-        function claimEarlyBirdSpot() {
-            closeModals();
-            showToast('Verifying...', 'warning');
-
-            fetch('/api/claim-early-bird', { 
-                method: 'POST', 
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'x-artify-csrf': '1'
-                }, 
-                credentials: 'include',
-                body: JSON.stringify({ ageConfirmed: true }) 
-            })
-            .then(res => res.json().then(data => ({ok: res.ok, data})))
-            .then(({ok, data}) => {
-                if (ok && data.success) {
-                    showToast(translations[currentLang]?.toastPromoSuccess || 'PRO Activated successfully!', 'success');
-                    fetchPromoStats(); 
-                    setTimeout(() => { checkSession(); }, 1200);
-                } else { 
-                    showToast(data.error || translations[currentLang]?.toastInvalidCode || 'Invalid request', 'danger'); 
-                }
-            })
-            .catch(e => { showToast(translations[currentLang]?.toastConnError || 'Connection error', 'danger'); });
-        }
-
-        const showcaseItems = [
-            { url: "/photos/1.png", prompt: "Cinematic animation of the orca breaching. The whale arches mid air, glistening under overcast light." },
-            { url: "/photos/2.png", prompt: "Cinematic shot of the land tortoise walking slowly across the desert in sunset." },
-            { url: "/photos/3.png", prompt: "Cinematic underwater animation. The central bioluminescent jellyfish pulses gently." },
-            { url: "/photos/4.png", prompt: "Cinematic underwater close-up. The textured orange starfish rests on the sunlit seabed." },
-            { url: "/photos/5.png", prompt: "Cinematic video of the dolphin completing its mid-air arc at sunset." }
-        ];
-
-        function initMarquee() {
-            const track = document.getElementById('marqueeTrack'); if (!track) return;
-            const doubled = [...showcaseItems, ...showcaseItems];
-            const copyText = translations[currentLang]?.btnCopy || translations['en'].btnCopy;
-
-            track.innerHTML = doubled.map(item => `
-                <div class="inspiration-card">
-                    <img src="${item.url}" alt="AI Scene" loading="lazy" />
-                    <div class="insp-overlay">
-                        <p class="insp-prompt">${item.prompt}</p>
-                        <button class="insp-copy-btn" onclick="copyPrompt('${item.prompt.replace(/'/g, "\\'")}')">📋 ${copyText}</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderFaq() {
-            const wrap = document.getElementById('faqList');
-            const faqData = (translations[currentLang] && translations[currentLang].faqs) ? translations[currentLang].faqs : translations['en'].faqs;
-            
-            wrap.innerHTML = faqData.map(item => `
-                <div class="faq-item">
-                    <button class="faq-question" onclick="this.closest('.faq-item').classList.toggle('active')">
-                        <span>${item.q}</span> <span class="plus">+</span>
-                    </button>
-                    <div class="faq-answer">${item.a}</div>
-                </div>
-            `).join('');
-        }
-
-        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
-        function openPricingModal() { closeModals(); document.getElementById('pricingModal').classList.add('show'); }
-        function openFaqModal() { closeModals(); document.getElementById('faqModal').classList.add('show'); }
-        function openDeleteModal() { document.getElementById('userDropdown').classList.remove('show'); closeModals(); document.getElementById('deleteModal').classList.add('show'); }
-
-        function manageSubscriptionFlow() {
-            document.getElementById('userDropdown').classList.remove('show');
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            if (currentUser.subscriptionActive) {
-                closeModals();
-                document.getElementById('modalPlanName').innerText = "Artify PRO";
-                
-                let startDateObj = (currentUser.startedAt && Number(currentUser.startedAt) > 0) ? new Date(Number(currentUser.startedAt)) : new Date(Number(currentUser.expiresAt) - (30 * 24 * 60 * 60 * 1000));
-                document.getElementById('modalStartDate').innerText = startDateObj.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
-                
-                const expiryDateObj = new Date(Number(currentUser.expiresAt));
-                document.getElementById('modalExpiryDate').innerText = expiryDateObj.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
-                
-                const diffMs = expiryDateObj.getTime() - Date.now();
-                if (diffMs <= 0) {
-                    document.getElementById('modalDaysLeft').innerText = currentLang === 'ar' ? "انتهى" : "Expired";
-                } else {
-                    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
-                    const days = Math.floor(totalHours / 24);
-                    const remainingHours = totalHours % 24;
-                    if (days > 0) document.getElementById('modalDaysLeft').innerText = currentLang === 'ar' ? `${days} يوم و ${remainingHours} ساعة` : `${days} Days, ${remainingHours} Hours`;
-                    else document.getElementById('modalDaysLeft').innerText = currentLang === 'ar' ? `${remainingHours} ساعة متبقية` : `${remainingHours} Hours left`;
-                }
-                document.getElementById('subStatusModal').classList.add('show');
-            } else {
-                openPricingModal();
-            }
-        }
-
-        function promptPlan(plan) {
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            const whopLinks = { 'month1': 'https://whop.com/checkout/plan_1AFMWzPSMlWF7', 'month3': 'https://whop.com/checkout/plan_hhPYAFHhQnZ2p', 'month6': 'https://whop.com/checkout/plan_SFcazKZDf63GC', 'year1': 'https://whop.com/checkout/plan_PJeLIwlopBsLV' };
-            pendingCheckoutUrl = whopLinks[plan];
-            if (pendingCheckoutUrl) { closeModals(); document.getElementById('preCheckoutModal').classList.add('show'); }
-        }
-
-        function proceedToWhopCheckout() { closeModals(); if (pendingCheckoutUrl) window.open(pendingCheckoutUrl, '_blank'); }
-
-        function handleToolAction() {
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            if (!currentUser.subscriptionActive) { showToast(translations[currentLang]?.toastSubReq || translations['en'].toastSubReq, 'danger'); openPricingModal(); return; }
-            const hasSeenWarning = localStorage.getItem('artify_warning_shown');
-            if (!hasSeenWarning) { closeModals(); document.getElementById('launchWarningModal').classList.add('show'); } 
-            else launchToolDirectly();
-        }
-
-        function executeLaunchTool() { localStorage.setItem('artify_warning_shown', 'true'); closeModals(); launchToolDirectly(); }
-        function launchToolDirectly() {
-            // Always launch through the backend. The backend creates a fresh
-            // signed artify_tool_access token and redirects to TOOL_URL with
-            // access_token attached. This prevents stale cached URLs/tokens
-            // from being reused after login, subscription changes, or deploys.
-            const popup = window.open('/api/launch-app', 'ArtifyWorkspace',
-                `width=${window.screen.availWidth},height=${window.screen.availHeight},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`);
-
-            if (!popup) {
-                showToast(translations[currentLang]?.toastConnError || translations['en'].toastConnError, 'danger');
-            }
-        }
-
-        const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
-
-        window.onload = function () {
-            startGlobalTimer(); 
-            if(window.google) {
-                google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
-            }
-            checkSession();
-            
-            const userLang = navigator.language || navigator.userLanguage;
-            const langCode = userLang.split('-')[0].toLowerCase();
-            const supportedLangs = ['en', 'ar', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja'];
-            
-            if (supportedLangs.includes(langCode)) {
-                changeLanguage(langCode);
-            } else {
-                changeLanguage('en');
-            }
-        };
-
-        // --- إضافة الهيدر هنا لطلبات Auth ---
-        async function handleGoogleCredential(response) {
-            try {
-                const res = await fetch('/api/auth/google', { 
-                    method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-artify-csrf': '1'
-                    }, 
-                    credentials: 'include', 
-                    body: JSON.stringify({ credential: response.credential }) 
-                });
-                if (res.ok) { showToast('Login successful', 'success'); checkSession(); } 
-                else showToast('Login failed', 'danger');
-            } catch(e) { showToast('Connection error', 'danger'); }
-        }
-
-        async function checkSession() {
-            try {
-                const res = await fetch('/api/me', { credentials: 'include' });
-                if (!res.ok) { currentUser = null; updateDashboardUI(null); return; }
-                currentUser = await res.json();
-                updateDashboardUI(currentUser);
-
-                if (currentUser.subscriptionActive) {
-                    try {
-                        const urlRes = await fetch('/api/get-tool-url', { credentials: 'include' });
-                        const urlData = await urlRes.json();
-                        if (urlRes.ok && urlData.url) cachedToolUrl = urlData.url;
-                    } catch (e) { /* silent fail, cachedToolUrl stays null */ }
-                }
-            } catch(e) { updateDashboardUI(null); }
-        }
-
-        function updateDashboardUI(user) {
-            const gBtn = document.getElementById('g_id_signin_container'); const uMenu = document.getElementById('userMenuArea');
-            const lock = document.getElementById('canvasLock'); const dropSubStatus = document.getElementById('dropSubStatus');
-            const purchaseSection = document.getElementById('purchase-section'); 
-
-            if (!user) {
-                gBtn.style.display = 'block'; uMenu.style.display = 'none'; lock.style.display = 'flex';
-                document.getElementById('sidebarSubStatus').innerText = translations[currentLang]?.statusFree || translations['en'].statusFree; 
-                document.getElementById('quotaCount').innerText = '0 / 10';
-                purchaseSection.style.display = 'block'; 
-                fetchPromoStats(); return;
-            }
-
-            gBtn.style.display = 'none'; uMenu.style.display = 'flex';
-            const name = user.name ? user.name.split(' ')[0] : 'User';
-            document.getElementById('navUserName').innerText = name; document.getElementById('avatarLetter').innerText = name.charAt(0).toUpperCase();
-
-            if (user.subscriptionActive) {
-                lock.style.display = 'none';
-                const dateStr = new Date(Number(user.expiresAt)).toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
-                document.getElementById('sidebarSubStatus').innerText = `PRO — ${dateStr}`;
-                dropSubStatus.innerText = `PRO (${dateStr})`; document.getElementById('quotaCount').innerText = '∞';
-                
-                purchaseSection.style.display = 'none'; 
-            } else {
-                lock.style.display = 'flex';
-                document.getElementById('sidebarSubStatus').innerText = translations[currentLang]?.statusFree || translations['en'].statusFree;
-                dropSubStatus.innerText = translations[currentLang]?.dropLogout ? 'Inactive' : 'Inactive';
-                
-                purchaseSection.style.display = 'block'; 
-            }
-            fetchPromoStats(); 
-        }
-
-        // --- إضافة الهيدر هنا لطلبات تطبيق الكوبون ---
-        async function applyCoupon() {
-            if (!currentUser) { showToast(translations[currentLang]?.toastLoginReq || translations['en'].toastLoginReq, 'danger'); return; }
-            let code = document.getElementById('couponInput').value.trim();
-            const msgEl = document.getElementById('couponMsg'); 
-            
-            if(!code) {
-                msgEl.style.color = 'var(--danger)'; 
-                msgEl.innerText = translations[currentLang]?.toastEnterCode || 'Please enter a code';
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/apply-coupon', { 
-                    method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-artify-csrf': '1'
-                    }, 
-                    credentials: 'include', 
-                    body: JSON.stringify({ couponCode: code }) 
-                });
-                const data = await res.json();
-                if (res.ok && data.type === 'free') {
-                    msgEl.style.color = 'var(--success)'; msgEl.innerText = translations[currentLang]?.toastPromoSuccess || 'PRO Activated successfully!'; 
-                    showToast(translations[currentLang]?.toastPromoSuccess || 'PRO Activated successfully!', 'success');
-                    fetchPromoStats(); setTimeout(() => { closeModals(); checkSession(); }, 1200);
-                } else { msgEl.style.color = 'var(--danger)'; msgEl.innerText = data.error || translations[currentLang]?.toastInvalidCode || 'Invalid code'; }
-            } catch (e) { msgEl.innerText = translations[currentLang]?.toastConnError || 'Connection error'; }
-        }
-
-        // --- إضافة الهيدر هنا لطلبات حذف الحساب ---
-        async function executeDeleteAccount() {
-            try { 
-                await fetch('/api/delete-account', { 
-                    method: 'POST',
-                    headers: { 'x-artify-csrf': '1' }, 
-                    credentials: 'include' 
-                }); 
-                closeModals(); logout(true); showToast(translations[currentLang]?.toastDeleted || translations['en'].toastDeleted, 'success'); 
-            } catch(e) { showToast('Failed to delete account', 'danger'); }
-        }
-
-        // --- إضافة الهيدر هنا لطلبات تسجيل الخروج ---
-        async function logout(skipToast) {
-            document.getElementById('userDropdown').classList.remove('show');
-            await fetch('/api/logout', { 
-                method: 'POST',
-                headers: { 'x-artify-csrf': '1' },
-                credentials: 'include' 
-            }); 
-            currentUser = null; updateDashboardUI(null);
-            if (!skipToast) showToast(translations[currentLang]?.toastLogout || translations['en'].toastLogout, 'success');
-        }
-    </script>
+<main class="card">
+<h1>رمز ربط Artify PRO</h1>
+<p class="muted">افتح الأداة ثم أدخل الرمز الظاهر بالأسفل. الرمز صالح لمدة ${minutes} دقائق ويُستخدم مرة واحدة.</p>
+<div class="code">${code}</div>
+<a class="btn" href="${safeToolUrl}">فتح Artify PRO</a>
+<p class="small">لا تشارك هذا الرمز مع أي شخص. إذا انتهت صلاحيته، ارجع للموقع الرئيسي وأنشئ رمزاً جديداً.</p>
+</main>
 </body>
-</html>
+</html>`);
+  } catch (err) {
+    console.error('Launch app error:', err);
+    return res.redirect('/?error=access_denied');
+  }
+});
+
+// JSON endpoint for a future/main-site button implementation.
+// It intentionally returns the tool URL WITHOUT any access code in it.
+app.get('/api/get-tool-url', requireAuth, async (req, res) => {
+  try {
+    const { user } = await validateSubscribedUser(req.userEmail);
+    if (!user) return res.status(403).json({ error: 'Subscription required' });
+
+    const { code, expiresAt } = await createToolLinkCode(req.userEmail);
+    const ticket = await createToolLaunchTicket(req.userEmail, code, expiresAt);
+    return res.json({
+      url: `${SITE_URL}/api/launch-app?ticket=${encodeURIComponent(ticket)}`,
+      code,
+      expiresAt,
+      expiresInSeconds: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)),
+    });
+  } catch (err) {
+    console.error('Get tool URL/code error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  try {
+    const rawCode = typeof req.body?.code === 'string' ? req.body.code.replace(/\D/g, '') : '';
+    const deviceId = normalizeDeviceId(req.body?.deviceId);
+
+    if (!(await enforceToolCodeRateLimit(req))) {
+      return res.status(429).json({ valid: false, reason: 'too_many_attempts', message: 'محاولات كثيرة. انتظر عدة دقائق ثم حاول مرة أخرى.' });
+    }
+
+    if (!/^\d{6}$/.test(rawCode)) {
+      return res.status(400).json({ valid: false, reason: 'invalid_code_format', message: 'رمز الربط يجب أن يتكون من 6 أرقام.' });
+    }
+    if (!deviceId) {
+      return res.status(400).json({ valid: false, reason: 'invalid_device_id', message: 'معرّف الجهاز غير صالح.' });
+    }
+
+    const db = await getDb();
+    const now = Date.now();
+    const codeHash = hashAccessSecret(rawCode);
+    const link = await db.collection('tool_link_codes').findOne({ code_hash: codeHash });
+
+    if (!link || link.used_at || Number(link.expires_at) <= now) {
+      return res.status(200).json({ valid: false, reason: 'invalid_or_expired_code', message: 'رمز الربط غير صالح أو منتهي أو تم استخدامه بالفعل.' });
+    }
+
+    const { user, reason } = await validateSubscribedUser(link.email);
+    if (!user) {
+      return res.status(200).json({ valid: false, reason, message: 'لا يوجد اشتراك نشط لهذا الحساب.' });
+    }
+
+    const currentDevices = Array.isArray(user.devices) ? user.devices : [];
+    const existingDevice = currentDevices.some((d) => d && d.device_id === deviceId);
+
+    if (!existingDevice && currentDevices.length >= MAX_TOOL_DEVICES) {
+      return res.status(200).json({
+        valid: false,
+        reason: 'device_limit_reached',
+        message: 'تم الوصول إلى الحد الأقصى وهو جهازان. سجّل الخروج من جميع الأجهزة من الموقع ثم اربط هذا الجهاز.',
+      });
+    }
+
+    // Consume the code atomically. If two requests race with the same code,
+    // only one of them can succeed.
+    const consumed = await db.collection('tool_link_codes').findOneAndUpdate(
+      { _id: link._id, used_at: null, expires_at: { $gt: now } },
+      { $set: { used_at: now, used_device_id: deviceId } },
+      { returnDocument: 'after', includeResultMetadata: true }
+    );
+
+    if (!consumed.value) {
+      return res.status(200).json({ valid: false, reason: 'code_already_used', message: 'تم استخدام رمز الربط بالفعل. اطلب رمزاً جديداً.' });
+    }
+
+    const updatedDevices = existingDevice
+      ? currentDevices.map((d) => d && d.device_id === deviceId ? { ...d, last_seen_at: now } : d)
+      : [...currentDevices, { device_id: deviceId, created_at: now, last_seen_at: now }];
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { devices: updatedDevices } }
+    );
+
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const sessionExpiresAt = Math.min(Number(user.expires_at), now + TOOL_SESSION_TTL_MS);
+
+    await db.collection('tool_sessions').insertOne({
+      token_hash: hashAccessSecret(sessionToken),
+      email: link.email,
+      device_id: deviceId,
+      created_at: now,
+      last_seen_at: now,
+      expires_at: sessionExpiresAt,
+      revoked_at: null,
+    });
+
+    return res.status(200).json({
+      valid: true,
+      sessionToken,
+      expiresAt: sessionExpiresAt,
+    });
+  } catch (err) {
+    console.error('Redeem tool code error:', err);
+    return res.status(500).json({ valid: false, reason: 'server_error', message: 'حدث خطأ داخلي أثناء ربط الجهاز.' });
+  }
+});
+
+app.post('/api/verify-tool-session', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  try {
+    const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
+    const deviceId = normalizeDeviceId(req.body?.deviceId);
+    if (!sessionToken || !deviceId) {
+      return res.status(400).json({ valid: false, reason: 'missing_session_data' });
+    }
+
+    const db = await getDb();
+    const now = Date.now();
+    const session = await db.collection('tool_sessions').findOne({
+      token_hash: hashAccessSecret(sessionToken),
+      device_id: deviceId,
+      revoked_at: null,
+    });
+
+    if (!session || Number(session.expires_at) <= now) {
+      return res.status(200).json({ valid: false, reason: 'session_expired' });
+    }
+
+    const { user, reason } = await validateSubscribedUser(session.email);
+    if (!user) {
+      return res.status(200).json({ valid: false, reason, message: 'الاشتراك غير نشط.' });
+    }
+
+    const deviceExists = (Array.isArray(user.devices) ? user.devices : []).some((d) => d && d.device_id === deviceId);
+    if (!deviceExists) {
+      return res.status(200).json({ valid: false, reason: 'device_revoked' });
+    }
+
+    await db.collection('tool_sessions').updateOne(
+      { _id: session._id },
+      { $set: { last_seen_at: now } }
+    );
+    await db.collection('users').updateOne(
+      { _id: user._id, 'devices.device_id': deviceId },
+      { $set: { 'devices.$.last_seen_at': now } }
+    );
+
+    return res.status(200).json({ valid: true, expiresAt: Number(session.expires_at) });
+  } catch (err) {
+    console.error('Verify tool session error:', err);
+    return res.status(500).json({ valid: false, reason: 'server_error' });
+  }
+});
+
+// Revoke all Artify PRO tool devices/sessions for the currently logged-in user.
+app.post('/api/revoke-tool-devices', csrfCheck, requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.collection('tool_sessions').deleteMany({ email: req.userEmail });
+    await db.collection('users').updateOne(
+      { email: req.userEmail },
+      { $set: { devices: [] } }
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Revoke tool devices error:', err);
+    return res.status(500).json({ error: 'Failed to revoke tool devices' });
+  }
+});
+
+// ==========================================
+// مسارات الحذف وتسجيل الخروج (محمية بـ CSRF)
+// ==========================================
+app.post('/api/logout', csrfCheck, (req, res) => {
+  res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
+  res.json({ success: true });
+});
+
+app.post('/api/delete-account', csrfCheck, requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.collection('users').deleteOne({ email: req.userEmail });
+
+    res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Delete failed' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running securely on port ${PORT} (Prod Mode: ${isProd})`);
+});
+
+export default app;
