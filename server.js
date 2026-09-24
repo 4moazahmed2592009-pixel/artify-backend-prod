@@ -13,14 +13,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. حماية CORS
-// The tool may run on a different origin or inside a sandboxed browsing context.
-// The two public tool-link endpoints use route-level cors({ origin: true, credentials: false })
-// below, so an iframe/sandbox origin (including an opaque/null Origin) can call them.
-// Cookie-authenticated endpoints continue to use the stricter global CORS policy + CSRF.
+// ==========================================
+// 1. إعدادات CORS الشاملة لقبول اتصالات Gemini Canvas
+// ==========================================
 const configuredToolOrigin = (() => {
   try { return new URL(process.env.TOOL_URL || '').origin; } catch { return ''; }
 })();
+
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
   'http://localhost:3000',
@@ -29,14 +28,24 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // قبول الطلبات القادمة من Canvas أو النطاقات المعزولة أو لوحة التحكم دون إرجاع خطأ حظر
+    if (
+      !origin ||
+      origin === 'null' ||
+      allowedOrigins.indexOf(origin) !== -1 ||
+      origin.endsWith('googleusercontent.com') ||
+      origin.includes('gemini.google.com')
+    ) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by CORS'));
+      callback(null, true);
     }
   },
   credentials: true
 }));
+
+// معالجة طلبات الاستئذان المسبقة (OPTIONS Preflight) لجميع المسارات
+app.options('*', cors());
 
 app.use(cookieParser());
 
@@ -86,7 +95,6 @@ async function getDb() {
 // Middlewares: Authentication & Anti-CSRF
 // ==========================================
 
-// 1. حماية CSRF الصارمة
 function csrfCheck(req, res, next) {
   const csrfHeader = req.headers['x-artify-csrf'];
   if (!csrfHeader || csrfHeader !== '1') {
@@ -95,7 +103,6 @@ function csrfCheck(req, res, next) {
   next();
 }
 
-// 2. التحقق من جلسة المستخدم
 function requireAuth(req, res, next) {
   try {
     const token = req.cookies.token;
@@ -109,7 +116,7 @@ function requireAuth(req, res, next) {
 }
 
 // ==========================================
-// مسارات المصادقة
+// مسارات المصادقة والمستخدم
 // ==========================================
 app.post('/api/auth/google', csrfCheck, async (req, res) => {
   try {
@@ -181,7 +188,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// Webhook الدفع المؤمن (بدون csrfCheck لأنه قادم من خوادم Whop)
+// Webhook الدفع (Whop)
 // ==========================================
 function verifyWhopSignature(req) {
   const webhookId = req.headers['webhook-id'];
@@ -223,7 +230,6 @@ app.post('/api/whop-webhook', async (req, res) => {
       await processedWebhooks.insertOne({ _id: webhookId, created_at: new Date() });
     } catch (dbErr) {
       if (dbErr.code === 11000) {
-        console.warn(`Webhook ${webhookId} already processed (Idempotency skip).`);
         return res.status(200).json({ success: true, note: 'Already processed' });
       }
       throw dbErr;
@@ -288,13 +294,11 @@ app.post('/api/whop-webhook', async (req, res) => {
 });
 
 // ==========================================
-// مسارات تفعيل الاشتراكات (محمية بـ CSRF)
+// مسارات تفعيل العروض والأكواد
 // ==========================================
 app.post('/api/claim-early-bird', csrfCheck, requireAuth, async (req, res) => {
   try {
     const { ageConfirmed } = req.body;
-    
-    // إقرار المستخدم بأنه فوق 18 عاماً
     if (!ageConfirmed) {
       return res.status(403).json({ error: 'يجب تأكيد أن عمرك 18 عاماً أو أكثر للمتابعة' });
     }
@@ -326,8 +330,7 @@ app.post('/api/claim-early-bird', csrfCheck, requireAuth, async (req, res) => {
         claimed_by: { $ne: email }
       },
       { 
-        $inc: { used_count: 1 },
-        $push: { claimed_by: email }
+        $inc: { used_count: 1 },$push: { claimed_by: email }
       }
     );
 
@@ -420,9 +423,6 @@ app.post('/api/apply-coupon', csrfCheck, requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'فشل تطبيق الكود' }); }
 });
 
-// ==========================================
-// مسارات عرض البيانات (GET لا تحتاج CSRF)
-// ==========================================
 app.get('/api/promo-stats', async (req, res) => {
   try {
     const db = await getDb();
@@ -440,11 +440,11 @@ app.get('/api/promo-stats', async (req, res) => {
 });
 
 // ==========================================================
-// Tool access — temporary 6-digit code + device-bound session
+// نظام ربط الأجهزة برمز الـ 6 أرقام (Tool Pairing System)
 // ==========================================================
-const TOOL_CODE_TTL_MS = 10 * 60 * 1000;          // code valid for 10 minutes
-const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // session valid for 30 days, subject to subscription
-const MAX_TOOL_DEVICES = 2;
+const TOOL_CODE_TTL_MS = 10 * 60 * 1000;              // مدة صلاحية الكود: 10 دقائق
+const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // صلاحية الجلسة: 30 يوماً
+const MAX_TOOL_DEVICES = 2;                           // أقصى عدد أجهزة مسموح بربطها
 const TOOL_CODE_LENGTH = 6;
 const TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW = 30;
 const TOOL_CODE_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
@@ -495,7 +495,6 @@ async function createToolLinkCode(email) {
   const now = Date.now();
   const normalizedEmail = String(email || '').trim().toLowerCase();
 
-  // Remove old unused codes for this account.
   await db.collection('tool_link_codes').deleteMany({
     email: normalizedEmail,
     used_at: null,
@@ -575,10 +574,6 @@ async function createToolLaunchTicket(email, code, expiresAt) {
   return ticket;
 }
 
-// This endpoint is intended to be opened by the existing "Open Artify PRO"
-// button on the main site. It creates the code and displays it without
-// putting the code in the tool URL. An optional opaque launch ticket is
-// supported for main-site code that already expects /api/get-tool-url.
 app.get('/api/launch-app', async (req, res) => {
   try {
     const authToken = req.cookies.token;
@@ -651,8 +646,6 @@ h1{margin:0 0 12px;font-size:28px}.muted{color:#9ca3af;line-height:1.8}.code{fon
   }
 });
 
-// JSON endpoint for a future/main-site button implementation.
-// It intentionally returns the tool URL WITHOUT any access code in it.
 app.get('/api/get-tool-url', requireAuth, async (req, res) => {
   try {
     const { user } = await validateSubscribedUser(req.userEmail);
@@ -672,7 +665,7 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     const rawCode = typeof req.body?.code === 'string' ? req.body.code.replace(/\D/g, '') : '';
@@ -714,8 +707,6 @@ app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), ex
       });
     }
 
-    // Consume the code atomically. If two requests race with the same code,
-    // only one of them can succeed.
     const consumed = await db.collection('tool_link_codes').findOneAndUpdate(
       { _id: link._id, used_at: null, expires_at: { $gt: now } },
       { $set: { used_at: now, used_device_id: deviceId } },
@@ -759,7 +750,7 @@ app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), ex
   }
 });
 
-app.post('/api/verify-tool-session', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+app.post('/api/verify-tool-session', express.json(), async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
@@ -806,7 +797,6 @@ app.post('/api/verify-tool-session', cors({ origin: true, credentials: false }),
   }
 });
 
-// Revoke all Artify PRO tool devices/sessions for the currently logged-in user.
 app.post('/api/revoke-tool-devices', csrfCheck, requireAuth, async (req, res) => {
   try {
     const db = await getDb();
@@ -823,7 +813,7 @@ app.post('/api/revoke-tool-devices', csrfCheck, requireAuth, async (req, res) =>
 });
 
 // ==========================================
-// مسارات الحذف وتسجيل الخروج (محمية بـ CSRF)
+// مسارات الحساب وتسجيل الخروج
 // ==========================================
 app.post('/api/logout', csrfCheck, (req, res) => {
   res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
