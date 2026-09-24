@@ -13,6 +13,50 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+app.post('/api/verify-tool-token', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) {
+      return res.status(400).json({ valid: false, reason: 'missing_token', message: 'لم يصل access_token إلى السيرفر.' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (e) {
+      return res.status(200).json({ valid: false, reason: 'invalid_or_expired', message: 'رمز الدخول منتهي أو توقيعه غير صحيح.' });
+    }
+
+    if (decoded?.purpose !== 'artify_tool_access') {
+      return res.status(200).json({ valid: false, reason: 'wrong_token_purpose', message: 'رمز الدخول ليس رمز تشغيل Artify PRO.' });
+    }
+
+    const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+    if (!email) {
+      return res.status(200).json({ valid: false, reason: 'token_missing_email', message: 'رمز الدخول لا يحتوي على بريد المستخدم.' });
+    }
+
+    const db = await getDb();
+    const user = await db.collection('users').findOne({ email });
+    if (!user) {
+      return res.status(200).json({ valid: false, reason: 'user_not_found', message: 'المستخدم الموجود داخل رمز الدخول غير موجود في قاعدة البيانات.' });
+    }
+
+    if (!user.subscription_active) {
+      return res.status(200).json({ valid: false, reason: 'subscription_inactive', message: 'الاشتراك غير نشط لهذا الحساب.' });
+    }
+
+    if (!Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
+      return res.status(200).json({ valid: false, reason: 'subscription_expired', message: 'اشتراك المستخدم منتهي.' });
+    }
+
+    return res.status(200).json({ valid: true });
+  } catch (err) {
+    console.error('Tool token verification error:', err);
+    return res.status(500).json({ valid: false, reason: 'server_error', message: 'حدث خطأ داخلي أثناء التحقق.' });
+  }
+});
+
 // 1. حماية CORS
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
@@ -430,22 +474,38 @@ app.get('/api/promo-stats', async (req, res) => {
   }
 });
 
+function buildToolUrl(accessToken) {
+  const url = new URL(TOOL_URL);
+  url.searchParams.set('access_token', accessToken);
+  return url.toString();
+}
+
 app.get('/api/launch-app', async (req, res) => {
   try {
     const token = req.cookies.token;
     if (!token) return res.redirect('/?error=unauthorized');
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const db = await getDb();
-    const user = await db.collection('users').findOne({ email: decoded.email.toLowerCase() });
+    const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+    if (!email) return res.redirect('/?error=access_denied');
 
-    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
+    const db = await getDb();
+    const user = await db.collection('users').findOne({ email });
+
+    if (!user || !user.subscription_active || !Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
       return res.redirect('/?error=subscription_required');
     }
 
-    res.redirect(TOOL_URL);
+    const accessToken = jwt.sign(
+      { email, purpose: 'artify_tool_access' },
+      JWT_SECRET,
+      { expiresIn: '4h' }
+    );
+
+    return res.redirect(buildToolUrl(accessToken));
   } catch (err) {
-    res.redirect('/?error=access_denied');
+    console.error('Launch app error:', err);
+    return res.redirect('/?error=access_denied');
   }
 });
 
@@ -454,12 +514,19 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
     const db = await getDb();
     const user = await db.collection('users').findOne({ email: req.userEmail });
 
-    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
+    if (!user || !user.subscription_active || !Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
       return res.status(403).json({ error: 'Subscription required' });
     }
 
-    res.json({ url: TOOL_URL });
+    const accessToken = jwt.sign(
+      { email: req.userEmail, purpose: 'artify_tool_access' },
+      JWT_SECRET,
+      { expiresIn: '4h' }
+    );
+
+    res.json({ url: buildToolUrl(accessToken) });
   } catch (err) {
+    console.error('Get tool URL error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
