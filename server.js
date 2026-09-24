@@ -15,9 +15,9 @@ const app = express();
 
 // 1. حماية CORS
 // The tool may run on a different origin or inside a sandboxed browsing context.
-// We allow the configured TOOL_URL origin plus opaque/null origins for the
-// non-cookie tool endpoints. Cookie-authenticated endpoints still require the
-// normal browser session and CSRF header.
+// The two public tool-link endpoints use route-level cors({ origin: true, credentials: false })
+// below, so an iframe/sandbox origin (including an opaque/null Origin) can call them.
+// Cookie-authenticated endpoints continue to use the stricter global CORS policy + CSRF.
 const configuredToolOrigin = (() => {
   try { return new URL(process.env.TOOL_URL || '').origin; } catch { return ''; }
 })();
@@ -622,6 +622,7 @@ app.get('/api/launch-app', async (req, res) => {
     const safeToolUrl = String(TOOL_URL).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const minutes = Math.max(1, Math.ceil((expiresAt - Date.now()) / 60000));
 
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.status(200).send(`<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -672,6 +673,7 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
 });
 
 app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
     const rawCode = typeof req.body?.code === 'string' ? req.body.code.replace(/\D/g, '') : '';
     const deviceId = normalizeDeviceId(req.body?.deviceId);
@@ -758,6 +760,7 @@ app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), ex
 });
 
 app.post('/api/verify-tool-session', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
     const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
     const deviceId = normalizeDeviceId(req.body?.deviceId);
