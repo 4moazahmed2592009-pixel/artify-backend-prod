@@ -700,13 +700,8 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
     const existingDevice = currentDevices.some((d) => d && d.device_id === deviceId);
 
     if (!existingDevice && currentDevices.length >= MAX_TOOL_DEVICES) {
-      return res.status(200).json({
-        valid: false,
-        reason: 'device_limit_reached',
-        message: 'تم الوصول إلى الحد الأقصى وهو جهازان. سجّل الخروج من جميع الأجهزة من الموقع ثم اربط هذا الجهاز.',
-      });
+      currentDevices.shift(); // حذف أقدم جهاز تلقائياً للسماح بالدخول الجديد
     }
-
     const consumed = await db.collection('tool_link_codes').findOneAndUpdate(
       { _id: link._id, used_at: null, expires_at: { $gt: now } },
       { $set: { used_at: now, used_device_id: deviceId } },
