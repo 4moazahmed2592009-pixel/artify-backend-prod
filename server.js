@@ -13,55 +13,19 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.post('/api/verify-tool-token', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
-  try {
-    const { token } = req.body || {};
-    if (!token) {
-      return res.status(400).json({ valid: false, reason: 'missing_token', message: 'لم يصل access_token إلى السيرفر.' });
-    }
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (e) {
-      return res.status(200).json({ valid: false, reason: 'invalid_or_expired', message: 'رمز الدخول منتهي أو توقيعه غير صحيح.' });
-    }
-
-    if (decoded?.purpose !== 'artify_tool_access') {
-      return res.status(200).json({ valid: false, reason: 'wrong_token_purpose', message: 'رمز الدخول ليس رمز تشغيل Artify PRO.' });
-    }
-
-    const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
-    if (!email) {
-      return res.status(200).json({ valid: false, reason: 'token_missing_email', message: 'رمز الدخول لا يحتوي على بريد المستخدم.' });
-    }
-
-    const db = await getDb();
-    const user = await db.collection('users').findOne({ email });
-    if (!user) {
-      return res.status(200).json({ valid: false, reason: 'user_not_found', message: 'المستخدم الموجود داخل رمز الدخول غير موجود في قاعدة البيانات.' });
-    }
-
-    if (!user.subscription_active) {
-      return res.status(200).json({ valid: false, reason: 'subscription_inactive', message: 'الاشتراك غير نشط لهذا الحساب.' });
-    }
-
-    if (!Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
-      return res.status(200).json({ valid: false, reason: 'subscription_expired', message: 'اشتراك المستخدم منتهي.' });
-    }
-
-    return res.status(200).json({ valid: true });
-  } catch (err) {
-    console.error('Tool token verification error:', err);
-    return res.status(500).json({ valid: false, reason: 'server_error', message: 'حدث خطأ داخلي أثناء التحقق.' });
-  }
-});
-
 // 1. حماية CORS
+// The tool may run on a different origin or inside a sandboxed browsing context.
+// We allow the configured TOOL_URL origin plus opaque/null origins for the
+// non-cookie tool endpoints. Cookie-authenticated endpoints still require the
+// normal browser session and CSRF header.
+const configuredToolOrigin = (() => {
+  try { return new URL(process.env.TOOL_URL || '').origin; } catch { return ''; }
+})();
 const allowedOrigins = [
   'https://artify-backend-prod.vercel.app',
-  'http://localhost:3000'
-];
+  'http://localhost:3000',
+  configuredToolOrigin
+].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -91,6 +55,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const MONGODB_URI = process.env.MONGODB_URI;
 const WHOP_WEBHOOK_SECRET = process.env.WHOP_WEBHOOK_SECRET;
 const TOOL_URL = process.env.TOOL_URL;
+const SITE_URL = 'https://artify-backend-prod.vercel.app';
 
 const REQUIRED = { GOOGLE_CLIENT_ID, JWT_SECRET, MONGODB_URI, WHOP_WEBHOOK_SECRET, TOOL_URL };
 const missing = Object.entries(REQUIRED).filter(([, v]) => !v).map(([k]) => k);
@@ -474,60 +439,383 @@ app.get('/api/promo-stats', async (req, res) => {
   }
 });
 
-function buildToolUrl(accessToken) {
-  const url = new URL(TOOL_URL);
-  url.searchParams.set('access_token', accessToken);
-  return url.toString();
+// ==========================================================
+// Tool access — temporary 6-digit code + device-bound session
+// ==========================================================
+const TOOL_CODE_TTL_MS = 10 * 60 * 1000;          // code valid for 10 minutes
+const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // session valid for 30 days, subject to subscription
+const MAX_TOOL_DEVICES = 2;
+const TOOL_CODE_LENGTH = 6;
+const TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW = 30;
+const TOOL_CODE_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
+
+const hashAccessSecret = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
+
+function normalizeDeviceId(value) {
+  const id = typeof value === 'string' ? value.trim() : '';
+  return /^[a-zA-Z0-9_-]{20,120}$/.test(id) ? id : null;
 }
 
+function createSixDigitCode() {
+  return crypto.randomInt(0, 1000000).toString().padStart(TOOL_CODE_LENGTH, '0');
+}
+
+function getClientAddress(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+async function enforceToolCodeRateLimit(req) {
+  const db = await getDb();
+  const now = Date.now();
+  const key = hashAccessSecret(getClientAddress(req));
+  const existing = await db.collection('tool_code_rate_limits').findOne({ key });
+
+  if (!existing || Number(existing.reset_at) <= now) {
+    await db.collection('tool_code_rate_limits').updateOne(
+      { key },
+      { $set: { key, attempts: 1, reset_at: now + TOOL_CODE_ATTEMPT_WINDOW_MS } },
+      { upsert: true }
+    );
+    return true;
+  }
+
+  if (Number(existing.attempts) >= TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW) return false;
+
+  await db.collection('tool_code_rate_limits').updateOne(
+    { key, reset_at: existing.reset_at },
+    { $inc: { attempts: 1 } }
+  );
+  return true;
+}
+
+async function createToolLinkCode(email) {
+  const db = await getDb();
+  const now = Date.now();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  // Remove old unused codes for this account.
+  await db.collection('tool_link_codes').deleteMany({
+    email: normalizedEmail,
+    used_at: null,
+  });
+
+  let code = '';
+  let codeHash = '';
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    code = createSixDigitCode();
+    codeHash = hashAccessSecret(code);
+    const existing = await db.collection('tool_link_codes').findOne({ code_hash: codeHash });
+    if (!existing) break;
+    code = '';
+    codeHash = '';
+  }
+
+  if (!code) throw new Error('Could not generate a unique tool access code');
+
+  const expiresAt = now + TOOL_CODE_TTL_MS;
+  await db.collection('tool_link_codes').insertOne({
+    email: normalizedEmail,
+    code_hash: codeHash,
+    created_at: now,
+    expires_at: expiresAt,
+    used_at: null,
+  });
+
+  return { code, expiresAt };
+}
+
+async function validateSubscribedUser(email) {
+  const db = await getDb();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const user = await db.collection('users').findOne({ email: normalizedEmail });
+
+  if (!user) return { user: null, reason: 'user_not_found' };
+  if (!user.subscription_active) return { user: null, reason: 'subscription_inactive' };
+  if (!Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
+    return { user: null, reason: 'subscription_expired' };
+  }
+
+  return { user, reason: null };
+}
+
+function encryptLaunchCode(code) {
+  const key = crypto.createHash('sha256').update(String(JWT_SECRET)).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(String(code), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, ciphertext]).toString('base64url');
+}
+
+function decryptLaunchCode(payload) {
+  const key = crypto.createHash('sha256').update(String(JWT_SECRET)).digest();
+  const raw = Buffer.from(String(payload), 'base64url');
+  if (raw.length < 29) throw new Error('Invalid launch ticket payload');
+  const iv = raw.subarray(0, 12);
+  const tag = raw.subarray(12, 28);
+  const ciphertext = raw.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
+
+async function createToolLaunchTicket(email, code, expiresAt) {
+  const db = await getDb();
+  const ticket = crypto.randomBytes(24).toString('hex');
+  await db.collection('tool_launch_tickets').insertOne({
+    ticket_hash: hashAccessSecret(ticket),
+    email: String(email || '').trim().toLowerCase(),
+    code_encrypted: encryptLaunchCode(code),
+    expires_at: expiresAt,
+    created_at: Date.now(),
+    used_at: null,
+  });
+  return ticket;
+}
+
+// This endpoint is intended to be opened by the existing "Open Artify PRO"
+// button on the main site. It creates the code and displays it without
+// putting the code in the tool URL. An optional opaque launch ticket is
+// supported for main-site code that already expects /api/get-tool-url.
 app.get('/api/launch-app', async (req, res) => {
   try {
-    const token = req.cookies.token;
-    if (!token) return res.redirect('/?error=unauthorized');
+    const authToken = req.cookies.token;
+    if (!authToken) return res.redirect('/?error=unauthorized');
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(authToken, JWT_SECRET);
     const email = typeof decoded?.email === 'string' ? decoded.email.trim().toLowerCase() : '';
     if (!email) return res.redirect('/?error=access_denied');
 
-    const db = await getDb();
-    const user = await db.collection('users').findOne({ email });
+    const { user } = await validateSubscribedUser(email);
+    if (!user) return res.redirect('/?error=subscription_required');
 
-    if (!user || !user.subscription_active || !Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
-      return res.redirect('/?error=subscription_required');
+    let code = '';
+    let expiresAt = 0;
+    const requestedTicket = typeof req.query.ticket === 'string' ? req.query.ticket.trim() : '';
+
+    if (requestedTicket) {
+      const db = await getDb();
+      const ticketDoc = await db.collection('tool_launch_tickets').findOne({
+        ticket_hash: hashAccessSecret(requestedTicket),
+        email,
+        used_at: null,
+      });
+      if (!ticketDoc || Number(ticketDoc.expires_at) <= Date.now()) {
+        return res.redirect('/?error=access_denied');
+      }
+
+      await db.collection('tool_launch_tickets').updateOne(
+        { _id: ticketDoc._id, used_at: null },
+        { $set: { used_at: Date.now() } }
+      );
+
+      code = decryptLaunchCode(ticketDoc.code_encrypted);
+      expiresAt = Number(ticketDoc.expires_at);
+    } else {
+      const created = await createToolLinkCode(email);
+      code = created.code;
+      expiresAt = created.expiresAt;
     }
 
-    const accessToken = jwt.sign(
-      { email, purpose: 'artify_tool_access' },
-      JWT_SECRET,
-      { expiresIn: '4h' }
-    );
+    const safeToolUrl = String(TOOL_URL).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const minutes = Math.max(1, Math.ceil((expiresAt - Date.now()) / 60000));
 
-    return res.redirect(buildToolUrl(accessToken));
+    res.status(200).send(`<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ربط Artify PRO</title>
+<style>
+body{margin:0;background:#030712;color:#fff;font-family:Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+.card{width:min(520px,100%);background:#111827;border:1px solid #374151;border-radius:20px;padding:32px;box-sizing:border-box;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+h1{margin:0 0 12px;font-size:28px}.muted{color:#9ca3af;line-height:1.8}.code{font-size:48px;letter-spacing:.28em;font-weight:900;background:#030712;border:1px solid #4f46e5;border-radius:16px;padding:18px 12px;margin:24px 0;direction:ltr}.btn{display:block;text-decoration:none;background:#4f46e5;color:#fff;padding:14px 18px;border-radius:12px;font-weight:800;margin-top:14px}.small{font-size:13px;color:#6b7280;margin-top:16px;line-height:1.7}
+</style>
+</head>
+<body>
+<main class="card">
+<h1>رمز ربط Artify PRO</h1>
+<p class="muted">افتح الأداة ثم أدخل الرمز الظاهر بالأسفل. الرمز صالح لمدة ${minutes} دقائق ويُستخدم مرة واحدة.</p>
+<div class="code">${code}</div>
+<a class="btn" href="${safeToolUrl}">فتح Artify PRO</a>
+<p class="small">لا تشارك هذا الرمز مع أي شخص. إذا انتهت صلاحيته، ارجع للموقع الرئيسي وأنشئ رمزاً جديداً.</p>
+</main>
+</body>
+</html>`);
   } catch (err) {
     console.error('Launch app error:', err);
     return res.redirect('/?error=access_denied');
   }
 });
 
+// JSON endpoint for a future/main-site button implementation.
+// It intentionally returns the tool URL WITHOUT any access code in it.
 app.get('/api/get-tool-url', requireAuth, async (req, res) => {
   try {
-    const db = await getDb();
-    const user = await db.collection('users').findOne({ email: req.userEmail });
+    const { user } = await validateSubscribedUser(req.userEmail);
+    if (!user) return res.status(403).json({ error: 'Subscription required' });
 
-    if (!user || !user.subscription_active || !Number.isFinite(Number(user.expires_at)) || Number(user.expires_at) <= Date.now()) {
-      return res.status(403).json({ error: 'Subscription required' });
+    const { code, expiresAt } = await createToolLinkCode(req.userEmail);
+    const ticket = await createToolLaunchTicket(req.userEmail, code, expiresAt);
+    return res.json({
+      url: `${SITE_URL}/api/launch-app?ticket=${encodeURIComponent(ticket)}`,
+      code,
+      expiresAt,
+      expiresInSeconds: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)),
+    });
+  } catch (err) {
+    console.error('Get tool URL/code error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/redeem-tool-code', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  try {
+    const rawCode = typeof req.body?.code === 'string' ? req.body.code.replace(/\D/g, '') : '';
+    const deviceId = normalizeDeviceId(req.body?.deviceId);
+
+    if (!(await enforceToolCodeRateLimit(req))) {
+      return res.status(429).json({ valid: false, reason: 'too_many_attempts', message: 'محاولات كثيرة. انتظر عدة دقائق ثم حاول مرة أخرى.' });
     }
 
-    const accessToken = jwt.sign(
-      { email: req.userEmail, purpose: 'artify_tool_access' },
-      JWT_SECRET,
-      { expiresIn: '4h' }
+    if (!/^\d{6}$/.test(rawCode)) {
+      return res.status(400).json({ valid: false, reason: 'invalid_code_format', message: 'رمز الربط يجب أن يتكون من 6 أرقام.' });
+    }
+    if (!deviceId) {
+      return res.status(400).json({ valid: false, reason: 'invalid_device_id', message: 'معرّف الجهاز غير صالح.' });
+    }
+
+    const db = await getDb();
+    const now = Date.now();
+    const codeHash = hashAccessSecret(rawCode);
+    const link = await db.collection('tool_link_codes').findOne({ code_hash: codeHash });
+
+    if (!link || link.used_at || Number(link.expires_at) <= now) {
+      return res.status(200).json({ valid: false, reason: 'invalid_or_expired_code', message: 'رمز الربط غير صالح أو منتهي أو تم استخدامه بالفعل.' });
+    }
+
+    const { user, reason } = await validateSubscribedUser(link.email);
+    if (!user) {
+      return res.status(200).json({ valid: false, reason, message: 'لا يوجد اشتراك نشط لهذا الحساب.' });
+    }
+
+    const currentDevices = Array.isArray(user.devices) ? user.devices : [];
+    const existingDevice = currentDevices.some((d) => d && d.device_id === deviceId);
+
+    if (!existingDevice && currentDevices.length >= MAX_TOOL_DEVICES) {
+      return res.status(200).json({
+        valid: false,
+        reason: 'device_limit_reached',
+        message: 'تم الوصول إلى الحد الأقصى وهو جهازان. سجّل الخروج من جميع الأجهزة من الموقع ثم اربط هذا الجهاز.',
+      });
+    }
+
+    // Consume the code atomically. If two requests race with the same code,
+    // only one of them can succeed.
+    const consumed = await db.collection('tool_link_codes').findOneAndUpdate(
+      { _id: link._id, used_at: null, expires_at: { $gt: now } },
+      { $set: { used_at: now, used_device_id: deviceId } },
+      { returnDocument: 'after', includeResultMetadata: true }
     );
 
-    res.json({ url: buildToolUrl(accessToken) });
+    if (!consumed.value) {
+      return res.status(200).json({ valid: false, reason: 'code_already_used', message: 'تم استخدام رمز الربط بالفعل. اطلب رمزاً جديداً.' });
+    }
+
+    const updatedDevices = existingDevice
+      ? currentDevices.map((d) => d && d.device_id === deviceId ? { ...d, last_seen_at: now } : d)
+      : [...currentDevices, { device_id: deviceId, created_at: now, last_seen_at: now }];
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { devices: updatedDevices } }
+    );
+
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const sessionExpiresAt = Math.min(Number(user.expires_at), now + TOOL_SESSION_TTL_MS);
+
+    await db.collection('tool_sessions').insertOne({
+      token_hash: hashAccessSecret(sessionToken),
+      email: link.email,
+      device_id: deviceId,
+      created_at: now,
+      last_seen_at: now,
+      expires_at: sessionExpiresAt,
+      revoked_at: null,
+    });
+
+    return res.status(200).json({
+      valid: true,
+      sessionToken,
+      expiresAt: sessionExpiresAt,
+    });
   } catch (err) {
-    console.error('Get tool URL error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Redeem tool code error:', err);
+    return res.status(500).json({ valid: false, reason: 'server_error', message: 'حدث خطأ داخلي أثناء ربط الجهاز.' });
+  }
+});
+
+app.post('/api/verify-tool-session', cors({ origin: true, credentials: false }), express.json(), async (req, res) => {
+  try {
+    const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
+    const deviceId = normalizeDeviceId(req.body?.deviceId);
+    if (!sessionToken || !deviceId) {
+      return res.status(400).json({ valid: false, reason: 'missing_session_data' });
+    }
+
+    const db = await getDb();
+    const now = Date.now();
+    const session = await db.collection('tool_sessions').findOne({
+      token_hash: hashAccessSecret(sessionToken),
+      device_id: deviceId,
+      revoked_at: null,
+    });
+
+    if (!session || Number(session.expires_at) <= now) {
+      return res.status(200).json({ valid: false, reason: 'session_expired' });
+    }
+
+    const { user, reason } = await validateSubscribedUser(session.email);
+    if (!user) {
+      return res.status(200).json({ valid: false, reason, message: 'الاشتراك غير نشط.' });
+    }
+
+    const deviceExists = (Array.isArray(user.devices) ? user.devices : []).some((d) => d && d.device_id === deviceId);
+    if (!deviceExists) {
+      return res.status(200).json({ valid: false, reason: 'device_revoked' });
+    }
+
+    await db.collection('tool_sessions').updateOne(
+      { _id: session._id },
+      { $set: { last_seen_at: now } }
+    );
+    await db.collection('users').updateOne(
+      { _id: user._id, 'devices.device_id': deviceId },
+      { $set: { 'devices.$.last_seen_at': now } }
+    );
+
+    return res.status(200).json({ valid: true, expiresAt: Number(session.expires_at) });
+  } catch (err) {
+    console.error('Verify tool session error:', err);
+    return res.status(500).json({ valid: false, reason: 'server_error' });
+  }
+});
+
+// Revoke all Artify PRO tool devices/sessions for the currently logged-in user.
+app.post('/api/revoke-tool-devices', csrfCheck, requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.collection('tool_sessions').deleteMany({ email: req.userEmail });
+    await db.collection('users').updateOne(
+      { email: req.userEmail },
+      { $set: { devices: [] } }
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Revoke tool devices error:', err);
+    return res.status(500).json({ error: 'Failed to revoke tool devices' });
   }
 });
 
