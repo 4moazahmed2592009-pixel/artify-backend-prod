@@ -25,9 +25,19 @@ app.post('/api/verify-tool-token', cors({ origin: true, credentials: false }), e
       return res.status(200).json({ valid: false, reason: 'invalid_or_expired' });
     }
 
+    if (!decoded.email || decoded.purpose !== 'artify_tool_access') {
+      return res.status(200).json({ valid: false, reason: 'invalid_token_payload' });
+    }
+
+    const email = String(decoded.email).trim().toLowerCase();
     const db = await getDb();
-    const user = await db.collection('users').findOne({ email: decoded.email });
-    if (!user || !user.subscription_active || user.expires_at <= Date.now()) {
+    const user = await db.collection('users').findOne({ email });
+    if (
+      !user ||
+      user.subscription_active !== true ||
+      !Number.isFinite(Number(user.expires_at)) ||
+      Number(user.expires_at) <= Date.now()
+    ) {
       return res.status(200).json({ valid: false, reason: 'subscription_inactive' });
     }
 
@@ -482,11 +492,19 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Subscription required' });
     }
 
-    const accessToken = jwt.sign({ email: req.userEmail }, JWT_SECRET, { expiresIn: '4h' });
-    const separator = TOOL_URL.includes('?') ? '&' : '?';
-    const urlWithToken = `${TOOL_URL}${separator}access_token=${accessToken}`;
+    const accessToken = jwt.sign(
+      { email: req.userEmail.toLowerCase(), purpose: 'artify_tool_access' },
+      JWT_SECRET,
+      { expiresIn: '4h' }
+    );
 
-    res.json({ url: urlWithToken });
+    // URL() correctly places the query before any #hash fragment.
+    // String concatenation would accidentally append the token inside the hash,
+    // where window.location.search cannot read it.
+    const toolUrl = new URL(TOOL_URL);
+    toolUrl.searchParams.set('access_token', accessToken);
+
+    res.json({ url: toolUrl.toString() });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
