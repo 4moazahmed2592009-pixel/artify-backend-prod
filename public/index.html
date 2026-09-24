@@ -1116,12 +1116,16 @@
 
         function executeLaunchTool() { localStorage.setItem('artify_warning_shown', 'true'); closeModals(); launchToolDirectly(); }
         function launchToolDirectly() {
-            if (!cachedToolUrl) {
-                showToast(translations[currentLang]?.toastConnError || translations['en'].toastConnError, 'danger');
-                return;
-            }
-            window.open(cachedToolUrl, 'ArtifyWorkspace',
+            // Always launch through the backend. The backend creates a fresh
+            // signed artify_tool_access token and redirects to TOOL_URL with
+            // access_token attached. This prevents stale cached URLs/tokens
+            // from being reused after login, subscription changes, or deploys.
+            const popup = window.open('/api/launch-app', 'ArtifyWorkspace',
                 `width=${window.screen.availWidth},height=${window.screen.availHeight},top=0,left=0,popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`);
+
+            if (!popup) {
+                showToast(translations[currentLang]?.toastConnError || translations['en'].toastConnError, 'danger');
+            }
         }
 
         const GOOGLE_CLIENT_ID = "1054667161687-q2gipahtngpfqfh9aj0q3jm55ajk257o.apps.googleusercontent.com";
