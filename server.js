@@ -47,7 +47,6 @@ app.options('*', cors());
 
 app.use(cookieParser());
 
-// التقاط الـ raw body بدقة للويب هوك
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf;
@@ -56,7 +55,6 @@ app.use(express.json({
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// متغيرات البيئة الأساسية
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const JWT_SECRET = process.env.JWT_SECRET;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -78,7 +76,6 @@ const EARLY_BIRD_CODE = 'EARLY_BIRD_INTERNAL';
 const EARLY_BIRD_MAX_SEATS = 15;
 const EARLY_BIRD_DURATION_DAYS = 30;
 
-// تحسين الاتصال بقاعدة البيانات لبيئة Serverless
 let dbClientPromise = null;
 async function getDb() {
   if (!dbClientPromise) {
@@ -92,7 +89,6 @@ async function getDb() {
 // ==========================================
 // Middlewares: Authentication & Anti-CSRF
 // ==========================================
-
 function csrfCheck(req, res, next) {
   const csrfHeader = req.headers['x-artify-csrf'];
   if (!csrfHeader || csrfHeader !== '1') {
@@ -228,7 +224,6 @@ app.post('/api/whop-webhook', async (req, res) => {
       await processedWebhooks.insertOne({ _id: webhookId, created_at: new Date() });
     } catch (dbErr) {
       if (dbErr.code === 11000) {
-        console.warn(`Webhook ${webhookId} already processed (Idempotency skip).`);
         return res.status(200).json({ success: true, note: 'Already processed' });
       }
       throw dbErr;
@@ -287,7 +282,6 @@ app.post('/api/whop-webhook', async (req, res) => {
 
     res.status(200).json({ success: true });
   } catch (err) {
-    console.error('Webhook processing error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -329,7 +323,8 @@ app.post('/api/claim-early-bird', csrfCheck, requireAuth, async (req, res) => {
         claimed_by: { $ne: email }
       },
       { 
-        $inc: { used_count: 1 },$push: { claimed_by: email }
+        $inc: { used_count: 1 },
+        $push: { claimed_by: email }
       }
     );
 
@@ -439,11 +434,11 @@ app.get('/api/promo-stats', async (req, res) => {
 });
 
 // ==========================================================
-// نظام ربط الأداة المؤمّن ضد المشاركة وتعدد النوافذ
+// نظام ربط الأداة الصارم (جلسة نشطة واحدة + قفل البصمة)
 // ==========================================================
-const TOOL_CODE_TTL_MS = 10 * 60 * 1000;          // صلاحية الكود 10 دقائق
-const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // صلاحية الجلسة 30 يوماً
-const MAX_TOOL_DEVICES = 1;                       // جلسة نشطة واحدة فقط لمنع مشاركة الحساب
+const TOOL_CODE_TTL_MS = 2 * 60 * 1000;           // صلاحية الكود دقيقتان فقط لمنع التداول
+const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_TOOL_DEVICES = 1;                       // جلسة واحدة نشطة فقط في نفس الوقت
 const TOOL_CODE_LENGTH = 6;
 const TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW = 30;
 const TOOL_CODE_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
@@ -463,6 +458,13 @@ function getClientAddress(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
   return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+// بصمة تجمع الـ IP مع نوع المتصفح ونظام التشغيل معاً
+function getDeviceFingerprintHash(req) {
+  const ip = getClientAddress(req);
+  const ua = (req.headers['user-agent'] || '').trim();
+  return hashAccessSecret(`${ip}::${ua}`);
 }
 
 async function enforceToolCodeRateLimit(req) {
@@ -493,9 +495,9 @@ async function createToolLinkCode(email, req) {
   const db = await getDb();
   const now = Date.now();
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  const clientIpHash = req ? hashAccessSecret(getClientAddress(req)) : null;
+  const fingerprintHash = req ? getDeviceFingerprintHash(req) : null;
 
-  // مسح أي أكواد سابقة غير مستخدمة فوراً (يمنع فتح نافذتين وأخذ كودين معاً)
+  // إبطال أي كود سابق لم يُستخدم بعد لنفس الحساب فوراً
   await db.collection('tool_link_codes').deleteMany({
     email: normalizedEmail,
     used_at: null,
@@ -518,7 +520,7 @@ async function createToolLinkCode(email, req) {
   await db.collection('tool_link_codes').insertOne({
     email: normalizedEmail,
     code_hash: codeHash,
-    bound_ip_hash: clientIpHash, // قفل الكود على شبكة صاحب الحساب الأصلي
+    bound_fingerprint_hash: fingerprintHash,
     created_at: now,
     expires_at: expiresAt,
     used_at: null,
@@ -635,15 +637,14 @@ h1{margin:0 0 12px;font-size:28px}.muted{color:#9ca3af;line-height:1.8}.code{fon
 <body>
 <main class="card">
 <h1>رمز ربط Artify PRO</h1>
-<p class="muted">افتح الأداة ثم أدخل الرمز الظاهر بالأسفل. الرمز صالح لمدة ${minutes} دقائق ويُستخدم مرة واحدة على نفس جهازك.</p>
+<p class="muted">افتح الأداة ثم أدخل الرمز الظاهر بالأسفل. الرمز صالح لمدة ${minutes} دقائق ويُستخدم لفتح جلسة واحدة فقط.</p>
 <div class="code">${code}</div>
 <a class="btn" href="${safeToolUrl}">فتح Artify PRO</a>
-<p class="small">لا تشارك هذا الرمز مع أي شخص. الرمز مقفل على شبكتك وجهازك فقط.</p>
+<p class="small">ملاحظة أمنية: تفعيل هذا الرمز سيقوم تلقائياً بإغلاق أي نافذة أخرى مفتوحة بنفس الحساب فوراً.</p>
 </main>
 </body>
 </html>`);
   } catch (err) {
-    console.error('Launch app error:', err);
     return res.redirect('/?error=access_denied');
   }
 });
@@ -662,7 +663,6 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
       expiresInSeconds: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)),
     });
   } catch (err) {
-    console.error('Get tool URL/code error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
@@ -693,13 +693,13 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       return res.status(200).json({ valid: false, reason: 'invalid_or_expired_code', message: 'رمز الربط غير صالح أو منتهي أو تم استخدامه بالفعل.' });
     }
 
-    // التحقق من أن الرمز يُستخدم من نفس شبكة الجهاز الذي طلبه (يمنع إرسال الرمز لصديق)
-    const currentIpHash = hashAccessSecret(getClientAddress(req));
-    if (link.bound_ip_hash && link.bound_ip_hash !== currentIpHash) {
+    // مطابقة بصمة الشبكة والمتصفح معاً
+    const currentFingerprintHash = getDeviceFingerprintHash(req);
+    if (link.bound_fingerprint_hash && link.bound_fingerprint_hash !== currentFingerprintHash) {
       return res.status(200).json({
         valid: false,
-        reason: 'ip_mismatch',
-        message: 'هذا الرمز تم إصداره لجهاز آخر ولا يمكن مشاركته أو تفعيله من شبكة مختلفة.'
+        reason: 'fingerprint_mismatch',
+        message: 'هذا الرمز تم إصداره لمتصفح أو جهاز آخر ولا يمكن استخدامه هنا.'
       });
     }
 
@@ -708,10 +708,6 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       return res.status(200).json({ valid: false, reason, message: 'لا يوجد اشتراك نشط لهذا الحساب.' });
     }
 
-    const currentDevices = Array.isArray(user.devices) ? user.devices : [];
-    const existingDevice = currentDevices.some((d) => d && d.device_id === deviceId);
-
-    // حرق الكود ذرياً ليعمل مرة واحدة فقط
     const consumed = await db.collection('tool_link_codes').findOneAndUpdate(
       { _id: link._id, used_at: null, expires_at: { $gt: now } },
       { $set: { used_at: now, used_device_id: deviceId } },
@@ -722,21 +718,15 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       return res.status(200).json({ valid: false, reason: 'code_already_used', message: 'تم استخدام رمز الربط بالفعل. اطلب رمزاً جديداً.' });
     }
 
-    // حذف أقدم جهاز تلقائياً للسماح بالدخول الجديد دون إظهار خطأ الحد الأقصى
-    while (!existingDevice && currentDevices.length >= MAX_TOOL_DEVICES) {
-      currentDevices.shift();
-    }
-
-    const updatedDevices = existingDevice
-      ? currentDevices.map((d) => d && d.device_id === deviceId ? { ...d, last_seen_at: now } : d)
-      : [...currentDevices, { device_id: deviceId, created_at: now, last_seen_at: now }];
+    // السماح بجهاز واحد نشط فقط وطرد أي جهاز أو نافذة سابقة فوراً
+    const updatedDevices = [{ device_id: deviceId, created_at: now, last_seen_at: now }];
 
     await db.collection('users').updateOne(
       { _id: user._id },
       { $set: { devices: updatedDevices } }
     );
 
-    // إبطال أي جلسات سابقة مفتوحة على أجهزة أخرى لنفس الحساب فوراً
+    // مسح جميع الجلسات السابقة لنفس الإيميل بحيث تقفل النافذة الأولى فوراً
     await db.collection('tool_sessions').deleteMany({ email: link.email });
 
     const sessionToken = crypto.randomBytes(32).toString('hex');
@@ -758,7 +748,6 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       expiresAt: sessionExpiresAt,
     });
   } catch (err) {
-    console.error('Redeem tool code error:', err);
     return res.status(500).json({ valid: false, reason: 'server_error', message: 'حدث خطأ داخلي أثناء ربط الجهاز.' });
   }
 });
@@ -781,7 +770,11 @@ app.post('/api/verify-tool-session', express.json(), async (req, res) => {
     });
 
     if (!session || Number(session.expires_at) <= now) {
-      return res.status(200).json({ valid: false, reason: 'session_expired' });
+      return res.status(200).json({
+        valid: false,
+        reason: 'session_replaced_or_expired',
+        message: 'تم فتح الأداة في نافذة أخرى أو انتهت الجلسة الحالية.'
+      });
     }
 
     const { user, reason } = await validateSubscribedUser(session.email);
@@ -791,21 +784,20 @@ app.post('/api/verify-tool-session', express.json(), async (req, res) => {
 
     const deviceExists = (Array.isArray(user.devices) ? user.devices : []).some((d) => d && d.device_id === deviceId);
     if (!deviceExists) {
-      return res.status(200).json({ valid: false, reason: 'device_revoked' });
+      return res.status(200).json({
+        valid: false,
+        reason: 'device_revoked',
+        message: 'تم تفعيل الحساب على نافذة أخرى، وتم إغلاق هذه الجلسة.'
+      });
     }
 
     await db.collection('tool_sessions').updateOne(
       { _id: session._id },
       { $set: { last_seen_at: now } }
     );
-    await db.collection('users').updateOne(
-      { _id: user._id, 'devices.device_id': deviceId },
-      { $set: { 'devices.$.last_seen_at': now } }
-    );
 
     return res.status(200).json({ valid: true, expiresAt: Number(session.expires_at) });
   } catch (err) {
-    console.error('Verify tool session error:', err);
     return res.status(500).json({ valid: false, reason: 'server_error' });
   }
 });
@@ -820,14 +812,10 @@ app.post('/api/revoke-tool-devices', csrfCheck, requireAuth, async (req, res) =>
     );
     return res.json({ success: true });
   } catch (err) {
-    console.error('Revoke tool devices error:', err);
     return res.status(500).json({ error: 'Failed to revoke tool devices' });
   }
 });
 
-// ==========================================
-// مسارات الحذف وتسجيل الخروج
-// ==========================================
 app.post('/api/logout', csrfCheck, (req, res) => {
   res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
   res.json({ success: true });
