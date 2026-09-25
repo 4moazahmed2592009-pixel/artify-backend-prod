@@ -28,7 +28,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // قبول الطلبات القادمة من Canvas أو النطاقات المعزولة أو لوحة التحكم دون إرجاع خطأ حظر
     if (
       !origin ||
       origin === 'null' ||
@@ -44,7 +43,6 @@ app.use(cors({
   credentials: true
 }));
 
-// معالجة طلبات الاستئذان المسبقة (OPTIONS Preflight) لجميع المسارات
 app.options('*', cors());
 
 app.use(cookieParser());
@@ -116,7 +114,7 @@ function requireAuth(req, res, next) {
 }
 
 // ==========================================
-// مسارات المصادقة والمستخدم
+// مسارات المصادقة
 // ==========================================
 app.post('/api/auth/google', csrfCheck, async (req, res) => {
   try {
@@ -188,7 +186,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// Webhook الدفع (Whop)
+// Webhook الدفع المؤمن (Whop)
 // ==========================================
 function verifyWhopSignature(req) {
   const webhookId = req.headers['webhook-id'];
@@ -230,6 +228,7 @@ app.post('/api/whop-webhook', async (req, res) => {
       await processedWebhooks.insertOne({ _id: webhookId, created_at: new Date() });
     } catch (dbErr) {
       if (dbErr.code === 11000) {
+        console.warn(`Webhook ${webhookId} already processed (Idempotency skip).`);
         return res.status(200).json({ success: true, note: 'Already processed' });
       }
       throw dbErr;
@@ -294,7 +293,7 @@ app.post('/api/whop-webhook', async (req, res) => {
 });
 
 // ==========================================
-// مسارات تفعيل العروض والأكواد
+// مسارات تفعيل الاشتراكات والعروض
 // ==========================================
 app.post('/api/claim-early-bird', csrfCheck, requireAuth, async (req, res) => {
   try {
@@ -440,11 +439,11 @@ app.get('/api/promo-stats', async (req, res) => {
 });
 
 // ==========================================================
-// نظام ربط الأجهزة برمز الـ 6 أرقام (Tool Pairing System)
+// نظام ربط الأداة المؤمّن ضد المشاركة وتعدد النوافذ
 // ==========================================================
-const TOOL_CODE_TTL_MS = 10 * 60 * 1000;              // مدة صلاحية الكود: 10 دقائق
-const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // صلاحية الجلسة: 30 يوماً
-const MAX_TOOL_DEVICES = 2;                           // أقصى عدد أجهزة مسموح بربطها
+const TOOL_CODE_TTL_MS = 10 * 60 * 1000;          // صلاحية الكود 10 دقائق
+const TOOL_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // صلاحية الجلسة 30 يوماً
+const MAX_TOOL_DEVICES = 1;                       // جلسة نشطة واحدة فقط لمنع مشاركة الحساب
 const TOOL_CODE_LENGTH = 6;
 const TOOL_CODE_MAX_ATTEMPTS_PER_WINDOW = 30;
 const TOOL_CODE_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
@@ -490,11 +489,13 @@ async function enforceToolCodeRateLimit(req) {
   return true;
 }
 
-async function createToolLinkCode(email) {
+async function createToolLinkCode(email, req) {
   const db = await getDb();
   const now = Date.now();
   const normalizedEmail = String(email || '').trim().toLowerCase();
+  const clientIpHash = req ? hashAccessSecret(getClientAddress(req)) : null;
 
+  // مسح أي أكواد سابقة غير مستخدمة فوراً (يمنع فتح نافذتين وأخذ كودين معاً)
   await db.collection('tool_link_codes').deleteMany({
     email: normalizedEmail,
     used_at: null,
@@ -517,6 +518,7 @@ async function createToolLinkCode(email) {
   await db.collection('tool_link_codes').insertOne({
     email: normalizedEmail,
     code_hash: codeHash,
+    bound_ip_hash: clientIpHash, // قفل الكود على شبكة صاحب الحساب الأصلي
     created_at: now,
     expires_at: expiresAt,
     used_at: null,
@@ -609,7 +611,7 @@ app.get('/api/launch-app', async (req, res) => {
       code = decryptLaunchCode(ticketDoc.code_encrypted);
       expiresAt = Number(ticketDoc.expires_at);
     } else {
-      const created = await createToolLinkCode(email);
+      const created = await createToolLinkCode(email, req);
       code = created.code;
       expiresAt = created.expiresAt;
     }
@@ -633,10 +635,10 @@ h1{margin:0 0 12px;font-size:28px}.muted{color:#9ca3af;line-height:1.8}.code{fon
 <body>
 <main class="card">
 <h1>رمز ربط Artify PRO</h1>
-<p class="muted">افتح الأداة ثم أدخل الرمز الظاهر بالأسفل. الرمز صالح لمدة ${minutes} دقائق ويُستخدم مرة واحدة.</p>
+<p class="muted">افتح الأداة ثم أدخل الرمز الظاهر بالأسفل. الرمز صالح لمدة ${minutes} دقائق ويُستخدم مرة واحدة على نفس جهازك.</p>
 <div class="code">${code}</div>
 <a class="btn" href="${safeToolUrl}">فتح Artify PRO</a>
-<p class="small">لا تشارك هذا الرمز مع أي شخص. إذا انتهت صلاحيته، ارجع للموقع الرئيسي وأنشئ رمزاً جديداً.</p>
+<p class="small">لا تشارك هذا الرمز مع أي شخص. الرمز مقفل على شبكتك وجهازك فقط.</p>
 </main>
 </body>
 </html>`);
@@ -651,7 +653,7 @@ app.get('/api/get-tool-url', requireAuth, async (req, res) => {
     const { user } = await validateSubscribedUser(req.userEmail);
     if (!user) return res.status(403).json({ error: 'Subscription required' });
 
-    const { code, expiresAt } = await createToolLinkCode(req.userEmail);
+    const { code, expiresAt } = await createToolLinkCode(req.userEmail, req);
     const ticket = await createToolLaunchTicket(req.userEmail, code, expiresAt);
     return res.json({
       url: `${SITE_URL}/api/launch-app?ticket=${encodeURIComponent(ticket)}`,
@@ -691,6 +693,16 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       return res.status(200).json({ valid: false, reason: 'invalid_or_expired_code', message: 'رمز الربط غير صالح أو منتهي أو تم استخدامه بالفعل.' });
     }
 
+    // التحقق من أن الرمز يُستخدم من نفس شبكة الجهاز الذي طلبه (يمنع إرسال الرمز لصديق)
+    const currentIpHash = hashAccessSecret(getClientAddress(req));
+    if (link.bound_ip_hash && link.bound_ip_hash !== currentIpHash) {
+      return res.status(200).json({
+        valid: false,
+        reason: 'ip_mismatch',
+        message: 'هذا الرمز تم إصداره لجهاز آخر ولا يمكن مشاركته أو تفعيله من شبكة مختلفة.'
+      });
+    }
+
     const { user, reason } = await validateSubscribedUser(link.email);
     if (!user) {
       return res.status(200).json({ valid: false, reason, message: 'لا يوجد اشتراك نشط لهذا الحساب.' });
@@ -699,9 +711,7 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
     const currentDevices = Array.isArray(user.devices) ? user.devices : [];
     const existingDevice = currentDevices.some((d) => d && d.device_id === deviceId);
 
-    if (!existingDevice && currentDevices.length >= MAX_TOOL_DEVICES) {
-      currentDevices.shift(); // حذف أقدم جهاز تلقائياً للسماح بالدخول الجديد
-    }
+    // حرق الكود ذرياً ليعمل مرة واحدة فقط
     const consumed = await db.collection('tool_link_codes').findOneAndUpdate(
       { _id: link._id, used_at: null, expires_at: { $gt: now } },
       { $set: { used_at: now, used_device_id: deviceId } },
@@ -712,6 +722,11 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       return res.status(200).json({ valid: false, reason: 'code_already_used', message: 'تم استخدام رمز الربط بالفعل. اطلب رمزاً جديداً.' });
     }
 
+    // حذف أقدم جهاز تلقائياً للسماح بالدخول الجديد دون إظهار خطأ الحد الأقصى
+    while (!existingDevice && currentDevices.length >= MAX_TOOL_DEVICES) {
+      currentDevices.shift();
+    }
+
     const updatedDevices = existingDevice
       ? currentDevices.map((d) => d && d.device_id === deviceId ? { ...d, last_seen_at: now } : d)
       : [...currentDevices, { device_id: deviceId, created_at: now, last_seen_at: now }];
@@ -720,6 +735,9 @@ app.post('/api/redeem-tool-code', express.json(), async (req, res) => {
       { _id: user._id },
       { $set: { devices: updatedDevices } }
     );
+
+    // إبطال أي جلسات سابقة مفتوحة على أجهزة أخرى لنفس الحساب فوراً
+    await db.collection('tool_sessions').deleteMany({ email: link.email });
 
     const sessionToken = crypto.randomBytes(32).toString('hex');
     const sessionExpiresAt = Math.min(Number(user.expires_at), now + TOOL_SESSION_TTL_MS);
@@ -808,7 +826,7 @@ app.post('/api/revoke-tool-devices', csrfCheck, requireAuth, async (req, res) =>
 });
 
 // ==========================================
-// مسارات الحساب وتسجيل الخروج
+// مسارات الحذف وتسجيل الخروج
 // ==========================================
 app.post('/api/logout', csrfCheck, (req, res) => {
   res.clearCookie('token', { sameSite: isProd ? 'none' : 'lax', secure: isProd });
